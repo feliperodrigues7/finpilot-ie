@@ -9,14 +9,24 @@
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
     .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
     .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    input { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
+    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
     button { padding: 8px 12px; border: 0; border-radius: 6px; cursor: pointer; background:#111; color:#fff; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border-bottom: 1px solid #eee; text-align: left; padding: 8px; font-size: 14px; }
+    th, td { border-bottom: 1px solid #eee; text-align: left; padding: 8px; font-size: 14px; vertical-align: top; }
     th { background: #fafafa; }
     .muted{ color:#666; font-size:12px; }
     #status{ margin: 8px 0 16px; color:#444; }
     .hidden{ display:none; }
+    .actions button { margin-right: 6px; }
+    .toolbar button { background:#1976d2; }
+    .toolbar .danger { background:#9e1c1c; }
+    .modal-backdrop{ position:fixed; inset:0; background:#0007; display:none; align-items:center; justify-content:center; }
+    .modal{ background:#fff; padding:16px; border-radius:8px; width: min(720px, 92vw); max-height: 80vh; overflow:auto; }
+    .pill{ padding: 2px 8px; border-radius: 999px; font-size: 12px; color:#fff; display:inline-block; }
+    .pill.new{ background:#6c757d; }
+    .pill.in_progress{ background:#1976d2; }
+    .pill.closed{ background:#2e7d32; }
+    .nowrap{ white-space: nowrap; }
   </style>
 </head>
 <body>
@@ -34,11 +44,12 @@
   </div>
 
   <div id="app-card" class="card hidden">
-    <div class="row" style="justify-content: space-between;">
+    <div class="row toolbar" style="justify-content: space-between;">
       <div><strong>Logado como:</strong> <span id="whoami">—</span></div>
       <div class="row">
-        <button id="btn-refresh" style="background:#1976d2;">Atualizar</button>
-        <button id="btn-logout" style="background:#9e1c1c;">Sair</button>
+        <button id="btn-export">Exportar CSV</button>
+        <button id="btn-refresh">Atualizar</button>
+        <button id="btn-logout" class="danger">Sair</button>
       </div>
     </div>
 
@@ -47,6 +58,13 @@
       <input id="limit" type="number" value="50" min="1" max="500" style="width:90px" />
       <label>Offset:</label>
       <input id="offset" type="number" value="0" min="0" style="width:90px" />
+      <label>Status:</label>
+      <select id="fstatus">
+        <option value="">Todos</option>
+        <option value="new">Novo</option>
+        <option value="in_progress">Em andamento</option>
+        <option value="closed">Concluído</option>
+      </select>
       <label>Buscar por nome:</label>
       <input id="qname" type="text" placeholder="Parte do nome" />
     </div>
@@ -54,11 +72,13 @@
     <table id="tbl">
       <thead>
         <tr>
-          <th>created_at</th>
+          <th class="nowrap">created_at</th>
           <th>name</th>
           <th>email</th>
           <th>locale</th>
           <th>source</th>
+          <th>status</th>
+          <th class="nowrap">ações</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
@@ -66,13 +86,6 @@
     <div class="muted">Ordenado por created_at desc. Busca simples em profile-&gt;&gt;name.</div>
   </div>
 
-  <!-- ENVs DO SUPABASE (substitua pelos reais) -->
-  <script>
-    window.VITE_SUPABASE_URL = 'https://sfffjmtklryxjwmvsqfa.supabase.co';
-    window.VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZmZqbXRrbHJ5eGp3bXZzcWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MDMzNDcsImV4cCI6MjA3NTM3OTM0N30.IP4DVQqeN37xJ4QyGBUQJDT7xSxpTfpcDzbG7ZDbAnI';
-  </script>
-
-  <!-- Supabase JS -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script type="module" src="./admin.js"></script>
 </body>
