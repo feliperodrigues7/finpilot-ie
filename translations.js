@@ -12,7 +12,6 @@ export const translations = {
     status_sending: 'Enviando...',
     status_error: 'Erro:',
     status_unexpected: 'Falha inesperada:',
-    // Novas chaves
     val_honeypot: 'Envio bloqueado.',
     val_ratelimit: 'Muitas tentativas. Tente novamente mais tarde.',
     val_too_fast: 'Aguarde 1 segundo antes de enviar.'
@@ -30,7 +29,6 @@ export const translations = {
     status_sending: 'Sending...',
     status_error: 'Error:',
     status_unexpected: 'Unexpected failure:',
-    // New keys
     val_honeypot: 'Submission blocked.',
     val_ratelimit: 'Too many attempts. Please try again later.',
     val_too_fast: 'Please wait 1 second before submitting.'
