@@ -1,12 +1,10 @@
 // FinPilot IE - front com anti-bot, hardening e enriquecimento automático
 import { translations } from './translations.js';
-
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
+import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
 
 // Debug/health
-console.log('DBG VITE_SUPABASE_URL:', SUPABASE_URL);
-console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.length : 0);
+console.log('DBG SUPABASE_URL:', SUPABASE_URL);
+console.log('DBG SUPABASE_ANON length:', SUPABASE_ANON ? SUPABASE_ANON.length : 0);
 (function showHealth() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;left:12px;bottom:12px;padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6;font:12px system-ui;z-index:9999;';
@@ -69,12 +67,11 @@ function validateName(value) { return (!value || value.trim().length < 2) ? t('v
 function validateEmail(value) { if (!value) return ''; const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; return re.test(value) ? '' : t('val_email_invalid'); }
 function validateConsent(checked) { return checked ? '' : t('val_consent_required'); }
 
-// Eventos de validação
 document.getElementById('name')?.addEventListener('input', (e) => { errName.textContent = validateName(e.target.value); });
 document.getElementById('email')?.addEventListener('input', (e) => { errEmail.textContent = validateEmail(e.target.value); });
 document.getElementById('consent')?.addEventListener('change', (e) => { errConsent.textContent = validateConsent(e.target.checked); });
 
-// Anti-bot e hardening
+// Anti-bot/hardening
 const HP_ID = 'hp';
 const SUBMIT_HISTORY_KEY = 'finpilot_submit_hist';
 const MAX_SUBMITS = 3;
@@ -98,7 +95,7 @@ let firstInteractionAt = null;
   window.addEventListener(evt, () => { if (!firstInteractionAt) firstInteractionAt = Date.now(); }, { once: true, passive: true });
 });
 
-// Helper REST sem return=representation
+// Helper REST
 async function insertIntakeNoReturn(payload) {
   const url = `${SUPABASE_URL}/rest/v1/intakes_pf_ie`;
   const res = await fetch(url, {
@@ -110,13 +107,9 @@ async function insertIntakeNoReturn(payload) {
     },
     body: JSON.stringify(payload)
   });
-  if (res.status === 201 || res.status === 204) {
-    return { ok: true, status: res.status };
-  } else {
-    let msg;
-    try { msg = await res.json(); } catch { msg = await res.text(); }
-    return { ok: false, status: res.status, message: msg };
-  }
+  if (res.status === 201 || res.status === 204) return { ok: true, status: res.status };
+  let msg; try { msg = await res.json(); } catch { msg = await res.text(); }
+  return { ok: false, status: res.status, message: msg };
 }
 
 // Submit
@@ -128,45 +121,19 @@ formEl?.addEventListener('submit', async (e) => {
   const consent = document.getElementById('consent').checked;
   const hpVal = document.getElementById(HP_ID)?.value || '';
 
-  // Honeypot
-  if (hpVal) {
-    statusEl.style.color = '#c62828';
-    statusEl.textContent = t('val_honeypot') || 'Submission blocked.';
-    console.warn('Honeypot triggered');
-    return;
-  }
+  if (hpVal) { statusEl.style.color = '#c62828'; statusEl.textContent = t('val_honeypot') || 'Submission blocked.'; return; }
+  if (!canSubmitNow()) { statusEl.style.color = '#c62828'; statusEl.textContent = t('val_ratelimit') || 'Too many submissions. Try later.'; return; }
 
-  // Rate limit
-  if (!canSubmitNow()) {
-    statusEl.style.color = '#c62828';
-    statusEl.textContent = t('val_ratelimit') || 'Too many submissions. Try later.';
-    return;
-  }
-
-  // Delay mínimo
   const since = firstInteractionAt ? (Date.now() - firstInteractionAt) : 0;
-  if (since < MIN_DELAY_MS) {
-    statusEl.style.color = '#c62828';
-    statusEl.textContent = t('val_too_fast') || 'Please wait a second before submitting.';
-    return;
-  }
+  if (since < MIN_DELAY_MS) { statusEl.style.color = '#c62828'; statusEl.textContent = t('val_too_fast') || 'Please wait a second before submitting.'; return; }
 
   const nameErr = validateName(name);
   const emailErr = validateEmail(email);
   const consentErr = validateConsent(consent);
-  errName.textContent = nameErr;
-  errEmail.textContent = emailErr;
-  errConsent.textContent = consentErr;
+  errName.textContent = nameErr; errEmail.textContent = emailErr; errConsent.textContent = consentErr;
+  if (nameErr || emailErr || consentErr) { statusEl.style.color = '#c62828'; statusEl.textContent = t('val_fix_errors'); return; }
 
-  if (nameErr || emailErr || consentErr) {
-    statusEl.style.color = '#c62828';
-    statusEl.textContent = t('val_fix_errors');
-    return;
-  }
-
-  statusEl.style.color = '#111';
-  statusEl.textContent = t('status_sending');
-  submitBtn.disabled = true;
+  statusEl.style.color = '#111'; statusEl.textContent = t('status_sending'); submitBtn.disabled = true;
 
   const payload = {
     profile: { name, ...(email ? { email } : {}) },
@@ -180,10 +147,8 @@ formEl?.addEventListener('submit', async (e) => {
 
   try {
     const r = await insertIntakeNoReturn(payload);
-    if (r.ok) {
-      addSubmitHistory();
-      window.location.href = `/finpilot-ie/success.html?lang=${currentLang}`;
-    } else {
+    if (r.ok) { addSubmitHistory(); window.location.href = `/finpilot-ie/success.html?lang=${currentLang}`; }
+    else {
       console.error('REST insert failed:', r.status, r.message);
       statusEl.style.color = '#c62828';
       const msg = typeof r.message === 'string' ? r.message : JSON.stringify(r.message);
@@ -192,15 +157,14 @@ formEl?.addEventListener('submit', async (e) => {
     }
   } catch (err) {
     console.error('Unexpected:', err);
-    statusEl.style.color = '#c62828';
-    statusEl.textContent = `${t('status_unexpected')} ${err?.message || ''}`;
+    statusEl.style.color = '#c62828'; statusEl.textContent = `${t('status_unexpected')} ${err?.message || ''}`;
     alert(`Falha: ${err?.message || ''}`);
   } finally {
     submitBtn.disabled = false;
   }
 });
 
-// Botão de self-test
+// Self-test
 (function mountSelfTest() {
   const btn = document.createElement('button');
   btn.textContent = 'Self-test Supabase (insert)';
@@ -209,24 +173,12 @@ formEl?.addEventListener('submit', async (e) => {
     try {
       const r = await insertIntakeNoReturn({
         profile: { name: 'SelfTest' },
-        work: null,
-        housing: null,
-        debts: null,
-        locale: getLocale(),
-        source: getSource(),
-        ua: navigator.userAgent || null
+        work: null, housing: null, debts: null,
+        locale: getLocale(), source: getSource(), ua: navigator.userAgent || null
       });
-      if (r.ok) {
-        alert('OK! Inserido (sem retorno do corpo). Status: ' + r.status);
-        console.log('SelfTest insert OK:', r.status);
-      } else {
-        alert('Erro: ' + r.status + ' ' + JSON.stringify(r.message || ''));
-        console.error('SelfTest error:', r.status, r.message);
-      }
-    } catch (e) {
-      alert('Falha: ' + e.message);
-      console.error(e);
-    }
+      if (r.ok) { alert('OK! Inserido. Status: ' + r.status); console.log('SelfTest insert OK:', r.status); }
+      else { alert('Erro: ' + r.status + ' ' + JSON.stringify(r.message || '')); console.error('SelfTest error:', r.status, r.message); }
+    } catch (e) { alert('Falha: ' + e.message); console.error(e); }
   };
   document.body.appendChild(btn);
 })();
