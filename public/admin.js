@@ -121,7 +121,6 @@ async function loadIntakes(){
   setStatus(`Exibindo ${rows.length} registros (limit ${limit}, offset ${offset}).`);
 }
 
-// util
 function escapeHtml(s){ return String(s ?? '').replace(/[&<>'\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;' }[c])); }
 
 sessionCheck();
