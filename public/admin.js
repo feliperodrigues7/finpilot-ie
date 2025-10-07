@@ -1,6 +1,7 @@
 // Admin portal: login + listagem + status + notas + CSV
 import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
 
+
 const statusEl = document.getElementById('status');
 const loginCard = document.getElementById('login-card');
 const appCard = document.getElementById('app-card');
