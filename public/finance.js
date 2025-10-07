@@ -5,7 +5,6 @@ const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
 });
 
 const statusEl = document.getElementById('status');
-
 function setStatus(msg, color='#444'){ statusEl.textContent = msg; statusEl.style.color = color; }
 
 // Tabs
@@ -56,20 +55,22 @@ async function loadAccounts(){
   if (error) { console.error(error); setStatus('Erro ao carregar contas', '#b00020'); return; }
   accounts = data || [];
   const tbody = document.getElementById('tb-accounts');
-  tbody.innerHTML = accounts.map(a => `
-    <tr data-id="${a.id}">
-      <td>${a.name}</td>
-      <td>${a.type}</td>
-      <td>${a.currency}</td>
-      <td>€ ${fmt(a.opening_balance)}</td>
-      <td>${new Date(a.created_at).toLocaleString()}</td>
-      <td><button class="btn-del-acc" data-id="${a.id}" style="background:#9e1c1c;">Excluir</button></td>
-    </tr>
+  tbody.innerHTML = (accounts || []).map(a => {
+    return `
+      <tr data-id="${a.id}">
+        <td>${a.name}</td>
+        <td>${a.type}</td>
+        <td>${a.currency}</td>
+        <td>€ ${fmt(a.opening_balance)}</td>
+        <td>${new Date(a.created_at).toLocaleString()}</td>
+        <td><button class="btn-del-acc" data-id="${a.id}" style="background:#9e1c1c;">Excluir</button></td>
+      </tr>
+    `;
   }).join('');
 
   // fill account select for transactions
   const sel = document.getElementById('tx-account');
-  sel.innerHTML = accounts.map(a => `<option value="${a.id}">${a.name}</option>`).join('');
+  sel.innerHTML = (accounts || []).map(a => `<option value="${a.id}">${a.name}</option>`).join('');
 }
 
 async function loadCategories(){
@@ -77,7 +78,7 @@ async function loadCategories(){
   if (error) { console.error(error); setStatus('Erro ao carregar categorias', '#b00020'); return; }
   categories = data || [];
   const sel = document.getElementById('tx-category');
-  sel.innerHTML = categories.map(c => `<option value="${c.id}">${c.name} (${c.type})</option>`).join('');
+  sel.innerHTML = (categories || []).map(c => `<option value="${c.id}">${c.name} (${c.type})</option>`).join('');
 }
 
 async function loadTransactions(){
@@ -96,16 +97,18 @@ async function loadTransactions(){
   const mapCat = Object.fromEntries(categories.map(c=>[c.id, `${c.name}`]));
 
   const tbody = document.getElementById('tb-transactions');
-  tbody.innerHTML = rows.map(r => `
-    <tr data-id="${r.id}">
-      <td>${r.date}</td>
-      <td>${mapAcc[r.account_id] || r.account_id}</td>
-      <td>${mapCat[r.category_id] || '-'}</td>
-      <td>${r.amount >= 0 ? '+' : '-'} € ${fmt(Math.abs(r.amount))}</td>
-      <td>${r.memo || ''}</td>
-      <td><button class="btn-del-tx" data-id="${r.id}" style="background:#9e1c1c;">Excluir</button></td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = (rows || []).map(r => {
+    return `
+      <tr data-id="${r.id}">
+        <td>${r.date}</td>
+        <td>${mapAcc[r.account_id] || r.account_id}</td>
+        <td>${mapCat[r.category_id] || '-'}</td>
+        <td>${r.amount >= 0 ? '+' : '-'} € ${fmt(Math.abs(r.amount))}</td>
+        <td>${r.memo || ''}</td>
+        <td><button class="btn-del-tx" data-id="${r.id}" style="background:#9e1c1c;">Excluir</button></td>
+      </tr>
+    `;
+  }).join('');
 
   // Export
   document.getElementById('btn-export-tx').onclick = () => {
@@ -132,29 +135,29 @@ async function loadTransactions(){
 }
 
 async function loadDebts(){
-  // usar view v_debt_balances para saldo atual
   const { data, error } = await supa.from('v_debt_balances').select('*');
   if (error) { console.error(error); setStatus('Erro ao listar dívidas', '#b00020'); return; }
   const rows = data || [];
   const tbody = document.getElementById('tb-debts');
-  tbody.innerHTML = rows.map(d => `
-    <tr data-id="${d.debt_id}">
-      <td>${d.creditor}</td>
-      <td>€ ${fmt(d.principal)}</td>
-      <td>€ ${fmt(d.current_balance)}</td>
-      <td>${d.apr_percent ?? ''}</td>
-      <td>${d.monthly_interest_percent ?? ''}</td>
-      <td>€ ${fmt(d.min_payment ?? 0)}</td>
-      <td>${d.due_day ?? '-'}</td>
-      <td>${d.status}</td>
-      <td>
-        <button class="btn-close-debt" data-id="${d.debt_id}" style="background:#555;">Fechar</button>
-        <button class="btn-del-debt" data-id="${d.debt_id}" style="background:#9e1c1c;">Excluir</button>
-      </td>
-    </tr>
-  `).join('');
+  tbody.innerHTML = (rows || []).map(d => {
+    return `
+      <tr data-id="${d.debt_id}">
+        <td>${d.creditor}</td>
+        <td>€ ${fmt(d.principal)}</td>
+        <td>€ ${fmt(d.current_balance)}</td>
+        <td>${d.apr_percent ?? ''}</td>
+        <td>${d.monthly_interest_percent ?? ''}</td>
+        <td>€ ${fmt(d.min_payment ?? 0)}</td>
+        <td>${d.due_day ?? '-'}</td>
+        <td>${d.status}</td>
+        <td>
+          <button class="btn-close-debt" data-id="${d.debt_id}" style="background:#555;">Fechar</button>
+          <button class="btn-del-debt" data-id="${d.debt_id}" style="background:#9e1c1c;">Excluir</button>
+        </td>
+      </tr>
+    `;
+  }).join('');
 
-  // wire actions
   document.querySelectorAll('.btn-close-debt').forEach(btn=>{
     btn.onclick = async ()=> {
       const { error } = await supa.from('debts').update({ status: 'closed' }).eq('id', btn.dataset.id);
