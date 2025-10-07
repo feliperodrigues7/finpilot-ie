@@ -1,5 +1,4 @@
-// FinPilot IE - front minimal com fetch explícito para Supabase REST
-// Versão sem return=representation (dispensa policy SELECT para anon)
+// FinPilot IE - front com anti-bot e hardening
 import { translations } from './translations.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -15,7 +14,7 @@ console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.
   document.body.appendChild(el);
 })();
 
-// Helpers i18n
+// i18n
 const LS_KEY = 'finpilot_lang';
 let currentLang = localStorage.getItem(LS_KEY) || 'PT';
 const formEl = document.getElementById('intake-form');
@@ -24,11 +23,11 @@ const submitBtn = document.getElementById('submit-btn');
 const btnPT = document.getElementById('btn-pt');
 const btnEN = document.getElementById('btn-en');
 
-function t(key) { return translations[currentLang][key] || key; }
+function t(key) { return (translations[currentLang] && translations[currentLang][key]) || key; }
 function applyI18n() {
   btnPT?.classList.toggle('active', currentLang === 'PT');
   btnEN?.classList.toggle('active', currentLang === 'EN');
-  const dict = translations[currentLang];
+  const dict = translations[currentLang] || {};
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
     if (dict[key]) el.textContent = dict[key];
@@ -52,11 +51,36 @@ function validateName(value) { return (!value || value.trim().length < 2) ? t('v
 function validateEmail(value) { if (!value) return ''; const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; return re.test(value) ? '' : t('val_email_invalid'); }
 function validateConsent(checked) { return checked ? '' : t('val_consent_required'); }
 
+// Eventos de validação
 document.getElementById('name')?.addEventListener('input', (e) => { errName.textContent = validateName(e.target.value); });
 document.getElementById('email')?.addEventListener('input', (e) => { errEmail.textContent = validateEmail(e.target.value); });
 document.getElementById('consent')?.addEventListener('change', (e) => { errConsent.textContent = validateConsent(e.target.checked); });
 
-// Função REST helper para inserir SEM return=representation
+// Anti-bot e hardening
+const HP_ID = 'hp';
+const SUBMIT_HISTORY_KEY = 'finpilot_submit_hist'; // array de timestamps
+const MAX_SUBMITS = 3;
+const WINDOW_MINUTES = 5;
+const MIN_DELAY_MS = 1000;
+
+function getSubmitHistory() {
+  try { return JSON.parse(sessionStorage.getItem(SUBMIT_HISTORY_KEY) || '[]'); } catch { return []; }
+}
+function addSubmitHistory() {
+  const h = getSubmitHistory().filter(ts => Date.now() - ts < WINDOW_MINUTES * 60 * 1000);
+  h.push(Date.now());
+  sessionStorage.setItem(SUBMIT_HISTORY_KEY, JSON.stringify(h));
+}
+function canSubmitNow() {
+  const h = getSubmitHistory().filter(ts => Date.now() - ts < WINDOW_MINUTES * 60 * 1000);
+  return h.length < MAX_SUBMITS;
+}
+let firstInteractionAt = null;
+['input','change','focus'].forEach(evt => {
+  window.addEventListener(evt, () => { if (!firstInteractionAt) firstInteractionAt = Date.now(); }, { once: true, passive: true });
+});
+
+// Helper REST sem return=representation
 async function insertIntakeNoReturn(payload) {
   const url = `${SUPABASE_URL}/rest/v1/intakes_pf_ie`;
   const res = await fetch(url, {
@@ -65,11 +89,9 @@ async function insertIntakeNoReturn(payload) {
       apikey: SUPABASE_ANON,
       Authorization: `Bearer ${SUPABASE_ANON}`,
       'Content-Type': 'application/json'
-      // Sem 'Prefer: return=representation'
     },
     body: JSON.stringify(payload)
   });
-  // Considera sucesso 201/204
   if (res.status === 201 || res.status === 204) {
     return { ok: true, status: res.status };
   } else {
@@ -79,13 +101,37 @@ async function insertIntakeNoReturn(payload) {
   }
 }
 
-// Submit do formulário
+// Submit
 formEl?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
   const name = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
   const consent = document.getElementById('consent').checked;
+  const hpVal = document.getElementById(HP_ID)?.value || '';
+
+  // Honeypot
+  if (hpVal) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = t('val_honeypot') || 'Submission blocked.';
+    console.warn('Honeypot triggered');
+    return;
+  }
+
+  // Rate limit
+  if (!canSubmitNow()) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = t('val_ratelimit') || 'Too many submissions. Try later.';
+    return;
+  }
+
+  // Delay mínimo
+  const since = firstInteractionAt ? (Date.now() - firstInteractionAt) : 0;
+  if (since < MIN_DELAY_MS) {
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = t('val_too_fast') || 'Please wait a second before submitting.';
+    return;
+  }
 
   const nameErr = validateName(name);
   const emailErr = validateEmail(email);
@@ -114,6 +160,7 @@ formEl?.addEventListener('submit', async (e) => {
   try {
     const r = await insertIntakeNoReturn(payload);
     if (r.ok) {
+      addSubmitHistory();
       window.location.href = `/finpilot-ie/success.html?lang=${currentLang}`;
     } else {
       console.error('REST insert failed:', r.status, r.message);
@@ -132,7 +179,7 @@ formEl?.addEventListener('submit', async (e) => {
   }
 });
 
-// Botão de self-test (usa o mesmo helper sem return)
+// Botão de self-test
 (function mountSelfTest() {
   const btn = document.createElement('button');
   btn.textContent = 'Self-test Supabase (insert)';
