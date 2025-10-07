@@ -1,15 +1,15 @@
 import { createClient } from '@supabase/supabase-js';
 import { translations } from './translations.js';
 
-// 1) Ler variáveis de ambiente
+// 1) Ler envs do build Vite
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// 2) Logs de debug no console (para verificarmos se o build recebeu as variáveis)
+// Debug
 console.log('DBG VITE_SUPABASE_URL:', SUPABASE_URL);
 console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.length : 0);
 
-// 3) Health check visual (selo no canto inferior esquerdo)
+// Health badge
 (function showHealth() {
   const el = document.createElement('div');
   el.style.cssText = 'position:fixed;left:12px;bottom:12px;padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6;font:12px system-ui;z-index:9999;';
@@ -17,21 +17,21 @@ console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.
   document.body.appendChild(el);
 })();
 
-// 4) Inicializar Supabase
+// 2) Inicializar Supabase com a anon key
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
 
-// 5) Estado de idioma
+// 3) Estado de idioma
 const LS_KEY = 'finpilot_lang';
 let currentLang = localStorage.getItem(LS_KEY) || 'PT';
 
-// 6) Elementos da UI
+// 4) Elementos
 const formEl = document.getElementById('intake-form');
 const statusEl = document.getElementById('status');
 const submitBtn = document.getElementById('submit-btn');
 const btnPT = document.getElementById('btn-pt');
 const btnEN = document.getElementById('btn-en');
 
-// 7) I18n
+// 5) i18n
 function applyI18n() {
   btnPT?.classList.toggle('active', currentLang === 'PT');
   btnEN?.classList.toggle('active', currentLang === 'EN');
@@ -53,11 +53,10 @@ btnPT?.addEventListener('click', () => { currentLang = 'PT'; localStorage.setIte
 btnEN?.addEventListener('click', () => { currentLang = 'EN'; localStorage.setItem(LS_KEY, currentLang); applyI18n(); });
 applyI18n();
 
-// 8) Validação
+// 6) Validação
 const errName = document.getElementById('err-name');
 const errEmail = document.getElementById('err-email');
 const errConsent = document.getElementById('err-consent');
-
 function t(key) { return translations[currentLang][key] || key; }
 function validateName(value) { return (!value || value.trim().length < 2) ? t('val_name_short') : ''; }
 function validateEmail(value) {
@@ -66,12 +65,11 @@ function validateEmail(value) {
   return re.test(value) ? '' : t('val_email_invalid');
 }
 function validateConsent(checked) { return checked ? '' : t('val_consent_required'); }
-
 document.getElementById('name')?.addEventListener('input', (e) => { errName.textContent = validateName(e.target.value); });
 document.getElementById('email')?.addEventListener('input', (e) => { errEmail.textContent = validateEmail(e.target.value); });
 document.getElementById('consent')?.addEventListener('change', (e) => { errConsent.textContent = validateConsent(e.target.checked); });
 
-// 9) Submit do formulário
+// 7) Submit: alinhar payload às colunas existentes (profile, work, housing, debts)
 formEl?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -82,11 +80,9 @@ formEl?.addEventListener('submit', async (e) => {
   const nameErr = validateName(name);
   const emailErr = validateEmail(email);
   const consentErr = validateConsent(consent);
-
   errName.textContent = nameErr;
   errEmail.textContent = emailErr;
   errConsent.textContent = consentErr;
-
   if (nameErr || emailErr || consentErr) {
     statusEl.style.color = '#c62828';
     statusEl.textContent = t('val_fix_errors');
@@ -97,12 +93,12 @@ formEl?.addEventListener('submit', async (e) => {
   statusEl.textContent = t('status_sending');
   submitBtn.disabled = true;
 
+  // Apenas colunas existentes
   const payload = {
-    profile: { name },
-    consent: { terms: consent },
-    client_email: email || null,
-    locale: currentLang,
-    source: 'pilot'
+    profile: { name, ...(email ? { email } : {}) },
+    work: null,
+    housing: null,
+    debts: null
   };
 
   try {
@@ -123,7 +119,7 @@ formEl?.addEventListener('submit', async (e) => {
   }
 });
 
-// 10) Botão de auto-teste (insert) — ajuda a validar sem preencher o formulário
+// 8) Botão de auto-teste
 (function mountSelfTest() {
   const btn = document.createElement('button');
   btn.textContent = 'Self-test Supabase (insert)';
@@ -132,7 +128,7 @@ formEl?.addEventListener('submit', async (e) => {
     try {
       const { data, error } = await supabase
         .from('intakes_pf_ie')
-        .insert({ profile: { name: 'SelfTest' }, consent: { terms: true }, locale: 'PT', source: 'pilot' })
+        .insert({ profile: { name: 'SelfTest' }, work: null, housing: null, debts: null })
         .select();
       if (error) {
         alert('Erro: ' + (error.message || JSON.stringify(error)));
