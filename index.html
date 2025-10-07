@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>FinPilot IE</title>
+  </head>
+  <body>
+    <main style="max-width:720px;margin:40px auto;font-family:system-ui;">
+      <h1>FinPilot IE</h1>
+      <p>Piloto de coleta de dados financeiros (IE).</p>
+
+      <form id="intake-form">
+        <fieldset style="margin:16px 0;">
+          <legend>Dados básicos</legend>
+          <label>Nome<br/>
+            <input type="text" id="name" placeholder="Seu nome" required />
+          </label><br/><br/>
+          <label>E-mail (opcional)<br/>
+            <input type="email" id="email" placeholder="voce@exemplo.com" />
+          </label>
+        </fieldset>
+
+        <fieldset style="margin:16px 0;">
+          <legend>Consentimento</legend>
+          <label>
+            <input type="checkbox" id="consent" required />
+            Autorizo o uso dos dados para elaboração do plano financeiro piloto.
+          </label>
+        </fieldset>
+
+        <button type="submit" id="submit-btn">Enviar</button>
+        <div id="status" style="margin-top:12px;"></div>
+      </form>
+    </main>
+
+    <script type="module" src="/main.js"></script>
+  </body>
+</html>
