@@ -4,35 +4,82 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>FinPilot IE</title>
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
+      header { border-bottom: 1px solid #eee; }
+      .container { max-width: 720px; margin: 0 auto; padding: 20px; }
+      .lang-switch { display: flex; gap: 8px; align-items: center; }
+      .lang-switch button { padding: 6px 10px; border: 1px solid #ccc; background: #fff; cursor: pointer; border-radius: 6px; }
+      .lang-switch button.active { background: #111; color: #fff; border-color: #111; }
+      form { margin-top: 16px; }
+      fieldset { margin: 16px 0; border: 1px solid #eee; border-radius: 8px; padding: 12px; }
+      legend { padding: 0 6px; font-weight: 600; }
+      label { display: block; font-size: 14px; margin-bottom: 6px; }
+      input[type="text"], input[type="email"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 6px; }
+      .error { color: #b00020; font-size: 12px; margin-top: 4px; min-height: 16px; }
+      button[type="submit"] { padding: 10px 14px; background: #0a7cff; color: #fff; border: none; border-radius: 8px; cursor: pointer; }
+      button[disabled] { opacity: 0.6; cursor: not-allowed; }
+      #status { margin-top: 12px; }
+      footer { border-top: 1px solid #eee; margin-top: 24px; }
+      a { color: #0a7cff; text-decoration: none; }
+      a:hover { text-decoration: underline; }
+    </style>
   </head>
   <body>
-    <main style="max-width:720px;margin:40px auto;font-family:system-ui;">
-      <h1>FinPilot IE</h1>
-      <p>Piloto de coleta de dados financeiros (IE).</p>
+    <header>
+      <div class="container" style="display:flex; align-items:center; justify-content:space-between;">
+        <h1 id="app-title">FinPilot IE</h1>
+        <div class="lang-switch">
+          <span id="lang-label" data-i18n="lang">Idioma</span>
+          <button id="btn-pt" type="button">PT</button>
+          <button id="btn-en" type="button">EN</button>
+        </div>
+      </div>
+    </header>
 
-      <form id="intake-form">
-        <fieldset style="margin:16px 0;">
-          <legend>Dados básicos</legend>
-          <label>Nome<br/>
-            <input type="text" id="name" placeholder="Seu nome" required />
-          </label><br/><br/>
-          <label>E-mail (opcional)<br/>
-            <input type="email" id="email" placeholder="voce@exemplo.com" />
-          </label>
-        </fieldset>
+    <main>
+      <div class="container">
+        <p id="app-subtitle" data-i18n="subtitle">Piloto de coleta de dados financeiros (IE).</p>
 
-        <fieldset style="margin:16px 0;">
-          <legend>Consentimento</legend>
-          <label>
-            <input type="checkbox" id="consent" required />
-            Autorizo o uso dos dados para elaboração do plano financeiro piloto.
-          </label>
-        </fieldset>
+        <form id="intake-form" novalidate>
+          <fieldset>
+            <legend data-i18n="section_basic">Dados básicos</legend>
 
-        <button type="submit" id="submit-btn">Enviar</button>
-        <div id="status" style="margin-top:12px;"></div>
-      </form>
+            <label for="name" data-i18n="label_name">Nome</label>
+            <input type="text" id="name" name="name" placeholder="Seu nome" required minlength="2" />
+            <div class="error" id="err-name"></div>
+
+            <label for="email" data-i18n="label_email">E-mail (opcional)</label>
+            <input type="email" id="email" name="email" placeholder="voce@exemplo.com" />
+            <div class="error" id="err-email"></div>
+          </fieldset>
+
+          <fieldset>
+            <legend data-i18n="section_consent">Consentimento</legend>
+            <label>
+              <input type="checkbox" id="consent" name="consent" required />
+              <span data-i18n="consent_text">Autorizo o uso dos dados para elaboração do plano financeiro piloto.</span>
+            </label>
+            <div class="error" id="err-consent"></div>
+          </fieldset>
+
+          <button type="submit" id="submit-btn" data-i18n="btn_submit">Enviar</button>
+          <div id="status"></div>
+        </form>
+
+        <p style="margin-top:16px;">
+          <a href="./success.html" data-i18n="link_success_preview">Pré-visualizar página de sucesso</a>
+        </p>
+      </div>
     </main>
+
+    <footer>
+      <div class="container">
+        <small id="footer-note" data-i18n="footer_note">
+          Este é um piloto. Seus dados são protegidos por RLS no Supabase.
+        </small>
+      </div>
+    </footer>
 
     <script type="module" src="/main.js"></script>
   </body>
