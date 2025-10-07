@@ -1,6 +1,6 @@
 // Admin portal: login (email+senha) + listagem de intakes
-const SUPABASE_URL = import.meta?.env?.VITE_SUPABASE_URL || window.VITE_SUPABASE_URL;
-const SUPABASE_ANON = import.meta?.env?.VITE_SUPABASE_ANON_KEY || window.VITE_SUPABASE_ANON_KEY;
+const SUPABASE_URL = window.VITE_SUPABASE_URL;
+const SUPABASE_ANON = window.VITE_SUPABASE_ANON_KEY;
 
 const statusEl = document.getElementById('status');
 const loginCard = document.getElementById('login-card');
@@ -123,6 +123,6 @@ async function loadIntakes(){
 }
 
 // util
-function escapeHtml(s){ return String(s ?? '').replace(/[&<>'\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;',\"'\":'&#39;','\"':'&quot;' }[c])); }
+function escapeHtml(s){ return String(s ?? '').replace(/[&<>'\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;' }[c])); }
 
 sessionCheck();
