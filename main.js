@@ -1,28 +1,40 @@
 import { createClient } from '@supabase/supabase-js';
 import { translations } from './translations.js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-const supabase = createClient(supabaseUrl, supabaseKey);
+// 1) Ler variáveis de ambiente
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// Estado de idioma
+// 2) Logs de debug no console (para verificarmos se o build recebeu as variáveis)
+console.log('DBG VITE_SUPABASE_URL:', SUPABASE_URL);
+console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.length : 0);
+
+// 3) Health check visual (selo no canto inferior esquerdo)
+(function showHealth() {
+  const el = document.createElement('div');
+  el.style.cssText = 'position:fixed;left:12px;bottom:12px;padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#f6f6f6;font:12px system-ui;z-index:9999;';
+  el.textContent = (SUPABASE_URL && SUPABASE_ANON) ? 'Supabase config: OK' : 'Supabase config: AUSENTE';
+  document.body.appendChild(el);
+})();
+
+// 4) Inicializar Supabase
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON);
+
+// 5) Estado de idioma
 const LS_KEY = 'finpilot_lang';
 let currentLang = localStorage.getItem(LS_KEY) || 'PT';
 
-// Elementos
+// 6) Elementos da UI
 const formEl = document.getElementById('intake-form');
 const statusEl = document.getElementById('status');
 const submitBtn = document.getElementById('submit-btn');
 const btnPT = document.getElementById('btn-pt');
 const btnEN = document.getElementById('btn-en');
 
-// I18n
+// 7) I18n
 function applyI18n() {
-  // alterna classes ativas
-  btnPT.classList.toggle('active', currentLang === 'PT');
-  btnEN.classList.toggle('active', currentLang === 'EN');
-
-  // define textos
+  btnPT?.classList.toggle('active', currentLang === 'PT');
+  btnEN?.classList.toggle('active', currentLang === 'EN');
   const dict = translations[currentLang];
 
   document.querySelectorAll('[data-i18n]').forEach(el => {
@@ -30,55 +42,39 @@ function applyI18n() {
     if (dict[key]) el.textContent = dict[key];
   });
 
-  // placeholders
   const nameInput = document.getElementById('name');
   const emailInput = document.getElementById('email');
-  nameInput.placeholder = currentLang === 'PT' ? 'Seu nome' : 'Your name';
-  emailInput.placeholder = currentLang === 'PT' ? 'voce@exemplo.com' : 'you@example.com';
+  if (nameInput) nameInput.placeholder = currentLang === 'PT' ? 'Seu nome' : 'Your name';
+  if (emailInput) emailInput.placeholder = currentLang === 'PT' ? 'voce@exemplo.com' : 'you@example.com';
 
-  // título/atributos de idioma
   document.documentElement.lang = currentLang === 'PT' ? 'pt-BR' : 'en';
 }
-btnPT.addEventListener('click', () => { currentLang = 'PT'; localStorage.setItem(LS_KEY, currentLang); applyI18n(); });
-btnEN.addEventListener('click', () => { currentLang = 'EN'; localStorage.setItem(LS_KEY, currentLang); applyI18n(); });
+btnPT?.addEventListener('click', () => { currentLang = 'PT'; localStorage.setItem(LS_KEY, currentLang); applyI18n(); });
+btnEN?.addEventListener('click', () => { currentLang = 'EN'; localStorage.setItem(LS_KEY, currentLang); applyI18n(); });
 applyI18n();
 
-// Validação simples
+// 8) Validação
 const errName = document.getElementById('err-name');
 const errEmail = document.getElementById('err-email');
 const errConsent = document.getElementById('err-consent');
 
 function t(key) { return translations[currentLang][key] || key; }
-
-function validateName(value) {
-  if (!value || value.trim().length < 2) return t('val_name_short');
-  return '';
-}
+function validateName(value) { return (!value || value.trim().length < 2) ? t('val_name_short') : ''; }
 function validateEmail(value) {
-  if (!value) return ''; // opcional
+  if (!value) return '';
   const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  if (!re.test(value)) return t('val_email_invalid');
-  return '';
+  return re.test(value) ? '' : t('val_email_invalid');
 }
-function validateConsent(checked) {
-  if (!checked) return t('val_consent_required');
-  return '';
-}
+function validateConsent(checked) { return checked ? '' : t('val_consent_required'); }
 
-document.getElementById('name').addEventListener('input', (e) => {
-  errName.textContent = validateName(e.target.value);
-});
-document.getElementById('email').addEventListener('input', (e) => {
-  errEmail.textContent = validateEmail(e.target.value);
-});
-document.getElementById('consent').addEventListener('change', (e) => {
-  errConsent.textContent = validateConsent(e.target.checked);
-});
+document.getElementById('name')?.addEventListener('input', (e) => { errName.textContent = validateName(e.target.value); });
+document.getElementById('email')?.addEventListener('input', (e) => { errEmail.textContent = validateEmail(e.target.value); });
+document.getElementById('consent')?.addEventListener('change', (e) => { errConsent.textContent = validateConsent(e.target.checked); });
 
-formEl.addEventListener('submit', async (e) => {
+// 9) Submit do formulário
+formEl?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
-  // valida
   const name = document.getElementById('name').value.trim();
   const email = document.getElementById('email').value.trim();
   const consent = document.getElementById('consent').checked;
@@ -92,10 +88,12 @@ formEl.addEventListener('submit', async (e) => {
   errConsent.textContent = consentErr;
 
   if (nameErr || emailErr || consentErr) {
+    statusEl.style.color = '#c62828';
     statusEl.textContent = t('val_fix_errors');
     return;
   }
 
+  statusEl.style.color = '#111';
   statusEl.textContent = t('status_sending');
   submitBtn.disabled = true;
 
@@ -108,22 +106,45 @@ formEl.addEventListener('submit', async (e) => {
   };
 
   try {
-    const { data, error } = await supabase
-      .from('intakes_pf_ie')
-      .insert(payload)
-      .select();
-
+    const { data, error } = await supabase.from('intakes_pf_ie').insert(payload).select();
     if (error) {
-      console.error(error);
-      statusEl.textContent = t('status_error');
+      console.error('Supabase error:', error);
+      statusEl.style.color = '#c62828';
+      statusEl.textContent = `${t('status_error')} ${error.message || ''}`;
     } else {
-      // redireciona para página de sucesso com querystring de idioma
       window.location.href = `/finpilot-ie/success.html?lang=${currentLang}`;
     }
   } catch (err) {
-    console.error(err);
-    statusEl.textContent = t('status_unexpected');
+    console.error('Network/Unexpected:', err);
+    statusEl.style.color = '#c62828';
+    statusEl.textContent = `${t('status_unexpected')} ${err?.message || ''}`;
   } finally {
     submitBtn.disabled = false;
   }
 });
+
+// 10) Botão de auto-teste (insert) — ajuda a validar sem preencher o formulário
+(function mountSelfTest() {
+  const btn = document.createElement('button');
+  btn.textContent = 'Self-test Supabase (insert)';
+  btn.style.cssText = 'position:fixed;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#111;color:#fff;z-index:9999;';
+  btn.onclick = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('intakes_pf_ie')
+        .insert({ profile: { name: 'SelfTest' }, consent: { terms: true }, locale: 'PT', source: 'pilot' })
+        .select();
+      if (error) {
+        alert('Erro: ' + (error.message || JSON.stringify(error)));
+        console.error(error);
+      } else {
+        alert('OK! Inserido id: ' + (data?.[0]?.id || '—'));
+        console.log('SelfTest insert:', data);
+      }
+    } catch (e) {
+      alert('Falha: ' + e.message);
+      console.error(e);
+    }
+  };
+  document.body.appendChild(btn);
+})();
