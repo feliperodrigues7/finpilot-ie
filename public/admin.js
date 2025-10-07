@@ -86,7 +86,6 @@ async function loadIntakes(){
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
   if (qname) {
-    // filtro por profile->>name com ilike (PostgREST)
     url.searchParams.set('profile->>name', `ilike.*${qname}*`);
   }
 
