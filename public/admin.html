@@ -4,89 +4,100 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>FinPilot IE — Admin</title>
-  <link rel="icon" href="data:," />
+  <link rel="icon" href="./favicon.ico" />
   <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    input, select, textarea { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
-    button { padding: 8px 12px; border: 0; border-radius: 6px; cursor: pointer; background:#111; color:#fff; }
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border-bottom: 1px solid #eee; text-align: left; padding: 8px; font-size: 14px; vertical-align: top; }
-    th { background: #fafafa; }
-    .muted{ color:#666; font-size:12px; }
-    #status{ margin: 8px 0 16px; color:#444; }
-    .hidden{ display:none; }
-    .actions button { margin-right: 6px; }
-    .toolbar button { background:#1976d2; }
-    .toolbar .danger { background:#9e1c1c; }
-    .modal-backdrop{ position:fixed; inset:0; background:#0007; display:none; align-items:center; justify-content:center; }
-    .modal{ background:#fff; padding:16px; border-radius:8px; width: min(720px, 92vw); max-height: 80vh; overflow:auto; }
-    .pill{ padding: 2px 8px; border-radius: 999px; font-size: 12px; color:#fff; display:inline-block; }
-    .pill.new{ background:#6c757d; }
-    .pill.in_progress{ background:#1976d2; }
-    .pill.closed{ background:#2e7d32; }
-    .nowrap{ white-space: nowrap; }
+    :root{
+      --bg:#ffffff; --fg:#111; --muted:#666; --line:#ececec;
+      --btn:#111; --btnText:#fff; --pill:#eee; --pillText:#555;
+      --accent:#0b74ff; --danger:#b00020;
+    }
+    *{ box-sizing: border-box; }
+    body{ font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; color: var(--fg); background: var(--bg); }
+    h1{ margin: 0 0 12px 0; }
+    .card{ border:1px solid var(--line); border-radius:10px; padding:16px; background:#fff; }
+    .row{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    input, select, textarea{ padding:8px; border:1px solid #ccc; border-radius:8px; font-size:14px; }
+    button{ padding:8px 12px; border:0; border-radius:8px; background:var(--btn); color:var(--btnText); cursor:pointer; }
+    button.secondary{ background: var(--accent); }
+    button.danger{ background: var(--danger); }
+    table{ width:100%; border-collapse: collapse; font-size:14px; }
+    th, td{ border-bottom:1px solid var(--line); padding:10px 8px; text-align:left; vertical-align: middle; }
+    th{ background:#fafafa; }
+    .muted{ color:var(--muted); font-size:12px; }
+    .pill{ display:inline-flex; align-items:center; gap:6px; padding:3px 8px; background:var(--pill); color:var(--pillText); border-radius:999px; font-size:12px; }
+    .toolbar{ display:flex; gap:8px; align-items:center; justify-content:flex-end; margin-bottom:12px; }
+    .filters{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin:8px 0 12px 0; }
+    .spacer{ flex:1; }
+    .status-note{ font-size:12px; color:var(--muted); margin-top:6px; }
   </style>
 </head>
 <body>
   <h1>FinPilot IE — Admin</h1>
-  <div id="status" class="muted">Carregando...</div>
+  <div id="info" class="muted">Verificando sessão...</div>
 
-  <div id="login-card" class="card">
+  <div id="login-card" class="card" style="max-width:520px; margin-top:12px;">
     <h3>Login</h3>
     <div class="row">
-      <input id="email" type="email" placeholder="email@exemplo.com" />
-      <input id="password" type="password" placeholder="Senha" />
+      <input id="email" type="email" placeholder="admin@finpilot.ie" style="flex:1; min-width:220px;" />
+      <input id="password" type="password" placeholder="••••••••" style="flex:1; min-width:160px;" />
       <button id="btn-login">Entrar</button>
     </div>
-    <div class="muted">Habilite "Email + Password" no Supabase Auth e crie um usuário admin.</div>
+    <div class="muted" style="margin-top:8px;">Habilite “Email + Password” no Supabase Auth e crie um usuário admin.</div>
   </div>
 
-  <div id="app-card" class="card hidden">
-    <div class="row toolbar" style="justify-content: space-between;">
-      <div><strong>Logado como:</strong> <span id="whoami">—</span></div>
-      <div class="row">
-        <button id="btn-export">Exportar CSV</button>
-        <button id="btn-refresh">Atualizar</button>
+  <div id="app-card" class="card" style="margin-top:12px; display:none;">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px;">
+      <div id="session-who" class="muted">—</div>
+      <div class="toolbar">
+        <button id="btn-export" class="secondary">Exportar CSV</button>
+        <button id="btn-refresh" class="secondary">Atualizar</button>
         <button id="btn-logout" class="danger">Sair</button>
       </div>
     </div>
 
-    <div class="row" style="margin-top: 12px; gap:12px;">
-      <label>Limite:</label>
-      <input id="limit" type="number" value="50" min="1" max="500" style="width:90px" />
-      <label>Offset:</label>
-      <input id="offset" type="number" value="0" min="0" style="width:90px" />
-      <label>Status:</label>
-      <select id="fstatus">
-        <option value="">Todos</option>
-        <option value="new">Novo</option>
-        <option value="in_progress">Em andamento</option>
-        <option value="closed">Concluído</option>
-      </select>
-      <label>Buscar por nome:</label>
-      <input id="qname" type="text" placeholder="Parte do nome" />
+    <div class="filters">
+      <div>Limite:
+        <select id="limit">
+          <option>10</option><option>25</option><option selected>50</option><option>100</option>
+        </select>
+      </div>
+      <div>Offset:
+        <input id="offset" type="number" value="0" min="0" style="width:90px;" />
+      </div>
+      <div>Status:
+        <select id="status-filter">
+          <option value="all" selected>Todos</option>
+          <option value="new">Novo</option>
+          <option value="in_progress">Em andamento</option>
+          <option value="closed">Concluído</option>
+        </select>
+      </div>
+      <div class="spacer"></div>
+      <div>Buscar por nome:
+        <input id="search" placeholder="Parte do nome" />
+      </div>
     </div>
 
-    <table id="tbl">
+    <table>
       <thead>
         <tr>
-          <th class="nowrap">created_at</th>
+          <th>created_at</th>
           <th>name</th>
           <th>email</th>
           <th>locale</th>
           <th>source</th>
           <th>status</th>
-          <th class="nowrap">ações</th>
+          <th>ações</th>
         </tr>
       </thead>
       <tbody id="tbody"></tbody>
     </table>
-    <div class="muted">Ordenado por created_at desc. Busca simples em profile-&gt;&gt;name.</div>
+    <div class="status-note">Ordenado por created_at desc. Busca simples em profile->>name.</div>
   </div>
 
+  <!-- Supabase CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Seu app -->
   <script type="module" src="./admin.js"></script>
 </body>
 </html>
