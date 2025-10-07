@@ -1,4 +1,4 @@
-// FinPilot IE - front com anti-bot e hardening
+// FinPilot IE - front com anti-bot, hardening e enriquecimento automático
 import { translations } from './translations.js';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
@@ -13,6 +13,24 @@ console.log('DBG VITE_SUPABASE_ANON_KEY length:', SUPABASE_ANON ? SUPABASE_ANON.
   el.textContent = (SUPABASE_URL && SUPABASE_ANON) ? 'Supabase config: OK' : 'Supabase config: AUSENTE';
   document.body.appendChild(el);
 })();
+
+// UTM + contexto
+function getUTMs() {
+  const p = new URLSearchParams(location.search);
+  const utm = {};
+  ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k=>{
+    if (p.get(k)) utm[k] = p.get(k);
+  });
+  return utm;
+}
+function getLocale() {
+  return navigator.language || navigator.userLanguage || null;
+}
+function getSource() {
+  const utm = getUTMs();
+  if (Object.keys(utm).length) return JSON.stringify(utm);
+  try { return new URL(document.referrer).host || 'direct'; } catch { return document.referrer ? 'ref' : 'direct'; }
+}
 
 // i18n
 const LS_KEY = 'finpilot_lang';
@@ -58,7 +76,7 @@ document.getElementById('consent')?.addEventListener('change', (e) => { errConse
 
 // Anti-bot e hardening
 const HP_ID = 'hp';
-const SUBMIT_HISTORY_KEY = 'finpilot_submit_hist'; // array de timestamps
+const SUBMIT_HISTORY_KEY = 'finpilot_submit_hist';
 const MAX_SUBMITS = 3;
 const WINDOW_MINUTES = 5;
 const MIN_DELAY_MS = 1000;
@@ -154,7 +172,10 @@ formEl?.addEventListener('submit', async (e) => {
     profile: { name, ...(email ? { email } : {}) },
     work: null,
     housing: null,
-    debts: null
+    debts: null,
+    locale: getLocale(),
+    source: getSource(),
+    ua: navigator.userAgent || null
   };
 
   try {
@@ -190,7 +211,10 @@ formEl?.addEventListener('submit', async (e) => {
         profile: { name: 'SelfTest' },
         work: null,
         housing: null,
-        debts: null
+        debts: null,
+        locale: getLocale(),
+        source: getSource(),
+        ua: navigator.userAgent || null
       });
       if (r.ok) {
         alert('OK! Inserido (sem retorno do corpo). Status: ' + r.status);
