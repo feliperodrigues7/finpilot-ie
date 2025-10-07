@@ -1,7 +1,8 @@
 // FinPilot IE - front minimal com fetch explícito para Supabase REST
+// Versão sem return=representation (dispensa policy SELECT para anon)
 import { translations } from './translations.js';
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL; // ex: https://sfffjmtklryxjwmvsqfa.supabase.co
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 // Debug/health
@@ -55,26 +56,30 @@ document.getElementById('name')?.addEventListener('input', (e) => { errName.text
 document.getElementById('email')?.addEventListener('input', (e) => { errEmail.textContent = validateEmail(e.target.value); });
 document.getElementById('consent')?.addEventListener('change', (e) => { errConsent.textContent = validateConsent(e.target.checked); });
 
-// Função REST helper para inserir
-async function insertIntake(payload) {
+// Função REST helper para inserir SEM return=representation
+async function insertIntakeNoReturn(payload) {
   const url = `${SUPABASE_URL}/rest/v1/intakes_pf_ie`;
   const res = await fetch(url, {
     method: 'POST',
     headers: {
       apikey: SUPABASE_ANON,
       Authorization: `Bearer ${SUPABASE_ANON}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=representation'
+      'Content-Type': 'application/json'
+      // Sem 'Prefer: return=representation'
     },
     body: JSON.stringify(payload)
   });
-  const text = await res.text();
-  let json;
-  try { json = text ? JSON.parse(text) : null; } catch { json = { raw: text }; }
-  return { status: res.status, data: json };
+  // Considera sucesso 201/204
+  if (res.status === 201 || res.status === 204) {
+    return { ok: true, status: res.status };
+  } else {
+    let msg;
+    try { msg = await res.json(); } catch { msg = await res.text(); }
+    return { ok: false, status: res.status, message: msg };
+  }
 }
 
-// Submit do formulário - usa somente colunas existentes (profile, work, housing, debts)
+// Submit do formulário
 formEl?.addEventListener('submit', async (e) => {
   e.preventDefault();
 
@@ -107,15 +112,15 @@ formEl?.addEventListener('submit', async (e) => {
   };
 
   try {
-    const { status, data } = await insertIntake(payload);
-    if (status >= 200 && status < 300) {
+    const r = await insertIntakeNoReturn(payload);
+    if (r.ok) {
       window.location.href = `/finpilot-ie/success.html?lang=${currentLang}`;
     } else {
-      console.error('REST insert failed:', status, data);
+      console.error('REST insert failed:', r.status, r.message);
       statusEl.style.color = '#c62828';
-      const msg = data?.message || data?.hint || JSON.stringify(data);
-      statusEl.textContent = `${t('status_error')} ${status} ${msg || ''}`;
-      alert(`Erro: ${status} ${msg || ''}`);
+      const msg = typeof r.message === 'string' ? r.message : JSON.stringify(r.message);
+      statusEl.textContent = `${t('status_error')} ${r.status} ${msg || ''}`;
+      alert(`Erro: ${r.status} ${msg || ''}`);
     }
   } catch (err) {
     console.error('Unexpected:', err);
@@ -127,25 +132,25 @@ formEl?.addEventListener('submit', async (e) => {
   }
 });
 
-// Botão de self-test (usa o mesmo helper com headers explícitos)
+// Botão de self-test (usa o mesmo helper sem return)
 (function mountSelfTest() {
   const btn = document.createElement('button');
   btn.textContent = 'Self-test Supabase (insert)';
-  btn.style.cssText = 'position:fixed;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#111;color:#fff;z-index:9999;';
+  btn.style.cssText = 'position:fixed;right:12px;bottom:12px;padding:8px 12px;border-radius:8px;background:#111;color:#fff;z-index:9999;cursor:pointer;';
   btn.onclick = async () => {
     try {
-      const { status, data } = await insertIntake({
+      const r = await insertIntakeNoReturn({
         profile: { name: 'SelfTest' },
         work: null,
         housing: null,
         debts: null
       });
-      if (status >= 200 && status < 300) {
-        alert('OK! Inserido id: ' + (data?.[0]?.id || '—'));
-        console.log('SelfTest insert:', data);
+      if (r.ok) {
+        alert('OK! Inserido (sem retorno do corpo). Status: ' + r.status);
+        console.log('SelfTest insert OK:', r.status);
       } else {
-        alert('Erro: ' + status + ' ' + (data?.message || data?.hint || JSON.stringify(data)));
-        console.error('SelfTest error:', status, data);
+        alert('Erro: ' + r.status + ' ' + JSON.stringify(r.message || ''));
+        console.error('SelfTest error:', r.status, r.message);
       }
     } catch (e) {
       alert('Falha: ' + e.message);
