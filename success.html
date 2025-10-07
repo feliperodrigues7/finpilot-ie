@@ -1,25 +1,22 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-    <title>FinPilot IE — Sucesso</title>
-    <style>
-      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 0; }
-      .container { max-width: 720px; margin: 0 auto; padding: 20px; }
-      .card { margin-top: 40px; border: 1px solid #eee; border-radius: 12px; padding: 24px; }
-      .btn { padding: 10px 14px; background: #0a7cff; color: #fff; border: none; border-radius: 8px; cursor: pointer; text-decoration: none; display: inline-block; }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <div class="card">
-        <h1 id="success-title">Obrigado!</h1>
-        <p id="success-msg">Recebemos seus dados. Em breve entraremos em contato.</p>
-        <a id="back-home" class="btn" href="/finpilot-ie/">Voltar para a página inicial</a>
-      </div>
-    </div>
-
-    <script type="module" src="/success.js"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinPilot IE — Sucesso</title>
+  <link rel="icon" href="favicon.ico" />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; }
+    a { color:#1976d2; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 id="title">Obrigado!</h1>
+    <p id="msg">Recebemos seus dados. Em breve entraremos em contato.</p>
+    <a href="./">Voltar</a>
+  </div>
+  <script type="module" src="./success.js"></script>
+</body>
 </html>
