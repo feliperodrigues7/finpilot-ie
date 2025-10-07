@@ -27,9 +27,7 @@ jobs:
           node-version: "20"
 
       - name: Install deps
-        run: npm ci
-        # Se não tiver package-lock.json, use:
-        # run: npm install
+        run: npm ci || npm install
 
       - name: Build
         env:
