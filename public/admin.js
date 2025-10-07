@@ -1,254 +1,206 @@
-// Admin portal: login + listagem + status + notas + CSV
 import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
 
-
-const statusEl = document.getElementById('status');
-const loginCard = document.getElementById('login-card');
-const appCard = document.getElementById('app-card');
-const emailEl = document.getElementById('email');
-const passEl = document.getElementById('password');
-const btnLogin = document.getElementById('btn-login');
-const btnLogout = document.getElementById('btn-logout');
-const btnRefresh = document.getElementById('btn-refresh');
-const btnExport = document.getElementById('btn-export');
-const whoamiEl = document.getElementById('whoami');
-const tbody = document.getElementById('tbody');
-const limitEl = document.getElementById('limit');
-const offsetEl = document.getElementById('offset');
-const qnameEl = document.getElementById('qname');
-const fstatusEl = document.getElementById('fstatus');
-
-const modal = document.getElementById('modal-notes');
-const notesList = document.getElementById('notes-list');
-const noteText = document.getElementById('note-text');
-const btnSaveNote = document.getElementById('btn-save-note');
-const btnCloseModal = document.getElementById('btn-close-modal');
-
-let currentIntakeIdForNotes = null;
-
-if (!SUPABASE_URL || !SUPABASE_ANON) {
-  statusEl.textContent = 'Config do Supabase ausente.';
-  throw new Error('Missing Supabase envs');
-}
-
 const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
 });
 
-function setStatus(msg, color='#444'){ statusEl.textContent = msg; statusEl.style.color = color; }
-function showLogin(){ loginCard.classList.remove('hidden'); appCard.classList.add('hidden'); }
-function showApp(){ loginCard.classList.add('hidden'); appCard.classList.remove('hidden'); }
+document.addEventListener('DOMContentLoaded', () => {
+  initAdmin().catch(err => {
+    console.error(err);
+    alert('Erro ao iniciar Admin. Ver console.');
+  });
+});
 
-async function getSession() { const { data: { session } } = await supa.auth.getSession(); return session; }
+async function initAdmin() {
+  // Elements (IDs garantidos pelo admin.html fornecido)
+  const info = document.getElementById('info');
+  const loginCard = document.getElementById('login-card');
+  const emailEl = document.getElementById('email');
+  const passEl = document.getElementById('password');
+  const btnLogin = document.getElementById('btn-login');
 
-async function sessionCheck(){
-  const session = await getSession();
-  if (session?.user) { whoamiEl.textContent = session.user.email || session.user.id; setStatus('Logado.'); showApp(); await loadIntakes(); }
-  else { setStatus('Não logado.'); showLogin(); }
-}
+  const appCard = document.getElementById('app-card');
+  const sessionWho = document.getElementById('session-who');
+  const btnExport = document.getElementById('btn-export');
+  const btnRefresh = document.getElementById('btn-refresh');
+  const btnLogout = document.getElementById('btn-logout');
 
-btnLogin.onclick = async () => {
-  setStatus('Entrando...');
-  const email = emailEl.value.trim();
-  const password = passEl.value;
-  const { data, error } = await supa.auth.signInWithPassword({ email, password });
-  if (error) { console.error(error); setStatus('Falha no login: ' + error.message, '#b00020'); }
-  else { setStatus('Login OK.'); showApp(); whoamiEl.textContent = data.user?.email || data.user?.id || '—'; await loadIntakes(); }
-};
+  const limitEl = document.getElementById('limit');
+  const offsetEl = document.getElementById('offset');
+  const statusFilterEl = document.getElementById('status-filter');
+  const searchEl = document.getElementById('search');
+  const tbody = document.getElementById('tbody');
 
-btnLogout.onclick = async () => { await supa.auth.signOut(); tbody.innerHTML = ''; showLogin(); setStatus('Sessão encerrada.'); };
-btnRefresh.onclick = async () => { await loadIntakes(); };
-fstatusEl.onchange = async () => { await loadIntakes(); };
+  function setInfo(msg, color='#666') { info.textContent = msg; info.style.color = color; }
 
-btnExport.onclick = async () => {
-  const rows = await fetchIntakes({ forExport: true });
-  const csv = toCSV(rows);
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `intakes_${new Date().toISOString().slice(0,10)}.csv`;
-  a.click();
-};
-
-function toCSV(rows){
-  const header = ['id','created_at','name','email','locale','source','status'];
-  const lines = [header.join(',')];
-  for (const r of rows) {
-    const vals = [
-      r.id,
-      r.created_at,
-      quote(r.profile?.name),
-      quote(r.profile?.email),
-      quote(r.locale || ''),
-      quote(typeof r.source === 'string' ? r.source : JSON.stringify(r.source || '')),
-      r.status || ''
-    ];
-    lines.push(vals.join(','));
+  // Sessão
+  const { data: { session } } = await supa.auth.getSession();
+  if (session?.user) {
+    await afterLogin(session.user);
+  } else {
+    setInfo('Faça login.');
+    loginCard.style.display = '';
+    appCard.style.display = 'none';
   }
-  return lines.join('\n');
-}
-function quote(v){ const s = (v ?? '').toString().replace(/"/g,'""'); return `"${s}"`; }
 
-async function fetchIntakes({ forExport = false } = {}){
-  const session = await getSession();
-  if (!session) { setStatus('Sessão expirada.', '#b00020'); showLogin(); return []; }
-  const accessToken = session.access_token;
-
-  const limit = forExport ? 1000 : Math.max(1, Math.min(500, parseInt(limitEl.value || '50', 10)));
-  const offset = forExport ? 0 : Math.max(0, parseInt(offsetEl.value || '0', 10));
-  const qname = qnameEl.value.trim();
-  const fstatus = fstatusEl.value;
-
-  const url = new URL(`${SUPABASE_URL}/rest/v1/intakes_pf_ie`);
-  url.searchParams.set('select', 'id,created_at,profile,locale,source,status');
-  url.searchParams.set('order', 'created_at.desc');
-  url.searchParams.set('limit', String(limit));
-  url.searchParams.set('offset', String(offset));
-  if (qname) url.searchParams.set('profile->>name', `ilike.*${qname}*`);
-  if (fstatus) url.searchParams.set('status', `eq.${fstatus}`);
-
-  const res = await fetch(url.toString(), {
-    headers: {
-      apikey: SUPABASE_ANON,
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      Prefer: 'count=exact'
-    }
+  // Handlers
+  btnLogin.addEventListener('click', async (e) => {
+    e.preventDefault();
+    setInfo('Autenticando...');
+    const email = emailEl.value.trim();
+    const password = passEl.value;
+    const { data, error } = await supa.auth.signInWithPassword({ email, password });
+    if (error) { setInfo('Erro no login: ' + error.message, '#b00020'); return; }
+    await afterLogin(data.user);
   });
-  if (!res.ok) { let msg; try { msg = await res.json(); } catch { msg = await res.text(); } console.error('List error:', res.status, msg); setStatus(`Erro ao listar: ${res.status} ${JSON.stringify(msg)}`, '#b00020'); return []; }
-  return await res.json();
-}
 
-async function loadIntakes(){
-  setStatus('Carregando intakes...');
-  tbody.innerHTML = '';
-  const rows = await fetchIntakes();
-  tbody.innerHTML = rows.map(r => renderRow(r)).join('');
-  setStatus(`Exibindo ${rows.length} registros.`);
-  wireRowHandlers();
-}
+  btnLogout.addEventListener('click', async () => {
+    await supa.auth.signOut();
+    loginCard.style.display = '';
+    appCard.style.display = 'none';
+    setInfo('Sessão encerrada.');
+  });
 
-function renderRow(r){
-  const name = r.profile?.name || '—';
-  const email = r.profile?.email || '—';
-  const pill = `<span class="pill ${r.status || 'new'}">${(r.status || 'new').replace('_',' ')}</span>`;
-  return `<tr data-id="${r.id}">
-    <td class="nowrap">${new Date(r.created_at).toLocaleString()}</td>
-    <td>${escapeHtml(name)}</td>
-    <td>${escapeHtml(email)}</td>
-    <td>${r.locale || '—'}</td>
-    <td>${escapeHtml(typeof r.source === 'string' ? r.source : JSON.stringify(r.source || ''))}</td>
-    <td>${pill}<br/>
-      <select class="status-select" style="margin-top:6px;">
-        <option value="new" ${r.status==='new'?'selected':''}>Novo</option>
-        <option value="in_progress" ${r.status==='in_progress'?'selected':''}>Em andamento</option>
-        <option value="closed" ${r.status==='closed'?'selected':''}>Concluído</option>
-      </select>
-    </td>
-    <td class="actions">
-      <button class="btn-note">Adicionar nota</button>
-      <button class="btn-view-notes" style="background:#555;">Ver notas</button>
-    </td>
-  </tr>`;
-}
+  btnRefresh.addEventListener('click', () => loadLeads());
+  btnExport.addEventListener('click', () => exportCSV());
 
-function wireRowHandlers(){
-  document.querySelectorAll('.status-select').forEach(sel => {
-    sel.onchange = async (e) => {
-      const tr = e.target.closest('tr');
+  limitEl.addEventListener('change', () => loadLeads());
+  offsetEl.addEventListener('change', () => loadLeads());
+  statusFilterEl.addEventListener('change', () => loadLeads());
+  searchEl.addEventListener('input', debounce(() => loadLeads(), 400));
+
+  async function afterLogin(user) {
+    // Confirma se é admin
+    const { data: adminRow, error: adminErr } = await supa.from('admins')
+      .select('user_id').eq('user_id', user.id).maybeSingle();
+    if (adminErr) { setInfo('Erro conferindo admin', '#b00020'); console.error(adminErr); return; }
+    if (!adminRow) { setInfo('Este usuário não é admin.', '#b00020'); return; }
+
+    loginCard.style.display = 'none';
+    appCard.style.display = '';
+    sessionWho.textContent = `Logado como: ${user.email || user.id}`;
+    await loadLeads();
+  }
+
+  function debounce(fn, t=300) {
+    let id; return (...args) => { clearTimeout(id); id = setTimeout(() => fn(...args), t); };
+  }
+
+  async function loadLeads() {
+    setInfo('Carregando leads...');
+    const limit = parseInt(limitEl.value || '50');
+    const offset = parseInt(offsetEl.value || '0');
+    const statusFilter = statusFilterEl.value;
+    const search = searchEl.value.trim();
+
+    let q = supa.from('intakes')
+      .select('id, created_at, profile, email, locale, source, status', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (statusFilter !== 'all') q = q.eq('status', statusFilter);
+    if (search) q = q.ilike('profile->>name', `%${search}%`);
+
+    const { data, error } = await q;
+    if (error) { setInfo('Erro ao carregar leads', '#b00020'); console.error(error); return; }
+    renderTable(data || []);
+    setInfo(`Exibindo ${data?.length || 0} registros (limit ${limit}, offset ${offset}).`);
+  }
+
+  function renderTable(rows) {
+    tbody.innerHTML = rows.map(r => {
+      const name = r.profile?.name || '—';
+      const email = r.email || '—';
+      const locale = r.locale || '—';
+      const source = r.source || '—';
+      const status = r.status || 'new';
+      return `
+        <tr data-id="${r.id}">
+          <td>${new Date(r.created_at).toLocaleString()}</td>
+          <td>${escapeHtml(name)}</td>
+          <td>${escapeHtml(email)}</td>
+          <td>${escapeHtml(locale)}</td>
+          <td>${escapeHtml(source)}</td>
+          <td>
+            <span class="pill">${status}</span>
+            <select class="status-dd">
+              <option value="new" ${status==='new'?'selected':''}>Novo</option>
+              <option value="in_progress" ${status==='in_progress'?'selected':''}>Em andamento</option>
+              <option value="closed" ${status==='closed'?'selected':''}>Concluído</option>
+            </select>
+          </td>
+          <td>
+            <button class="btn-add-note">Adicionar nota</button>
+            <button class="btn-view-notes">Ver notas</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+
+    // Wire actions por linha
+    tbody.querySelectorAll('tr').forEach(tr => {
       const id = tr.getAttribute('data-id');
-      const value = e.target.value;
-      await updateStatus(id, value);
-      await loadIntakes();
-    };
-  });
-  document.querySelectorAll('.btn-note').forEach(btn => {
-    btn.onclick = (e) => {
-      const tr = e.target.closest('tr');
-      currentIntakeIdForNotes = tr.getAttribute('data-id');
-      noteText.value = '';
-      notesList.innerHTML = '<div class="muted">Carregando notas...</div>';
-      openNotesModal();
-      loadNotes(currentIntakeIdForNotes);
-    };
-  });
-  document.querySelectorAll('.btn-view-notes').forEach(btn => {
-    btn.onclick = (e) => {
-      const tr = e.target.closest('tr');
-      currentIntakeIdForNotes = tr.getAttribute('data-id');
-      noteText.value = '';
-      notesList.innerHTML = '<div class="muted">Carregando notas...</div>';
-      openNotesModal();
-      loadNotes(currentIntakeIdForNotes, { hideComposer: true });
-    };
-  });
+      const dd = tr.querySelector('.status-dd');
+      const btnAdd = tr.querySelector('.btn-add-note');
+      const btnView = tr.querySelector('.btn-view-notes');
+
+      dd.addEventListener('change', async () => {
+        const { error } = await supa.from('intakes').update({ status: dd.value }).eq('id', id);
+        if (error) { alert('Erro ao atualizar status'); console.error(error); }
+      });
+
+      btnAdd.addEventListener('click', async () => {
+        const note = prompt('Digite a nota:');
+        if (!note) return;
+        const { error } = await supa.from('intake_notes').insert({ intake_id: id, note });
+        if (error) { alert('Erro ao salvar nota'); console.error(error); }
+      });
+
+      btnView.addEventListener('click', async () => {
+        const { data, error } = await supa.from('intake_notes')
+          .select('note, created_at').eq('intake_id', id).order('created_at', { ascending: false });
+        if (error) { alert('Erro ao carregar notas'); console.error(error); return; }
+        alert((data || []).map(n => `- ${new Date(n.created_at).toLocaleString()}: ${n.note}`).join('\n') || 'Sem notas.');
+      });
+    });
+  }
+
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, m =>
+      ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])
+    );
+  }
+
+  function toCSV(rows){
+    if (!rows.length) return '';
+    const header = Object.keys(rows[0]);
+    const lines = [header.join(',')];
+    for (const r of rows){
+      const vals = header.map(k => `"${String(r[k] ?? '').replace(/"/g,'""')}"`);
+      lines.push(vals.join(','));
+    }
+    return lines.join('\n');
+  }
+
+  async function exportCSV(){
+    const { data, error } = await supa.from('intakes')
+      .select('id, created_at, profile, email, locale, source, status')
+      .order('created_at', { ascending:false }).limit(1000);
+    if (error) { alert('Erro ao exportar'); console.error(error); return; }
+    const rows = (data || []).map(r => ({
+      id: r.id,
+      created_at: r.created_at,
+      name: r.profile?.name || '',
+      email: r.email || '',
+      locale: r.locale || '',
+      source: r.source || '',
+      status: r.status || ''
+    }));
+    const csv = toCSV(rows);
+    const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `intakes_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+  }
 }
-
-async function updateStatus(id, status){
-  const session = await getSession();
-  if (!session) { setStatus('Sessão expirada.', '#b00020'); showLogin(); return; }
-  const accessToken = session.access_token;
-  const url = `${SUPABASE_URL}/rest/v1/intakes_pf_ie?id=eq.${id}`;
-  const res = await fetch(url, {
-    method: 'PATCH',
-    headers: {
-      apikey: SUPABASE_ANON,
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal'
-    },
-    body: JSON.stringify({ status })
-  });
-  if (!res.ok) { let msg; try { msg = await res.json(); } catch { msg = await res.text(); } console.error('Update status error:', res.status, msg); alert('Erro ao atualizar status: ' + res.status); }
-}
-
-function openNotesModal(){ modal.style.display = 'flex'; }
-function closeNotesModal(){ modal.style.display = 'none'; currentIntakeIdForNotes = null; }
-btnCloseModal.onclick = closeNotesModal;
-
-btnSaveNote.onclick = async () => {
-  const text = noteText.value.trim();
-  if (!text) return;
-  const session = await getSession();
-  if (!session) { alert('Sessão expirada'); closeNotesModal(); return; }
-  const accessToken = session.access_token;
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/intake_notes`, {
-    method: 'POST',
-    headers: {
-      apikey: SUPABASE_ANON,
-      Authorization: `Bearer ${accessToken}`,
-      'Content-Type': 'application/json',
-      Prefer: 'return=minimal'
-    },
-    body: JSON.stringify({ intake_id: currentIntakeIdForNotes, author_id: session.user.id, note: text })
-  });
-  if (res.ok) { noteText.value = ''; await loadNotes(currentIntakeIdForNotes); }
-  else { let msg; try { msg = await res.json(); } catch { msg = await res.text(); } console.error('Insert note error:', res.status, msg); alert('Erro ao salvar nota: ' + res.status); }
-};
-
-async function loadNotes(intakeId, { hideComposer = false } = {}){
-  const session = await getSession();
-  if (!session) { alert('Sessão expirada'); closeNotesModal(); return; }
-  const accessToken = session.access_token;
-  const url = new URL(`${SUPABASE_URL}/rest/v1/intake_notes`);
-  url.searchParams.set('select', 'id,author_id,note,created_at');
-  url.searchParams.set('intake_id', `eq.${intakeId}`);
-  url.searchParams.set('order', 'created_at.desc');
-
-  const res = await fetch(url.toString(), { headers: { apikey: SUPABASE_ANON, Authorization: `Bearer ${accessToken}` } });
-  if (!res.ok) { let msg; try { msg = await res.json(); } catch { msg = await res.text(); } console.error('Load notes error:', res.status, msg); notesList.innerHTML = `<div class="muted">Erro ao carregar notas: ${res.status}</div>`; return; }
-  const notes = await res.json();
-  notesList.innerHTML = notes.length
-    ? notes.map(n => `<div style="border-left:3px solid #1976d2; padding:8px; margin:8px 0;">
-        <div class="muted">${new Date(n.created_at).toLocaleString()} — ${n.author_id}</div>
-        <div>${escapeHtml(n.note)}</div>
-      </div>`).join('')
-    : '<div class="muted">Sem notas ainda.</div>';
-
-  noteText.parentElement.style.display = hideComposer ? 'none' : 'block';
-  btnSaveNote.style.display = hideComposer ? 'none' : 'inline-block';
-}
-
-function escapeHtml(s){ return String(s ?? '').replace(/[&<>'\"]/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','\'':'&#39;','"':'&quot;' }[c])); }
-
-sessionCheck();
