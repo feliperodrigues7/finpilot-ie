@@ -5,11 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>FinPilot IE — Admin</title>
   <link rel="icon" href="data:," />
-  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <style>
     body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
     .card { border: 1px solid #e0e0e0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-    .row { display: flex; gap: 8px; align-items: center; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
     input { padding: 8px; border: 1px solid #ccc; border-radius: 6px; }
     button { padding: 8px 12px; border: 0; border-radius: 6px; cursor: pointer; background:#111; color:#fff; }
     table { width: 100%; border-collapse: collapse; margin-top: 16px; }
@@ -31,14 +30,12 @@
       <input id="password" type="password" placeholder="Senha" />
       <button id="btn-login">Entrar</button>
     </div>
-    <div class="muted">Necessário habilitar “Email + Password” no Supabase Auth e criar um usuário.</div>
+    <div class="muted">Habilite “Email + Password” no Supabase Auth e crie um usuário admin.</div>
   </div>
 
   <div id="app-card" class="card hidden">
     <div class="row" style="justify-content: space-between;">
-      <div>
-        <strong>Logado como:</strong> <span id="whoami">—</span>
-      </div>
+      <div><strong>Logado como:</strong> <span id="whoami">—</span></div>
       <div class="row">
         <button id="btn-refresh" style="background:#1976d2;">Atualizar</button>
         <button id="btn-logout" style="background:#9e1c1c;">Sair</button>
@@ -66,11 +63,20 @@
       </thead>
       <tbody id="tbody"></tbody>
     </table>
-    <div class="muted">Ordenado por created_at desc. Busca simples em profile->>name.</div>
+    <div class="muted">Ordenado por created_at desc. Busca simples em profile-&gt;&gt;name.</div>
   </div>
 
-  <!-- Supabase JS (CDN oficial) -->
+  <!-- 1) DEFINA AQUI AS ENVs DO SUPABASE PARA O ADMIN -->
+  <script>
+    // Substitua abaixo pelos valores REAIS do seu projeto Supabase:
+    window.VITE_SUPABASE_URL = 'https://sfffjmtklryxjwmvsqfa.supabase.co';
+    window.VITE_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZmZqbXRrbHJ5eGp3bXZzcWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MDMzNDcsImV4cCI6MjA3NTM3OTM0N30.IP4DVQqeN37xJ4QyGBUQJDT7xSxpTfpcDzbG7ZDbAnI';
+  </script>
+
+  <!-- 2) BIBLIOTECA DO SUPABASE VIA CDN -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 3) SEU SCRIPT DO ADMIN -->
   <script type="module" src="./admin.js"></script>
 </body>
 </html>
