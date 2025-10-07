@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinPilot IE — Financeiro</title>
+  <link rel="icon" href="data:," />
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
+    nav { display:flex; gap:8px; margin-bottom: 16px; }
+    nav a { padding:8px 12px; border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#111; }
+    nav a.active { background:#111; color:#fff; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .card { border:1px solid #e0e0e0; border-radius:8px; padding:16px; margin-bottom:16px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; font-size:14px; }
+    th { background:#fafafa; }
+    input, select, textarea { padding:8px; border:1px solid #ccc; border-radius:6px; }
+    button { padding:8px 12px; border:0; border-radius:6px; background:#111; color:#fff; cursor:pointer; }
+    .hidden { display:none; }
+    .muted { color:#666; font-size:12px; }
+  </style>
+</head>
+<body>
+  <h1>FinPilot IE — Financeiro</h1>
+  <div id="status" class="muted">Carregando...</div>
+
+  <nav>
+    <a href="#" data-tab="accounts" class="active">Contas</a>
+    <a href="#" data-tab="transactions">Transações</a>
+    <a href="#" data-tab="debts">Dívidas</a>
+    <a href="./admin.html" style="margin-left:auto;">Voltar ao Admin</a>
+  </nav>
+
+  <!-- Contas -->
+  <section id="tab-accounts">
+    <div class="card">
+      <h3>Nova Conta</h3>
+      <div class="row">
+        <input id="acc-name" placeholder="Nome da conta (ex.: Corrente Revolut)" />
+        <select id="acc-type">
+          <option value="checking">Conta Corrente</option>
+          <option value="savings">Poupança</option>
+          <option value="credit_card">Cartão de Crédito</option>
+          <option value="wallet">Carteira</option>
+          <option value="other">Outra</option>
+        </select>
+        <input id="acc-opening" type="number" step="0.01" placeholder="Saldo inicial (EUR)" />
+        <button id="btn-add-account">Adicionar</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Contas</h3>
+      <table>
+        <thead>
+          <tr><th>Nome</th><th>Tipo</th><th>Moeda</th><th>Saldo inicial</th><th>Criada em</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="tb-accounts"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Transações -->
+  <section id="tab-transactions" class="hidden">
+    <div class="card">
+      <h3>Nova Transação</h3>
+      <div class="row">
+        <input id="tx-date" type="date" />
+        <select id="tx-account"></select>
+        <select id="tx-category"></select>
+        <input id="tx-amount" type="number" step="0.01" placeholder="Valor (+ entrada, - saída)" />
+        <input id="tx-memo" placeholder="Nota (opcional)" />
+        <button id="btn-add-tx">Adicionar</button>
+      </div>
+      <div class="muted">Dica: entradas são positivas; despesas são negativas.</div>
+    </div>
+    <div class="card">
+      <h3>Transações</h3>
+      <div class="row" style="margin-bottom:8px;">
+        <label>Período:</label>
+        <input id="tx-from" type="date" />
+        <input id="tx-to" type="date" />
+        <button id="btn-filter-tx">Filtrar</button>
+        <button id="btn-export-tx">Exportar CSV</button>
+      </div>
+      <table>
+        <thead>
+          <tr><th>Data</th><th>Conta</th><th>Categoria</th><th>Valor</th><th>Memo</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="tb-transactions"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Dívidas -->
+  <section id="tab-debts" class="hidden">
+    <div class="card">
+      <h3>Nova Dívida</h3>
+      <div class="row">
+        <input id="debt-creditor" placeholder="Credor (ex.: Banco X / Cartão Y)" />
+        <input id="debt-principal" type="number" step="0.01" placeholder="Principal (EUR)" />
+        <input id="debt-apr" type="number" step="0.0001" placeholder="APR anual (%)" />
+        <input id="debt-monthly" type="number" step="0.0001" placeholder="Juros mensal (%)" />
+        <input id="debt-due-day" type="number" min="1" max="31" placeholder="Dia vencimento" />
+        <input id="debt-min" type="number" step="0.01" placeholder="Pagamento mínimo (EUR)" />
+        <button id="btn-add-debt">Adicionar</button>
+      </div>
+      <div class="muted">Preencha APR ou juros mensal (se ambos, usamos mensal).</div>
+    </div>
+    <div class="card">
+      <h3>Dívidas</h3>
+      <table>
+        <thead>
+          <tr><th>Credor</th><th>Principal</th><th>Saldo atual</th><th>APR</th><th>Mensal</th><th>Mínimo</th><th>Venc.</th><th>Status</th><th>Ações</th></tr>
+        </thead>
+        <tbody id="tb-debts"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module" src="./finance.js"></script>
+</body>
+</html>
