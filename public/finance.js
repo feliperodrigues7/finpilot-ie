@@ -1,9 +1,6 @@
 // FinPilot IE - LocalStorage (EUR)
-// Ajustes: Transações sem coluna "Conta"; adicionar "Transferência De/Para"
-// Ordenação alfabética em categorias e todos os selects
-// Despesa Fixa com Titular (quem paga)
-// Dashboard com cards: total de Despesa Fixa por titular; cards de cada dívida por titular
-// Modal de Contas adicionado
+// Pessoa (Titular) como texto livre no modal de contas
+// "Nome da Conta" renomeado para "Tipo de Conta"
 (function () {
   'use strict';
 
@@ -55,13 +52,13 @@
     state.categorias.push(catSal, catMer, catAlu);
     saveState(state);
   }
-  // Garantir categoria Salário existe
+  // Garantir categoria Salário
   if (!state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita')) {
     state.categorias.push({ id: uid(), nome: 'Salário', tipo: 'receita' });
     saveState(state);
   }
 
-  // Helpers de opções ordenadas
+  // Helpers
   function getUniqueTitularesSorted() {
     const set = new Set(state.contas.map(c => (c.titularNome || '').trim()).filter(Boolean));
     return Array.from(set).sort(sortAsc);
@@ -91,7 +88,7 @@
       const opt = document.createElement('option'); opt.value = b; opt.textContent = b; selectEl.appendChild(opt);
     });
   }
-  function renderCategoriaOptions(selectEl, tipoFilter /* 'despesa'|'receita'|undefined */) {
+  function renderCategoriaOptions(selectEl, tipoFilter) {
     if (!selectEl) return;
     const cats = state.categorias
       .filter(c => !tipoFilter || c.tipo === tipoFilter)
@@ -130,7 +127,7 @@
     });
   }
 
-  // MODAL FUNCTIONS
+  // Modal helpers
   function openModal(modalId) {
     const modal = document.getElementById(modalId);
     if (modal) modal.classList.add('show');
@@ -140,14 +137,12 @@
     if (modal) modal.classList.remove('show');
   }
   function bindModalEvents() {
-    // Close buttons
     $all('.close-button, .btn-modal.secondary').forEach(btn => {
       btn.addEventListener('click', function() {
         const modalId = this.getAttribute('data-modal');
         if (modalId) closeModal(modalId);
       });
     });
-    // Click outside modal
     $all('.modal').forEach(modal => {
       modal.addEventListener('click', function(e) {
         if (e.target === modal) closeModal(modal.id);
@@ -155,7 +150,7 @@
     });
   }
 
-  // DASHBOARD
+  // Dashboard
   function renderDashboard() {
     const cards = $('#dashboard-cards');
     const totalEl = $('#dashboard-total');
@@ -165,7 +160,6 @@
 
     recalcSaldos();
     cards.innerHTML = '';
-    // Contas
     const contasOrdered = state.contas.slice().sort((a,b)=> sortAsc(a.titularNome||'', b.titularNome||'') || sortAsc(a.banco||'', b.banco||''));
     contasOrdered.forEach(c => {
       const div = document.createElement('div');
@@ -180,7 +174,7 @@
     const total = state.contas.reduce((acc,c)=>acc+Number(c.saldoAtual||0),0);
     totalEl.textContent = fmtMoney(total);
 
-    // Despesas Fixas por Titular
+    // Fixas por Titular
     if (fixasWrap) {
       fixasWrap.innerHTML = '';
       const mapa = {};
@@ -230,7 +224,7 @@
     }
   }
 
-  // CONTAS
+  // Contas
   function renderContasTable() {
     const tbody = $('#tbl-contas-body');
     if (!tbody) return;
@@ -259,43 +253,30 @@
     renderTitularOptions(selDeTit);
     renderTitularOptions(selParaTit);
   }
-  function renderPessoasInModal() {
-    const select = $('#account-owner-name');
-    if (!select) return;
-    select.innerHTML = '';
-    const blank = document.createElement('option'); blank.value=''; blank.textContent='Selecione';
-    select.appendChild(blank);
-    state.pessoas.sort((a,b)=> sortAsc(a.nome||'', b.nome||'')).forEach(p => {
-      const opt = document.createElement('option'); opt.value = p.id; opt.textContent = p.nome;
-      select.appendChild(opt);
-    });
-  }
-
   function bindContas() {
     renderContasTable();
     renderContasSelectsForTransfers();
-    renderPessoasInModal();
 
-    // Botão "+ Nova conta" -> abre modal limpo
+    // "+ Nova conta" abre modal limpo
     const btnOpenAccount = $('#btn-open-account-modal');
     if (btnOpenAccount) {
       btnOpenAccount.addEventListener('click', () => {
         const form = $('#account-form');
         if (form) form.reset();
         $('#account-id').value = '';
-        renderPessoasInModal();
+        $('#account-owner-name').value = '';
         const title = $('#account-modal-title');
         if (title) title.textContent = 'Nova Conta';
         openModal('account-modal');
       });
     }
 
-    // Form antigo (se ainda existir no HTML, manter compatibilidade)
-    const form = $('#form-conta');
-    if (form) {
-      form.addEventListener('submit', function (e) {
+    // Suporte legado (se existir um form antigo)
+    const legacyForm = $('#form-conta');
+    if (legacyForm) {
+      legacyForm.addEventListener('submit', function (e) {
         e.preventDefault();
-        const idEdit = form.getAttribute('data-edit-id');
+        const idEdit = legacyForm.getAttribute('data-edit-id');
         const titularNome = ($('#ct-titular') || {}).value || '';
         const tipoConta = ($('#ct-tipo') || {}).value || '';
         const banco = ($('#ct-banco') || {}).value || '';
@@ -315,7 +296,7 @@
             c.pessoaId = pessoa.id;
             c.saldoInicial = isNaN(saldoInicial) ? 0 : saldoInicial;
           }
-          form.removeAttribute('data-edit-id');
+          legacyForm.removeAttribute('data-edit-id');
         } else {
           state.contas.push({
             id: uid(),
@@ -334,7 +315,6 @@
         renderContasSelectsForTransfers();
         renderDashboard();
 
-        // Atualiza selects em outras abas
         renderTitularOptions($('#gs-titular'));
         renderTitularOptions($('#sl-nome'));
         renderTitularOptions($('#rc-titular'));
@@ -342,26 +322,30 @@
         renderBancoOptionsForTitular($('#gs-banco'), ($('#gs-titular')||{}).value || '');
         renderBancoOptionsForTitular($('#sl-banco'), ($('#sl-nome')||{}).value || '');
 
-        form.reset();
+        legacyForm.reset();
       });
     }
 
-    // Modal form
+    // Modal form (campo de pessoa é texto livre)
     const modalForm = $('#account-form');
     if (modalForm) {
       modalForm.addEventListener('submit', function(e) {
         e.preventDefault();
         const idEdit = $('#account-id').value;
-        const pessoaId = $('#account-owner-name').value;
-        const tipoConta = $('#account-name').value.trim();
-        const banco = $('#account-bank').value.trim();
+        const pessoaNome = ($('#account-owner-name').value || '').trim();
+        const tipoConta = ($('#account-name').value || '').trim();
+        const banco = ($('#account-bank').value || '').trim();
         const saldoInicial = Number($('#account-balance').value || 0);
 
-        if (!pessoaId) { alert('Selecione a pessoa.'); return; }
-        if (!tipoConta) { alert('Informe o nome da conta.'); return; }
+        if (!pessoaNome) { alert('Informe o nome da pessoa (titular).'); return; }
+        if (!tipoConta) { alert('Informe o tipo de conta.'); return; }
 
-        const pessoa = state.pessoas.find(p => p.id === pessoaId);
-        if (!pessoa) { alert('Pessoa não encontrada.'); return; }
+        // Encontrar/criar pessoa
+        let pessoa = state.pessoas.find(p => (p.nome || '').trim().toLowerCase() === pessoaNome.toLowerCase());
+        if (!pessoa) {
+          pessoa = { id: uid(), nome: pessoaNome };
+          state.pessoas.push(pessoa);
+        }
 
         if (idEdit) {
           const c = state.contas.find(x => x.id === idEdit);
@@ -369,17 +353,17 @@
             c.titularNome = pessoa.nome;
             c.tipoConta = tipoConta;
             c.banco = banco;
-            c.pessoaId = pessoaId;
+            c.pessoaId = pessoa.id;
             c.saldoInicial = saldoInicial;
           }
         } else {
           state.contas.push({
             id: uid(),
             titularNome: pessoa.nome,
-            tipoConta: tipoConta,
-            banco: banco,
-            pessoaId: pessoaId,
-            saldoInicial: saldoInicial,
+            tipoConta,
+            banco,
+            pessoaId: pessoa.id,
+            saldoInicial,
             saldoAtual: saldoInicial
           });
         }
@@ -390,6 +374,7 @@
         renderContasSelectsForTransfers();
         renderDashboard();
 
+        // Atualiza selects noutras abas
         renderTitularOptions($('#gs-titular'));
         renderTitularOptions($('#sl-nome'));
         renderTitularOptions($('#rc-titular'));
@@ -430,10 +415,8 @@
           const c = state.contas.find(x => x.id === id);
           if (!c) return;
 
-          // Abrir modal com dados existentes
           $('#account-id').value = c.id;
-          renderPessoasInModal(); // garante opções atualizadas
-          $('#account-owner-name').value = c.pessoaId || '';
+          $('#account-owner-name').value = c.titularNome || '';
           $('#account-name').value = c.tipoConta || '';
           $('#account-bank').value = c.banco || '';
           $('#account-balance').value = c.saldoInicial || 0;
@@ -444,7 +427,7 @@
     }
   }
 
-  // CATEGORIAS
+  // Categorias
   function renderCategorias() {
     const tbody = $('#tbl-categorias-body');
     if (!tbody) return;
@@ -463,7 +446,6 @@
       tbody.appendChild(tr);
     });
 
-    // Atualizar selects dependentes ordenados
     renderCategoriaOptions($('#rc-categoria'), 'despesa');
     renderCategoriaOptions($('#dv-categoria'), 'despesa');
   }
@@ -496,7 +478,7 @@
         const id = btn.getAttribute('data-id');
         const act = btn.getAttribute('data-act');
         if (act === 'del') {
-          if (!confirm('Excluir tipo?')) return;
+          if (!confirm('Excluir categoria?')) return;
           state.categorias = state.categorias.filter(c => c.id !== id);
           saveState(state);
           renderCategorias();
@@ -511,7 +493,7 @@
     }
   }
 
-  // GASTOS
+  // Gastos
   function renderGastos() {
     const tbody = $('#tbl-gastos-body');
     if (!tbody) return;
@@ -554,7 +536,6 @@
       const conta = findContaByTitularAndBanco(titularNome, banco);
       if (!conta) { alert('Conta não encontrada para este titular e banco.'); return; }
 
-      // Categoria "Gasto"
       let catGasto = state.categorias.find(c => c.nome.toLowerCase() === 'gasto' && c.tipo === 'despesa');
       if (!catGasto) { catGasto = { id: uid(), nome: 'Gasto', tipo: 'despesa' }; state.categorias.push(catGasto); }
 
@@ -562,7 +543,6 @@
         id: uid(), dataISO, titularNome, banco, descricao, valor, contaIdVinculada: conta.id
       });
 
-      // Transação de despesa
       state.transacoes.push({
         id: uid(), dataISO, contaId: conta.id, valor,
         categoriaId: catGasto.id, descricao: descricao || 'Gasto',
@@ -589,7 +569,6 @@
         const gasto = state.gastos.find(g => g.id === id);
         state.gastos = state.gastos.filter(g => g.id !== id);
 
-        // Remover transação correspondente (heurística)
         if (gasto) {
           const idx = state.transacoes.findIndex(t =>
             t.contaId === gasto.contaIdVinculada &&
@@ -609,7 +588,7 @@
     }
   }
 
-  // TRANSFERÊNCIAS (Transações)
+  // Transferências
   function renderTransacoes() {
     const tbody = $('#tbl-transacoes-body');
     if (!tbody) return;
@@ -643,7 +622,6 @@
     renderContasSelectsForTransfers();
     renderTransacoes();
 
-    // Listeners para atualizar bancos quando titular muda
     const txDeTit = $('#tx-de-titular');
     const txParaTit = $('#tx-para-titular');
     if (txDeTit) txDeTit.addEventListener('change', ()=> renderBancoOptionsForTitular($('#tx-de-banco'), txDeTit.value || ''));
@@ -702,7 +680,7 @@
     }
   }
 
-  // SALÁRIOS
+  // Salários
   function ensureCategoriaSalario() {
     let cat = state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita');
     if (!cat) { cat = { id: uid(), nome: 'Salário', tipo: 'receita' }; state.categorias.push(cat); }
@@ -800,7 +778,7 @@
     }
   }
 
-  // DESPESA FIXA
+  // Despesas fixas
   function humanizeSemanaDia(semana, dia) {
     const semanaTxt = semana ? `${semana}ª` : '';
     const dias = { '1':'Seg', '2':'Ter', '3':'Qua', '4':'Qui', '5':'Sex', '6':'Sáb', '0':'Dom' };
@@ -833,7 +811,6 @@
       tbody.appendChild(tr);
     });
 
-    // Popular selects ordenados
     renderCategoriaOptions($('#rc-categoria'), 'despesa');
     renderTitularOptions($('#rc-titular'));
   }
@@ -900,7 +877,7 @@
     }
   }
 
-  // DÍVIDAS
+  // Dívidas
   function humanizeSemana(semana) { return semana ? `${semana}ª` : ''; }
   function renderDividas() {
     const tbody = $('#tbl-dividas-body'); if (!tbody) return;
@@ -927,7 +904,6 @@
       tbody.appendChild(tr);
     });
 
-    // selects ordenados
     renderCategoriaOptions($('#dv-categoria'), 'despesa');
     renderTitularOptions($('#dv-titular'));
   }
@@ -990,7 +966,7 @@
     }
   }
 
-  // NAV
+  // Navegação
   function showTab(tabId) {
     $all('.tab-pane').forEach(el => el.style.display = 'none');
     const el = document.getElementById(tabId);
@@ -1005,7 +981,7 @@
     const btnSair = $('#btn-sair'); if (btnSair) btnSair.addEventListener('click', () => { window.location.href = 'login.html'; });
   }
 
-  // INIT
+  // Init
   function init() {
     bindModalEvents();
     bindNav();
