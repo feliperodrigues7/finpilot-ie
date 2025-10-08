@@ -1,627 +1,213 @@
 <!DOCTYPE html>
-<html lang="pt-PT">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FinPilot IE</title>
   <style>
-    :root {
-      /* Tema mais claro */
-      --bg: #f5f7fb;
-      --panel: #ffffff;
-      --panel-2: #f0f3fb;
-      --text: #0f1532;
-      --muted: #51608a;
-      --accent: #3b66ff;
-      --accent-2: #1eb8ff;
-      --danger: #e24c4c;
-      --success: #2db97c;
-      --warning: #e2a84c;
-      --badge-despesa: #ff7a7a;
-      --badge-receita: #31b88e;
-      --badge-transfer: #34bfff;
-      --border: #d9e0f2;
+    :root{
+      --bg:#f6f8fc;
+      --panel:#ffffff;
+      --muted:#6b7280;
+      --text:#0f172a;
+      --primary:#2563eb;
+      --primary-600:#1d4ed8;
+      --danger:#ef4444;
+      --danger-600:#dc2626;
+      --line:#e5e7eb;
+      --pill-bg:#eef2ff;
+      --pill:#4f46e5;
+      --radius:12px;
     }
-    * { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: linear-gradient(180deg, #f5f7fb, #f7f9ff 35%, #eef2fb);
-      color: var(--text);
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";background:var(--bg);color:var(--text)}
+    .app{display:flex;min-height:100vh}
+    .sidebar{
+      width:260px;background:var(--panel);padding:16px;border-right:1px solid var(--line);
+      position:sticky;top:0;height:100vh
     }
-    header {
-      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);
-      background: rgba(255,255,255,0.8); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10;
+    .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:20px;margin:8px 6px 16px}
+    .brand-dot{width:10px;height:10px;background:#3b82f6;border-radius:999px;box-shadow:0 0 0 6px #3b82f620}
+    .nav{display:flex;flex-direction:column;gap:8px;margin-top:8px}
+    .nav a{
+      text-decoration:none;color:#111827;padding:12px 14px;border-radius:10px;display:block
     }
-    header .brand { display: flex; gap: 10px; align-items: center; font-weight: 700; letter-spacing: 0.3px; }
-    header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 8px var(--accent); }
-    header .actions { display: flex; align-items: center; gap: 12px; }
-    .btn {
-      background: #ffffff; border: 1px solid var(--border);
-      color: var(--text); padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform .06s ease, background .2s, box-shadow .2s;
-      box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+    .nav a.active{background:#eef2ff;color:#111827}
+    .content{flex:1;padding:16px 20px 40px}
+    .topbar{display:flex;justify-content:flex-end;align-items:center;margin-bottom:12px}
+    .btn{
+      background:var(--primary);color:#fff;border:none;border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600
     }
-    .btn:hover { transform: translateY(-1px); background: #f7f9ff; }
-    .btn.danger { background: #fff5f5; border-color: #f3d0d0; color: #b92b2b; }
-    .btn.danger:hover { background: #ffe9e9; }
-    .btn.secondary { background: #f5f7fb; }
-    .btn.primary { background: linear-gradient(135deg, #3b66ff, #2570ff); border-color: #2a54c4; color: #fff; }
-
-    main { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 16px; }
-    nav {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px;
-      position: sticky; top: 76px; height: calc(100vh - 92px); overflow: auto;
-    }
-    nav .nav-btn {
-      width: 100%; text-align: left; border-radius: 10px; margin: 6px 0; padding: 10px 12px; color: var(--muted);
-      background: transparent; border: 1px solid transparent; cursor: pointer;
-    }
-    nav .nav-btn.active { color: var(--text); background: #f5f7ff; border-color: var(--border); }
-
-    section.content {
-      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
-    }
-    .grid-cards {
-      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
-    }
-    .card {
-      border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: #ffffff;
-    }
-    .card h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
-    .card h3 .accent { color: var(--accent); }
-    .card .value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-
-    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
-    .toolbar .spacer { flex: 1; }
-    .section-title { font-size: 16px; margin: 12px 0; }
-
-    table { width: 100%; border-collapse: collapse; }
-    th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; font-size: 14px; }
-    th { text-align: left; color: var(--muted); font-weight: 600; }
-    tr:hover td { background: #f8faff; }
-
-    .form { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: #ffffff; margin-bottom: 12px; }
-    .form .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
-    .form .form-group { display: flex; flex-direction: column; gap: 6px; }
-    label { font-size: 12px; color: var(--muted); }
-    input, select {
-      background: #ffffff; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px;
-      outline: none; transition: border-color .2s, box-shadow .2s;
-    }
-    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,102,255,0.15); }
-
-    .badge {
-      display: inline-block; padding: 3px 8px; font-size: 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text);
-      background: #f5f7fb;
-    }
-    .badge.despesa { background: #fff0f0; border-color: #ffd9d9; color: #b23c3c; }
-    .badge.receita { background: #edfff8; border-color: #cff5e7; color: #1f8f6a; }
-    .badge.transfer { background: #edfbff; border-color: #cfefff; color: #1f7f9f; }
-
+    .btn:hover{background:var(--primary-600)}
+    .btn.ghost{background:#eef2ff;color:#111827}
+    .btn.danger{background:var(--danger)}
+    .btn.danger:hover{background:var(--danger-600)}
+    .panel{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:18px}
+    h2{margin:0 0 14px 0}
+    .table{width:100%;border-collapse:collapse}
+    .table th,.table td{padding:14px;border-bottom:1px solid var(--line);text-align:left;font-size:14px}
+    .muted{color:var(--muted)}
+    .pill{display:inline-block;background:var(--pill-bg);color:var(--pill);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600}
+    .actions{display:flex;gap:8px}
+    .toolbar{display:flex;justify-content:flex-end;margin-bottom:10px}
     /* Modal */
-    .modal {
-      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-      background: rgba(15, 21, 50, 0.25); z-index: 50; padding: 16px;
+    .modal-backdrop{
+      position:fixed;inset:0;background:#00000066;display:none;align-items:center;justify-content:center;padding:16px;z-index:50
     }
-    .modal.show { display: flex; }
-    .modal-content {
-      width: 100%; max-width: 760px; background: #ffffff; border: 1px solid var(--border);
-      border-radius: 12px; box-shadow: 0 10px 40px rgba(15,21,50,0.15); color: var(--text);
+    .modal{background:#fff;border-radius:12px;max-width:560px;width:100%;box-shadow:0 20px 60px #00000033;border:1px solid var(--line)}
+    .modal header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+    .modal .body{padding:16px}
+    .modal .footer{padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
+    .row{display:flex;gap:12px}
+    .col{flex:1}
+    label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+    input, select, textarea{
+      width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;font-size:14px
     }
-    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
-    .modal-header h2 { margin: 0; font-size: 18px; }
-    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
-    .btn-modal { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: #f5f7fb; color: var(--text); cursor: pointer; }
-    .close-button { background: transparent; color: var(--muted); border: none; font-size: 22px; cursor: pointer; padding: 0 6px; }
-    .help { color: var(--muted); font-size: 12px; }
-    .accent { color: var(--accent); }
+    textarea{min-height:90px;resize:vertical}
+    .hidden{display:none !important}
   </style>
 </head>
 <body>
-  <header>
-    <div class="brand">
-      <div class="dot"></div>
-      <div>FinPilot IE</div>
-    </div>
-    <div class="actions">
-      <button id="btn-sair" class="btn">Sair</button>
-    </div>
-  </header>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand"><span class="brand-dot"></span> FinPilot IE</div>
+      <nav class="nav" id="nav">
+        <a href="#dashboard" data-tab="dashboard">Dashboard</a>
+        <a href="#contas" data-tab="contas">Contas</a>
+        <a href="#gastos" data-tab="gastos">Gastos</a>
+        <a href="#salarios" data-tab="salarios">Salários</a>
+        <a href="#transferencias" data-tab="transferencias">Transferências</a>
+        <a href="#categorias" data-tab="categorias">Categorias</a>
+        <a href="#fixas" data-tab="fixas">Despesas Fixas</a>
+        <a href="#dividas" data-tab="dividas">Dívidas</a>
+      </nav>
+    </aside>
 
-  <main>
-    <nav>
-      <button class="nav-btn active" data-tab="tab-dashboard">Dashboard</button>
-      <button class="nav-btn" data-tab="tab-contas">Contas</button>
-      <button class="nav-btn" data-tab="tab-gastos">Gastos</button>
-      <button class="nav-btn" data-tab="tab-salarios">Salários</button>
-      <button class="nav-btn" data-tab="tab-transacoes">Transferências</button>
-      <button class="nav-btn" data-tab="tab-categorias">Categorias</button>
-      <button class="nav-btn" data-tab="tab-recorrentes">Despesas Fixas</button>
-      <button class="nav-btn" data-tab="tab-dividas">Dívidas</button>
-    </nav>
-
-    <section class="content">
-      <!-- DASHBOARD -->
-      <div id="tab-dashboard" class="tab-pane">
-        <h2 class="section-title">Resumo</h2>
-        <div class="grid-cards" id="dashboard-cards"></div>
-        <div class="form" style="margin-top:12px;">
-          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
-            <div class="card">
-              <h3>Total em Contas</h3>
-              <div id="dashboard-total" class="value">€ 0,00</div>
-              <div class="sub">Soma de todos os saldos atuais</div>
-            </div>
-          </div>
-        </div>
-
-        <h3 class="section-title">Despesas Fixas por Titular</h3>
-        <div class="grid-cards" id="dashboard-fixas"></div>
-
-        <h3 class="section-title">Dívidas por Título e Titular</h3>
-        <div class="grid-cards" id="dashboard-dividas"></div>
+    <main class="content">
+      <div class="topbar">
+        <button class="btn ghost" id="btnSair">Sair</button>
       </div>
 
-      <!-- CONTAS -->
-      <div id="tab-contas" class="tab-pane" style="display:none;">
+      <!-- Gastos -->
+      <section id="tab-gastos" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Minhas Contas</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-account-modal" class="btn primary">+ Nova conta</button>
+          <button class="btn" id="btnNewGasto">+ Novo gasto</button>
         </div>
-
-        <table>
+        <h2>Gastos</h2>
+        <table class="table" id="tblGastos">
           <thead>
             <tr>
-              <th>Titular</th>
-              <th>Banco</th>
-              <th>Tipo de Conta</th>
-              <th>Saldo Inicial</th>
-              <th>Saldo Atual</th>
-              <th>Ações</th>
+              <th>Data</th><th>Titular</th><th>Banco</th><th>Descrição</th><th>Valor</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-contas-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- GASTOS -->
-      <div id="tab-gastos" class="tab-pane" style="display:none;">
+      <!-- Salários -->
+      <section id="tab-salarios" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Gastos</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-gasto-modal" class="btn primary">+ Novo gasto</button>
+          <button class="btn" id="btnNewSalario">+ Novo salário</button>
         </div>
-        <table>
+        <h2>Salários</h2>
+        <table class="table" id="tblSalarios">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Titular</th>
-              <th>Banco</th>
-              <th>Descrição</th>
-              <th>Valor</th>
-              <th>Ações</th>
+              <th>Data</th><th>Titular</th><th>Banco</th><th>Horas</th><th>Valor</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-gastos-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- SALÁRIOS -->
-      <div id="tab-salarios" class="tab-pane" style="display:none;">
+      <!-- Transferências -->
+      <section id="tab-transferencias" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Salários</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-salario-modal" class="btn primary">+ Novo salário</button>
+          <button class="btn" id="btnNewTransfer">+ Nova transferência</button>
         </div>
-        <table>
+        <h2>Transferências</h2>
+        <table class="table" id="tblTransfers">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Titular</th>
-              <th>Banco</th>
-              <th>Horas</th>
-              <th>Valor</th>
-              <th>Ações</th>
+              <th>Data</th><th>Tipo</th><th>De</th><th>Para</th><th>Valor</th><th>Descrição</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-salarios-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- TRANSFERÊNCIAS -->
-      <div id="tab-transacoes" class="tab-pane" style="display:none;">
+      <!-- Categorias -->
+      <section id="tab-categorias" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Transferências</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-transfer-modal" class="btn primary">+ Nova transferência</button>
+          <button class="btn" id="btnNewCategoria">+ Nova categoria</button>
         </div>
-        <table>
+        <h2>Categorias</h2>
+        <table class="table" id="tblCategorias">
           <thead>
             <tr>
-              <th>Data</th>
-              <th>Tipo</th>
-              <th>De</th>
-              <th>Para</th>
-              <th>Valor</th>
-              <th>Descrição</th>
-              <th>Ações</th>
+              <th>Nome</th><th>Tipo</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-transacoes-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- CATEGORIAS -->
-      <div id="tab-categorias" class="tab-pane" style="display:none;">
+      <!-- Fixas -->
+      <section id="tab-fixas" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Categorias</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-categoria-modal" class="btn primary">+ Nova categoria</button>
+          <button class="btn" id="btnNewFixa">+ Nova despesa fixa</button>
         </div>
-        <table>
+        <h2>Despesas Fixas</h2>
+        <table class="table" id="tblFixas">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Tipo</th>
-              <th>Ações</th>
+              <th>Nome</th><th>Titular</th><th>Valor</th><th>Data</th><th>Semana/Dia</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-categorias-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- DESPESAS FIXAS -->
-      <div id="tab-recorrentes" class="tab-pane" style="display:none;">
+      <!-- Dívidas -->
+      <section id="tab-dividas" class="panel hidden">
         <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Despesas Fixas</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-recorrente-modal" class="btn primary">+ Nova despesa fixa</button>
+          <button class="btn" id="btnNewDivida">+ Nova dívida</button>
         </div>
-        <table>
+        <h2>Dívidas</h2>
+        <table class="table" id="tblDividas">
           <thead>
             <tr>
-              <th>Nome</th>
-              <th>Titular</th>
-              <th>Valor</th>
-              <th>Data</th>
-              <th>Semana/Dia</th>
-              <th>Ações</th>
+              <th>Credor</th><th>Titular</th><th>Valor</th><th>Vencimento</th><th>Status</th><th>Ações</th>
             </tr>
           </thead>
-          <tbody id="tbl-recorrentes-body"></tbody>
+          <tbody></tbody>
         </table>
-      </div>
+      </section>
 
-      <!-- DÍVIDAS -->
-      <div id="tab-dividas" class="tab-pane" style="display:none;">
-        <div class="toolbar">
-          <h2 class="section-title" style="margin:0;">Dívidas</h2>
-          <div class="spacer"></div>
-          <button id="btn-open-divida-modal" class="btn primary">+ Nova dívida</button>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th>Nome</th>
-              <th>Titular</th>
-              <th>Valor</th>
-              <th>Vencimento</th>
-              <th>Fim</th>
-              <th>Semana</th>
-              <th>Ações</th>
-            </tr>
-          </thead>
-          <tbody id="tbl-dividas-body"></tbody>
-        </table>
-      </div>
-    </section>
-  </main>
+      <!-- Contas e Dashboard (somente placeholders para manter layout/rota) -->
+      <section id="tab-contas" class="panel hidden"><h2>Contas</h2><p class="muted">Gerencie as contas na próxima iteração (já suportado no JS para vínculos).</p></section>
+      <section id="tab-dashboard" class="panel"><h2>Dashboard</h2><p class="muted">Resumo em breve.</p></section>
+    </main>
+  </div>
 
-  <!-- MODAIS -->
-  <!-- Conta -->
-  <div id="account-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="account-modal-title">Nova Conta</h2>
-        <button class="close-button" data-modal="account-modal" aria-label="Fechar">&times;</button>
+  <!-- Modal Reutilizável -->
+  <div class="modal-backdrop" id="backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <header>
+        <strong id="modalTitle">Modal</strong>
+        <button class="btn ghost" id="modalClose">Fechar</button>
+      </header>
+      <div class="body">
+        <form id="modalForm"></form>
       </div>
-      <form id="account-form">
-        <input type="hidden" id="account-id" />
-        <div class="grid" style="padding: 12px;">
-          <div class="form-group">
-            <label for="account-owner-name">Pessoa (Titular)</label>
-            <input type="text" id="account-owner-name" placeholder="Ex.: João" />
-          </div>
-          <div class="form-group">
-            <label for="account-name">Tipo de Conta</label>
-            <input type="text" id="account-name" placeholder="Ex.: Corrente, Poupança..." />
-          </div>
-          <div class="form-group">
-            <label for="account-bank">Banco</label>
-            <input type="text" id="account-bank" placeholder="Ex.: Santander" />
-          </div>
-          <div class="form-group">
-            <label for="account-balance">Saldo Inicial</label>
-            <input type="number" step="0.01" id="account-balance" placeholder="0,00" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="account-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
+      <div class="footer">
+        <button class="btn ghost" id="modalCancel" type="button">Cancelar</button>
+        <button class="btn" id="modalSave" type="submit" form="modalForm">Salvar</button>
+      </div>
     </div>
   </div>
 
-  <!-- Gasto -->
-  <div id="gasto-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="gasto-modal-title">Novo Gasto</h2>
-        <button class="close-button" data-modal="gasto-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="gasto-form">
-        <input type="hidden" id="gasto-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="gasto-data">Data</label>
-            <input type="date" id="gasto-data" />
-          </div>
-          <div class="form-group">
-            <label for="gasto-titular">Titular</label>
-            <select id="gasto-titular"></select>
-          </div>
-          <div class="form-group">
-            <label for="gasto-banco">Banco</label>
-            <select id="gasto-banco"></select>
-          </div>
-          <div class="form-group">
-            <label for="gasto-desc">Descrição</label>
-            <input type="text" id="gasto-desc" placeholder="Ex.: Mercado" />
-          </div>
-          <div class="form-group">
-            <label for="gasto-valor">Valor</label>
-            <input type="number" step="0.01" id="gasto-valor" placeholder="0,00" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="gasto-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Salário -->
-  <div id="salario-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="salario-modal-title">Novo Salário</h2>
-        <button class="close-button" data-modal="salario-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="salario-form">
-        <input type="hidden" id="salario-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="salario-data">Data</label>
-            <input type="date" id="salario-data" />
-          </div>
-          <div class="form-group">
-            <label for="salario-titular">Titular</label>
-            <select id="salario-titular"></select>
-          </div>
-          <div class="form-group">
-            <label for="salario-banco">Banco</label>
-            <select id="salario-banco"></select>
-          </div>
-          <div class="form-group">
-            <label for="salario-horas">Horas</label>
-            <input type="number" step="0.01" id="salario-horas" placeholder="Opcional" />
-          </div>
-          <div class="form-group">
-            <label for="salario-valor">Valor</label>
-            <input type="number" step="0.01" id="salario-valor" placeholder="0,00" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="salario-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Transferência -->
-  <div id="transfer-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="transfer-modal-title">Nova Transferência</h2>
-        <button class="close-button" data-modal="transfer-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="transfer-form">
-        <input type="hidden" id="transfer-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="transfer-data">Data</label>
-            <input type="date" id="transfer-data" />
-          </div>
-
-          <div class="form-group">
-            <label for="transfer-de-titular">De • Titular</label>
-            <select id="transfer-de-titular"></select>
-          </div>
-          <div class="form-group">
-            <label for="transfer-de-banco">De • Banco</label>
-            <select id="transfer-de-banco"></select>
-          </div>
-
-          <div class="form-group">
-            <label for="transfer-para-titular">Para • Titular</label>
-            <select id="transfer-para-titular"></select>
-          </div>
-          <div class="form-group">
-            <label for="transfer-para-banco">Para • Banco</label>
-            <select id="transfer-para-banco"></select>
-          </div>
-
-          <div class="form-group">
-            <label for="transfer-valor">Valor</label>
-            <input type="number" step="0.01" id="transfer-valor" placeholder="0,00" />
-          </div>
-          <div class="form-group">
-            <label for="transfer-desc">Descrição</label>
-            <input type="text" id="transfer-desc" placeholder="Opcional" />
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="transfer-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Categoria -->
-  <div id="categoria-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="categoria-modal-title">Nova Categoria</h2>
-        <button class="close-button" data-modal="categoria-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="categoria-form">
-        <input type="hidden" id="categoria-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="categoria-nome">Nome</label>
-            <input type="text" id="categoria-nome" placeholder="Ex.: Mercado, Aluguel..." />
-          </div>
-          <div class="form-group">
-            <label for="categoria-tipo">Tipo</label>
-            <select id="categoria-tipo">
-              <option value="despesa">Despesa</option>
-              <option value="receita">Receita</option>
-            </select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="categoria-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Recorrente -->
-  <div id="recorrente-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="recorrente-modal-title">Nova Despesa Fixa</h2>
-        <button class="close-button" data-modal="recorrente-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="recorrente-form">
-        <input type="hidden" id="recorrente-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="recorrente-categoria">Nome (Tipo de Despesa)</label>
-            <select id="recorrente-categoria"></select>
-            <div class="help">Dica: adicione nomes novos em Categorias (como Despesa).</div>
-          </div>
-          <div class="form-group">
-            <label for="recorrente-valor">Valor</label>
-            <input type="number" step="0.01" id="recorrente-valor" placeholder="0,00" />
-          </div>
-          <div class="form-group">
-            <label for="recorrente-data">Data (fixa)</label>
-            <input type="date" id="recorrente-data" />
-          </div>
-          <div class="form-group">
-            <label for="recorrente-semana">Semana do mês</label>
-            <select id="recorrente-semana">
-              <option value="">—</option>
-              <option value="1">1ª</option>
-              <option value="2">2ª</option>
-              <option value="3">3ª</option>
-              <option value="4">4ª</option>
-              <option value="5">5ª</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="recorrente-dia">Dia da semana</label>
-            <select id="recorrente-dia">
-              <option value="">—</option>
-              <option value="1">Seg</option>
-              <option value="2">Ter</option>
-              <option value="3">Qua</option>
-              <option value="4">Qui</option>
-              <option value="5">Sex</option>
-              <option value="6">Sáb</option>
-              <option value="0">Dom</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="recorrente-titular">Titular (quem paga)</label>
-            <select id="recorrente-titular"></select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="recorrente-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Dívida -->
-  <div id="divida-modal" class="modal">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h2 id="divida-modal-title">Nova Dívida</h2>
-        <button class="close-button" data-modal="divida-modal" aria-label="Fechar">&times;</button>
-      </div>
-      <form id="divida-form">
-        <input type="hidden" id="divida-id" />
-        <div class="grid" style="padding:12px;">
-          <div class="form-group">
-            <label for="divida-categoria">Nome (Tipo de Despesa)</label>
-            <select id="divida-categoria"></select>
-          </div>
-          <div class="form-group">
-            <label for="divida-valor">Valor</label>
-            <input type="number" step="0.01" id="divida-valor" placeholder="0,00" />
-          </div>
-          <div class="form-group">
-            <label for="divida-vencimento">Vencimento</label>
-            <input type="date" id="divida-vencimento" />
-          </div>
-          <div class="form-group">
-            <label for="divida-fim">Fim (opcional)</label>
-            <input type="date" id="divida-fim" />
-          </div>
-          <div class="form-group">
-            <label for="divida-semana">Semana do mês</label>
-            <select id="divida-semana">
-              <option value="">—</option>
-              <option value="1">1ª</option>
-              <option value="2">2ª</option>
-              <option value="3">3ª</option>
-              <option value="4">4ª</option>
-              <option value="5">5ª</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="divida-titular">Titular</label>
-            <select id="divida-titular"></select>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-modal secondary" data-modal="divida-modal">Cancelar</button>
-          <button type="submit" class="btn btn-modal">Guardar</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <script src="finance.js"></script>
+  <script src="./finance.js"></script>
 </body>
 </html>
