@@ -1,701 +1,476 @@
-// FinPilot IE - LocalStorage Edition (safe build, formatted)
+// FinPilot IE - LocalStorage only (EUR padrão)
+// Tabs: contas, transacoes, categorias, recorrentes, orcamento, dividas, relatorios, configuracoes
+// Tudo ASCII-safe. Nenhuma dependência externa.
+
 (function () {
   'use strict';
 
-  // Utils
-  function $(id) { return document.getElementById(id); }
-  function on(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
-  function fmt(n) {
-    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' })
-      .format(Number(n || 0));
-  }
-  function toast(msg) {
-    const t = $('toast');
-    if (!t) { console.log('[Toast]', msg); return; }
-    t.textContent = msg;
-    t.classList.add('show');
-    setTimeout(() => t.classList.remove('show'), 2500);
-  }
-  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+  // Util
+  const CURRENCY = 'EUR';
+  const LS_KEY = 'finpilot_ie_v1';
 
-  // LocalStorage keys
-  const DB_KEYS = {
-    people: 'fp_people',
-    accounts: 'fp_accounts',
-    categories: 'fp_categories',
-    transactions: 'fp_transactions',
-    recurring: 'fp_recurring',
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+  function fmtMoney(v) {
+    const n = Number(v || 0);
+    return n.toLocaleString('pt-PT', { style: 'currency', currency: CURRENCY });
+  }
+  function uid() { return 'id_' + Math.random().toString(36).slice(2, 10); }
+
+  // Estado inicial
+  const defaultState = {
+    pessoas: [], // [{id, nome}]
+    contas: [],  // [{id, nome, banco, saldoInicial, saldoAtual, pessoaId}]
+    categorias: [], // [{id, nome, tipo: 'despesa'|'receita'}]
+    transacoes: [], // [{id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}]
+    recorrentes: [], // flexível (não utilizado aqui)
+    orcamentos: [],  // flexível (não utilizado aqui)
+    dividas: []      // flexível (não utilizado aqui)
   };
 
-  // Storage wrapper
-  const storage = {
-    get(key, def = []) {
-      try {
-        const v = localStorage.getItem(key);
-        return v ? JSON.parse(v) : def;
-      } catch (e) {
-        return def;
-      }
-    },
-    set(key, val) {
-      localStorage.setItem(key, JSON.stringify(val));
-    },
-  };
-
-  // Data API
-  const data = {
-    // People
-    getPeople() { return storage.get(DB_KEYS.people); },
-    savePerson(name) {
-      name = (name || '').trim();
-      if (!name) return null;
-      const p = this.getPeople();
-      if (!p.includes(name)) {
-        p.push(name);
-        storage.set(DB_KEYS.people, p);
-      }
-      return name;
-    },
-    deletePerson(name) {
-      storage.set(DB_KEYS.people, this.getPeople().filter(x => x !== name));
-    },
-
-    // Accounts
-    getAccounts() { return storage.get(DB_KEYS.accounts); },
-    saveAccount(acc) {
-      const list = this.getAccounts();
-      if (!acc.id) {
-        acc.id = uid();
-        list.push(acc);
-      } else {
-        const i = list.findIndex(a => a.id === acc.id);
-        if (i > -1) list[i] = acc; else list.push(acc);
-      }
-      storage.set(DB_KEYS.accounts, list);
-      return acc;
-    },
-    deleteAccount(id) {
-      storage.set(DB_KEYS.accounts, this.getAccounts().filter(a => a.id !== id));
-    },
-    updateAccountBalance(id, balance) {
-      const list = this.getAccounts();
-      const i = list.findIndex(a => a.id === id);
-      if (i > -1) {
-        list[i].balance = Number(balance || 0);
-        storage.set(DB_KEYS.accounts, list);
-        return list[i];
-      }
-      return null;
-    },
-
-    // Categories
-    getCategories() { return storage.get(DB_KEYS.categories); },
-    saveCategory(cat) {
-      const list = this.getCategories();
-      if (!cat.id) {
-        cat.id = uid();
-        list.push(cat);
-      } else {
-        const i = list.findIndex(c => c.id === cat.id);
-        if (i > -1) list[i] = cat; else list.push(cat);
-      }
-      storage.set(DB_KEYS.categories, list);
-      return cat;
-    },
-    deleteCategory(id) {
-      storage.set(DB_KEYS.categories, this.getCategories().filter(c => c.id !== id));
-    },
-
-    // Transactions
-    getTransactions() { return storage.get(DB_KEYS.transactions); },
-    saveTransaction(tx) {
-      const list = this.getTransactions();
-      if (!tx.id) {
-        tx.id = uid();
-        list.push(tx);
-      } else {
-        const i = list.findIndex(t => t.id === tx.id);
-        if (i > -1) list[i] = tx; else list.push(tx);
-      }
-      storage.set(DB_KEYS.transactions, list);
-      return tx;
-    },
-    deleteTransaction(id) {
-      storage.set(DB_KEYS.transactions, this.getTransactions().filter(t => t.id !== id));
-    },
-
-    // Recurring
-    getRecurring() { return storage.get(DB_KEYS.recurring); },
-    saveRecurring(r) {
-      const list = this.getRecurring();
-      if (!r.id) {
-        r.id = uid();
-        list.push(r);
-      } else {
-        const i = list.findIndex(x => x.id === r.id);
-        if (i > -1) list[i] = r; else list.push(r);
-      }
-      storage.set(DB_KEYS.recurring, list);
-      return r;
-    },
-    deleteRecurring(id) {
-      storage.set(DB_KEYS.recurring, this.getRecurring().filter(r => r.id !== id));
-    },
-  };
-
-  // Renderers
-  function renderPeople() {
-    const ul = $('people-list');
-    if (!ul) return;
-    ul.innerHTML = '';
-    data.getPeople().forEach(p => {
-      const li = document.createElement('li');
-      li.className = 'mb-1 flex items-center justify-between';
-      li.innerHTML =
-        `<span>${p}</span>
-         <button data-name="${p}" class="del-person bg-red-500 text-white px-2 py-1 rounded text-sm">Excluir</button>`;
-      ul.appendChild(li);
-    });
-    ul.querySelectorAll('.del-person').forEach(b => {
-      on(b, 'click', () => {
-        data.deletePerson(b.getAttribute('data-name'));
-        renderPeople();
-        renderPeopleOptions();
-        toast('Pessoa excluída');
-      });
-    });
-  }
-
-  function renderPeopleOptions() {
-    function ensureDatalist(inputId) {
-      const input = $(inputId);
-      if (!input) return;
-      const listId = inputId + '-list';
-      let d = document.getElementById(listId);
-      if (!d) {
-        d = document.createElement('datalist');
-        d.id = listId;
-        document.body.appendChild(d);
-        input.setAttribute('list', listId);
-      }
-      d.innerHTML = '';
-      data.getPeople().forEach(p => {
-        const o = document.createElement('option');
-        o.value = p;
-        d.appendChild(o);
-      });
-    }
-    ['account-owner-name', 'transaction-owner-name', 'category-owner-name', 'recurring-owner-name']
-      .forEach(ensureDatalist);
-  }
-
-  function renderAccounts() {
-    const tb = $('accounts-table-body');
-    if (!tb) return;
-    tb.innerHTML = '';
-    const list = data.getAccounts();
-    if (!list.length) {
-      tb.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhuma conta.</td></tr>`;
-      return;
-    }
-    list.forEach(a => {
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        `<td class="py-2 px-3">${a.owner || ''}</td>
-         <td class="py-2 px-3">${a.bank || ''}</td>
-         <td class="py-2 px-3">${a.name || ''}</td>
-         <td class="py-2 px-3">${fmt(a.balance)}</td>
-         <td class="py-2 px-3">
-           <button class="edit-acc bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${a.id}">Editar</button>
-           <button class="del-acc bg-red-500 text-white px-2 py-1 rounded" data-id="${a.id}">Excluir</button>
-         </td>`;
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll('.edit-acc').forEach(b => on(b, 'click', () => openAccountModal(b.getAttribute('data-id'))));
-    tb.querySelectorAll('.del-acc').forEach(b => on(b, 'click', () => {
-      data.deleteAccount(b.getAttribute('data-id'));
-      renderAccounts();
-      renderAccountSelects();
-      toast('Conta excluída');
-    }));
-    renderAccountSelects();
-    renderDashboard();
-  }
-
-  function renderAccountSelects() {
-    const accs = data.getAccounts();
-    const s1 = $('transaction-account');
-    const s2 = $('transaction-account-dst');
-    const sR = $('recurring-account');
-    [s1, s2, sR].forEach(s => {
-      if (!s) return;
-      s.innerHTML = '<option value="">Selecione</option>';
-      accs.forEach(a => {
-        const o = document.createElement('option');
-        o.value = a.id;
-        o.textContent = (a.owner ? a.owner + ' - ' : '') + (a.bank ? a.bank + ' / ' : '') + a.name;
-        s.appendChild(o);
-      });
-    });
-  }
-
-  function renderCategories() {
-    const tb = $('categories-table-body');
-    if (!tb) return;
-    tb.innerHTML = '';
-    const list = data.getCategories();
-    if (!list.length) {
-      tb.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria.</td></tr>`;
-      return;
-    }
-    list.forEach(c => {
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        `<td class="py-2 px-3">${c.owner || ''}</td>
-         <td class="py-2 px-3">${c.name || ''}</td>
-         <td class="py-2 px-3">${c.type || ''}</td>
-         <td class="py-2 px-3">
-           <button class="edit-cat bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${c.id}">Editar</button>
-           <button class="del-cat bg-red-500 text-white px-2 py-1 rounded" data-id="${c.id}">Excluir</button>
-         </td>`;
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll('.edit-cat').forEach(b => on(b, 'click', () => openCategoryModal(b.getAttribute('data-id'))));
-    tb.querySelectorAll('.del-cat').forEach(b => on(b, 'click', () => {
-      data.deleteCategory(b.getAttribute('data-id'));
-      renderCategories();
-      toast('Categoria excluída');
-    }));
-    renderCategorySelects();
-  }
-
-  function renderCategorySelects() {
-    const cats = data.getCategories();
-    const sT = $('transaction-category');
-    const sR = $('recurring-category');
-    const sB = $('budget-category');
-    [sT, sR, sB].forEach(s => {
-      if (!s) return;
-      s.innerHTML = '<option value="">Selecione</option>';
-      cats.forEach(c => {
-        const o = document.createElement('option');
-        o.value = c.id;
-        o.textContent = (c.owner ? c.owner + ' - ' : '') + c.name + ' (' + c.type + ')';
-        s.appendChild(o);
-      });
-    });
-  }
-
-  function renderTransactions() {
-    const tb = $('transactions-table-body');
-    if (!tb) return;
-    tb.innerHTML = '';
-    const list = data.getTransactions().slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
-    if (!list.length) {
-      tb.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma transação.</td></tr>`;
-      return;
-    }
-    list.forEach(t => {
-      const a = data.getAccounts().find(x => x.id === t.account_id);
-      const d = data.getAccounts().find(x => x.id === t.account_id_dst);
-      const c = data.getCategories().find(x => x.id === t.category_id);
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        `<td class="py-2 px-3">${t.owner || ''}</td>
-         <td class="py-2 px-3">${t.type}</td>
-         <td class="py-2 px-3">${t.date || ''}</td>
-         <td class="py-2 px-3">${t.description || ''}</td>
-         <td class="py-2 px-3">${fmt(t.amount)}</td>
-         <td class="py-2 px-3">${a ? (a.bank ? a.bank + ' / ' : '') + a.name : ''}</td>
-         <td class="py-2 px-3">${d ? (d.bank ? d.bank + ' / ' : '') + d.name : ''}</td>
-         <td class="py-2 px-3">${c ? c.name : ''}</td>
-         <td class="py-2 px-3">
-           <button class="edit-tx bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${t.id}">Editar</button>
-           <button class="del-tx bg-red-500 text-white px-2 py-1 rounded" data-id="${t.id}">Excluir</button>
-         </td>`;
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll('.edit-tx').forEach(b => on(b, 'click', () => openTransactionModal(b.getAttribute('data-id'))));
-    tb.querySelectorAll('.del-tx').forEach(b => on(b, 'click', () => {
-      deleteTransactionAndAdjust(b.getAttribute('data-id'));
-      renderTransactions();
-      renderAccounts();
-      toast('Transação excluída');
-    }));
-    renderDashboard();
-  }
-
-  function renderRecurring() {
-    const tb = $('recurring-table-body');
-    if (!tb) return;
-    tb.innerHTML = '';
-    const list = data.getRecurring();
-    if (!list.length) {
-      tb.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma recorrência.</td></tr>`;
-      return;
-    }
-    list.forEach(r => {
-      const a = data.getAccounts().find(x => x.id === r.account_id);
-      const c = data.getCategories().find(x => x.id === r.category_id);
-      const tr = document.createElement('tr');
-      tr.innerHTML =
-        `<td class="py-2 px-3">${r.owner || ''}</td>
-         <td class="py-2 px-3">${r.title || ''}</td>
-         <td class="py-2 px-3">${fmt(r.amount)}</td>
-         <td class="py-2 px-3">${r.type}</td>
-         <td class="py-2 px-3">${r.frequency}</td>
-         <td class="py-2 px-3">${r.next_date || ''}</td>
-         <td class="py-2 px-3">${a ? (a.bank ? a.bank + ' / ' : '') + a.name : ''}</td>
-         <td class="py-2 px-3">${c ? c.name : ''}</td>
-         <td class="py-2 px-3">
-           <button class="gen-now bg-blue-600 text-white px-2 py-1 rounded mr-2" data-id="${r.id}">Gerar agora</button>
-           <button class="edit-rec bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${r.id}">Editar</button>
-           <button class="del-rec bg-red-500 text-white px-2 py-1 rounded" data-id="${r.id}">Excluir</button>
-         </td>`;
-      tb.appendChild(tr);
-    });
-    tb.querySelectorAll('.gen-now').forEach(b => on(b, 'click', () => {
-      generateRecurringNow(b.getAttribute('data-id'));
-      renderTransactions();
-      renderRecurring();
-      renderAccounts();
-    }));
-    tb.querySelectorAll('.edit-rec').forEach(b => on(b, 'click', () => openRecurringModal(b.getAttribute('data-id'))));
-    tb.querySelectorAll('.del-rec').forEach(b => on(b, 'click', () => {
-      data.deleteRecurring(b.getAttribute('data-id'));
-      renderRecurring();
-      toast('Recorrência excluída');
-    }));
-  }
-
-  // Dashboard
-  function renderDashboard() {
-    const accs = data.getAccounts();
-    const txs = data.getTransactions();
-    const total = accs.reduce((s, a) => s + Number(a.balance || 0), 0);
-    const now = new Date();
-    const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
-    const month = txs.filter(t => (t.date || '').startsWith(ym));
-    const inc = month.filter(t => t.type === 'income')
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
-    const exp = month.filter(t => t.type === 'expense')
-      .reduce((s, t) => s + Number(t.amount || 0), 0);
-
-    const tb = $('total-balance');
-    const mi = $('monthly-income');
-    const me = $('monthly-expenses');
-    if (tb) tb.textContent = fmt(total);
-    if (mi) mi.textContent = fmt(inc);
-    if (me) me.textContent = fmt(exp);
-  }
-
-  // Modals open/fill
-  function openAccountModal(id) {
-    const m = $('account-modal'); if (!m) return;
-    m.style.display = 'block';
-    const f = $('account-form'); f.reset();
-    if (id) {
-      const a = data.getAccounts().find(x => x.id === id);
-      if (a) {
-        $('account-id').value = a.id;
-        $('account-owner-name').value = a.owner || '';
-        $('account-bank').value = a.bank || '';
-        $('account-name').value = a.name || '';
-        $('account-balance').value = a.balance || 0;
-      }
-    }
-  }
-  function openCategoryModal(id) {
-    const m = $('category-modal'); if (!m) return;
-    m.style.display = 'block';
-    const f = $('category-form'); f.reset();
-    if (id) {
-      const c = data.getCategories().find(x => x.id === id);
-      if (c) {
-        $('category-id').value = c.id;
-        $('category-owner-name').value = c.owner || '';
-        $('category-name').value = c.name || '';
-        $('category-type').value = c.type || 'expense';
-      }
-    }
-  }
-  function openTransactionModal(id) {
-    const m = $('transaction-modal'); if (!m) return;
-    m.style.display = 'block';
-    const f = $('transaction-form'); f.reset();
-    if (id) {
-      const t = data.getTransactions().find(x => x.id === id);
-      if (t) {
-        $('transaction-id').value = t.id;
-        $('transaction-owner-name').value = t.owner || '';
-        $('transaction-type').value = t.type || 'expense';
-        $('transaction-date').value = t.date || '';
-        $('transaction-description').value = t.description || '';
-        $('transaction-amount').value = t.amount || 0;
-        $('transaction-account').value = t.account_id || '';
-        $('transaction-account-dst').value = t.account_id_dst || '';
-        $('transaction-category').value = t.category_id || '';
-      }
-    }
-  }
-  function openRecurringModal(id) {
-    const m = $('recurring-modal'); if (!m) return;
-    m.style.display = 'block';
-    const f = $('recurring-form'); f.reset();
-    if (id) {
-      const r = data.getRecurring().find(x => x.id === id);
-      if (r) {
-        $('recurring-id').value = r.id;
-        $('recurring-owner-name').value = r.owner || '';
-        $('recurring-title').value = r.title || '';
-        $('recurring-type').value = r.type || 'expense';
-        $('recurring-amount').value = r.amount || 0;
-        $('recurring-frequency').value = r.frequency || 'monthly';
-        $('recurring-next').value = r.next_date || '';
-        $('recurring-account').value = r.account_id || '';
-        $('recurring-category').value = r.category_id || '';
-      }
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return { ...defaultState };
+      const parsed = JSON.parse(raw);
+      return { ...defaultState, ...parsed };
+    } catch (e) {
+      console.warn('Erro ao carregar estado:', e);
+      return { ...defaultState };
     }
   }
 
-  // Tx helpers
-  function deleteTransactionAndAdjust(id) {
-    const tx = data.getTransactions().find(t => t.id === id);
-    if (!tx) { data.deleteTransaction(id); return; }
-
-    if (tx.type === 'income') {
-      const a = data.getAccounts().find(x => x.id === tx.account_id);
-      if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) - Number(tx.amount || 0));
-    } else if (tx.type === 'expense') {
-      const b = data.getAccounts().find(x => x.id === tx.account_id);
-      if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) + Number(tx.amount || 0));
-    } else if (tx.type === 'transfer') {
-      const o = data.getAccounts().find(x => x.id === tx.account_id);
-      const d = data.getAccounts().find(x => x.id === tx.account_id_dst);
-      if (o) data.updateAccountBalance(o.id, Number(o.balance || 0) + Number(tx.amount || 0));
-      if (d) data.updateAccountBalance(d.id, Number(d.balance || 0) - Number(tx.amount || 0));
-    }
-    data.deleteTransaction(id);
+  function saveState(st) {
+    localStorage.setItem(LS_KEY, JSON.stringify(st));
   }
 
-  function nextDate(freq, dateStr) {
-    const dt = new Date(dateStr);
-    if (freq === 'weekly') dt.setDate(dt.getDate() + 7);
-    else if (freq === 'biweekly') dt.setDate(dt.getDate() + 14);
-    else dt.setMonth(dt.getMonth() + 1);
-    return dt.toISOString().slice(0, 10);
-  }
+  let state = loadState();
 
-  function generateRecurringNow(id) {
-    const r = data.getRecurring().find(x => x.id === id);
-    if (!r) return;
-    const tx = {
-      owner: r.owner,
-      type: r.type,
-      date: r.next_date || new Date().toISOString().slice(0, 10),
-      description: r.title,
-      amount: Number(r.amount || 0),
-      account_id: r.account_id,
-      account_id_dst: null,
-      category_id: r.category_id,
-    };
-    if (r.type === 'income') {
-      const a = data.getAccounts().find(x => x.id === r.account_id);
-      if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) + Number(tx.amount));
-    } else if (r.type === 'expense') {
-      const b = data.getAccounts().find(x => x.id === r.account_id);
-      if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) - Number(tx.amount));
-    }
-    data.saveTransaction(tx);
-    r.next_date = nextDate(r.frequency || 'monthly', tx.date);
-    data.saveRecurring(r);
-    toast('Transação gerada');
-  }
-
-  // Export
-  function exportTransactionsCSV() {
-    const txs = data.getTransactions();
-    const headers = ['id','owner','type','date','description','amount','account_id','account_id_dst','category_id'];
-    const rows = [headers.join(',')].concat(
-      txs.map(t => headers.map(k => JSON.stringify(t[k] !== undefined ? t[k] : '')).join(','))
+  // Semeadura inicial (se quiser algo visível)
+  if (state.pessoas.length === 0) {
+    const p1 = { id: uid(), nome: 'Eu' };
+    const p2 = { id: uid(), nome: 'Cônjuge' };
+    state.pessoas.push(p1, p2);
+    const c1 = { id: uid(), nome: 'Conta Principal', banco: 'Meu Banco', saldoInicial: 1000, saldoAtual: 1000, pessoaId: p1.id };
+    const c2 = { id: uid(), nome: 'Conta Cônjuge', banco: 'Banco Cônjuge', saldoInicial: 800, saldoAtual: 800, pessoaId: p2.id };
+    state.contas.push(c1, c2);
+    state.categorias.push(
+      { id: uid(), nome: 'Salário', tipo: 'receita' },
+      { id: uid(), nome: 'Renda', tipo: 'despesa' },
+      { id: uid(), nome: 'Compras Mercado', tipo: 'despesa' },
+      { id: uid(), nome: 'Serviços (Luz/Água/Internet)', tipo: 'despesa' }
     );
-    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'transacoes.csv';
-    a.click();
-    URL.revokeObjectURL(url);
+    saveState(state);
   }
 
-  // Wiring
-  function wireTabs() {
-    document.body.addEventListener('click', e => {
-      const t = e.target;
-      if (!t.classList || !t.classList.contains('tab-button')) return;
-      const btns = document.querySelectorAll('.tab-button');
-      const tabs = document.querySelectorAll('.tab-content');
-      btns.forEach(x => x.classList.remove('active'));
-      tabs.forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      const el = $(t.getAttribute('data-tab'));
-      if (el) el.classList.add('active');
+  // Tabs
+  function showTab(tabId) {
+    $all('.tab-pane').forEach(el => el.style.display = 'none');
+    const el = document.getElementById(tabId);
+    if (el) el.style.display = 'block';
+    $all('[data-tab]').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active');
+      else btn.classList.remove('active');
     });
   }
 
-  function wireModals() {
-    document.querySelectorAll('.modal').forEach(m => {
-      const x = m.querySelector('.close-button');
-      if (x) on(x, 'click', () => { m.style.display = 'none'; });
-      on(m, 'click', (e) => { if (e.target === m) m.style.display = 'none'; });
-      m.querySelectorAll('.cancel-btn').forEach(b => on(b, 'click', () => { m.style.display = 'none'; }));
+  // Render helpers
+  function renderPessoasOptions(selectEl, includeBlank) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
+    if (includeBlank) {
+      const opt = document.createElement('option');
+      opt.value = '';
+      opt.textContent = 'Selecione';
+      selectEl.appendChild(opt);
+    }
+    state.pessoas.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id;
+      opt.textContent = p.nome;
+      selectEl.appendChild(opt);
     });
   }
 
-  function wireButtons() {
-    on($('add-account-button'), 'click', () => openAccountModal());
-    on($('add-category-button'), 'click', () => openCategoryModal());
-    on($('add-transaction-button'), 'click', () => openTransactionModal());
-    on($('add-recurring-button'), 'click', () => openRecurringModal());
-    on($('export-transactions-button'), 'click', exportTransactionsCSV);
-    on($('logout-button'), 'click', () => toast('Sessão encerrada (modo local)'));
+  function renderContasTable() {
+    const tbody = $('#tbl-contas-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    state.contas.forEach(c => {
+      const p = state.pessoas.find(x => x.id === c.pessoaId);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${c.nome}</td>
+        <td>${c.banco || ''}</td>
+        <td>${p ? p.nome : ''}</td>
+        <td style="text-align:right">${fmtMoney(c.saldoInicial)}</td>
+        <td style="text-align:right">${fmtMoney(c.saldoAtual)}</td>
+        <td>
+          <button data-act="edit" data-id="${c.id}">Editar</button>
+          <button data-act="del" data-id="${c.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
   }
 
-  function wireForms() {
-    // Account
-    const f1 = $('account-form');
-    if (f1) on(f1, 'submit', (e) => {
-      e.preventDefault();
-      const id = $('account-id').value || null;
-      const owner = ($('account-owner-name').value || '').trim();
-      const bank = ($('account-bank').value || '').trim();
-      const name = ($('account-name').value || '').trim();
-      const bal = Number($('account-balance').value || 0);
-      if (!owner || !name) { toast('Preencha Pessoa e Nome da Conta'); return; }
-      data.savePerson(owner);
-      const acc = { id, owner, bank, name, balance: bal };
-      data.saveAccount(acc);
-      toast(id ? 'Conta atualizada' : 'Conta criada');
-      $('account-modal').style.display = 'none';
-      renderPeople(); renderAccounts();
+  function renderContasSelects() {
+    const selConta = $('#tx-conta');
+    const selDe = $('#tx-de-conta');
+    const selPara = $('#tx-para-conta');
+    [selConta, selDe, selPara].forEach(sel => {
+      if (!sel) return;
+      sel.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'Selecione';
+      sel.appendChild(blank);
+      state.contas.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.nome} (${c.banco || '-'})`;
+        sel.appendChild(opt);
+      });
+    });
+  }
+
+  function renderCategorias() {
+    const tbody = $('#tbl-categorias-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    state.categorias.forEach(cat => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${cat.nome}</td>
+        <td>${cat.tipo}</td>
+        <td>
+          <button data-act="edit" data-id="${cat.id}">Editar</button>
+          <button data-act="del" data-id="${cat.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
 
-    // Category
-    const f2 = $('category-form');
-    if (f2) on(f2, 'submit', (e) => {
-      e.preventDefault();
-      const id = $('category-id').value || null;
-      const owner = ($('category-owner-name').value || '').trim();
-      const name = ($('category-name').value || '').trim();
-      const type = $('category-type').value;
-      if (!owner || !name) { toast('Preencha Pessoa e Nome'); return; }
-      data.savePerson(owner);
-      const cat = { id, owner, name, type };
-      data.saveCategory(cat);
-      toast(id ? 'Categoria atualizada' : 'Categoria criada');
-      $('category-modal').style.display = 'none';
-      renderPeople(); renderCategories();
+    // selects de transações
+    const selCat = $('#tx-categoria');
+    if (selCat) {
+      selCat.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'Selecione';
+      selCat.appendChild(blank);
+      state.categorias.forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = `${cat.nome} (${cat.tipo})`;
+        selCat.appendChild(opt);
+      });
+    }
+  }
+
+  function renderTransacoes() {
+    const tbody = $('#tbl-transacoes-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+
+    const ordered = [...state.transacoes].sort((a, b) => (a.dataISO || '').localeCompare(b.dataISO || '')).reverse();
+
+    ordered.forEach(t => {
+      const conta = state.contas.find(c => c.id === t.contaId);
+      const cat = state.categorias.find(c => c.id === t.categoriaId);
+      const isTransfer = !!(t.deContaId && t.paraContaId);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${(t.dataISO || '').slice(0,10)}</td>
+        <td>${isTransfer ? 'Transferência' : (cat ? cat.nome : '')}</td>
+        <td>${conta ? conta.nome : (isTransfer ? '-' : '')}</td>
+        <td style="text-align:right">${fmtMoney(t.valor)}</td>
+        <td>${t.descricao || ''}</td>
+        <td>
+          <button data-act="del" data-id="${t.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
     });
+  }
 
-    // Transaction
-    const f3 = $('transaction-form');
-    if (f3) on(f3, 'submit', (e) => {
-      e.preventDefault();
-      const id = $('transaction-id').value || null;
-      const owner = ($('transaction-owner-name').value || '').trim();
-      const type = $('transaction-type').value;
-      const date = $('transaction-date').value;
-      const description = ($('transaction-description').value || '').trim();
-      const amount = Number($('transaction-amount').value || 0);
-      const account_id = $('transaction-account').value || null;
-      const account_id_dst = $('transaction-account-dst').value || null;
-      const category_id = $('transaction-category').value || null;
-
-      if (!owner || !date || !description || !amount || !account_id) {
-        toast('Preencha Pessoa, Data, Descrição, Valor e Conta');
-        return;
-      }
-      data.savePerson(owner);
-
-      if (!id) {
-        if (type === 'income') {
-          const a = data.getAccounts().find(x => x.id === account_id);
-          if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) + amount);
-        } else if (type === 'expense') {
-          const b = data.getAccounts().find(x => x.id === account_id);
-          if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) - amount);
-        } else if (type === 'transfer') {
-          if (!account_id_dst || account_id_dst === account_id) {
-            toast('Selecione uma conta destino diferente'); return;
-          }
-          const o = data.getAccounts().find(x => x.id === account_id);
-          const d = data.getAccounts().find(x => x.id === account_id_dst);
-          if (!o || !d) { toast('Contas inválidas'); return; }
-          data.updateAccountBalance(o.id, Number(o.balance || 0) - amount);
-          data.updateAccountBalance(d.id, Number(d.balance || 0) + amount);
+  function recalcSaldos() {
+    // recomputa saldoAtual a partir de saldoInicial + transações
+    state.contas.forEach(c => c.saldoAtual = Number(c.saldoInicial || 0));
+    state.transacoes.forEach(t => {
+      if (t.deContaId && t.paraContaId) {
+        // transferência
+        const de = state.contas.find(c => c.id === t.deContaId);
+        const para = state.contas.find(c => c.id === t.paraContaId);
+        const val = Number(t.valor || 0);
+        if (de) de.saldoAtual -= val;
+        if (para) para.saldoAtual += val;
+      } else {
+        const conta = state.contas.find(c => c.id === t.contaId);
+        const cat = state.categorias.find(c => c.id === t.categoriaId);
+        const val = Number(t.valor || 0);
+        if (conta) {
+          if (cat && cat.tipo === 'despesa') conta.saldoAtual -= val;
+          else conta.saldoAtual += val;
         }
       }
-
-      const tx = {
-        id, owner, type, date, description, amount,
-        account_id,
-        account_id_dst: type === 'transfer' ? account_id_dst : null,
-        category_id
-      };
-      data.saveTransaction(tx);
-      toast(id ? 'Transação atualizada' : 'Transação criada');
-      $('transaction-modal').style.display = 'none';
-      renderPeople(); renderTransactions(); renderAccounts();
-    });
-
-    // Recurring
-    const f4 = $('recurring-form');
-    if (f4) on(f4, 'submit', (e) => {
-      e.preventDefault();
-      const id = $('recurring-id').value || null;
-      const owner = ($('recurring-owner-name').value || '').trim();
-      const title = ($('recurring-title').value || '').trim();
-      const type = $('recurring-type').value;
-      const amount = Number($('recurring-amount').value || 0);
-      const frequency = $('recurring-frequency').value;
-      const next_date = $('recurring-next').value;
-      const account_id = $('recurring-account').value || null;
-      const category_id = $('recurring-category').value || null;
-
-      if (!owner || !title || !amount || !next_date || !account_id) {
-        toast('Preencha Pessoa, Título, Valor, Próxima Data e Conta');
-        return;
-      }
-      data.savePerson(owner);
-      const r = { id, owner, title, type, amount, frequency, next_date, account_id, category_id };
-      data.saveRecurring(r);
-      toast(id ? 'Recorrência atualizada' : 'Recorrência criada');
-      $('recurring-modal').style.display = 'none';
-      renderPeople(); renderRecurring();
     });
   }
 
-  // Init
-  function init() {
-    try {
-      wireTabs();
-      wireModals();
-      wireButtons();
-      wireForms();
-      renderPeople();
-      renderPeopleOptions();
-      renderAccounts();
-      renderCategories();
-      renderTransactions();
-      renderRecurring();
-      renderDashboard();
-      console.log('FinPilot IE up');
-    } catch (e) {
-      console.error('Erro ao iniciar app:', e);
-      toast('Erro ao iniciar app');
+  // Handlers: Contas
+  function bindContas() {
+    // povoar selects
+    renderPessoasOptions($('#ct-pessoa'), true);
+    renderContasTable();
+    renderContasSelects();
+
+    const form = $('#form-conta');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const idEdit = form.getAttribute('data-edit-id');
+        const nome = ($('#ct-nome') || {}).value || '';
+        const banco = ($('#ct-banco') || {}).value || '';
+        const pessoaId = ($('#ct-pessoa') || {}).value || '';
+        const saldoInicial = Number((($('#ct-saldo-inicial') || {}).value || '0').replace(',', '.'));
+        if (!nome || !pessoaId) {
+          alert('Informe nome e pessoa.');
+          return;
+        }
+        if (idEdit) {
+          const c = state.contas.find(x => x.id === idEdit);
+          if (c) {
+            c.nome = nome;
+            c.banco = banco;
+            c.pessoaId = pessoaId;
+            // ajustar saldoInicial altera recomputação
+            c.saldoInicial = isNaN(saldoInicial) ? 0 : saldoInicial;
+          }
+          form.removeAttribute('data-edit-id');
+        } else {
+          const c = {
+            id: uid(),
+            nome,
+            banco,
+            pessoaId,
+            saldoInicial: isNaN(saldoInicial) ? 0 : saldoInicial,
+            saldoAtual: isNaN(saldoInicial) ? 0 : saldoInicial
+          };
+          state.contas.push(c);
+        }
+        recalcSaldos();
+        saveState(state);
+        renderContasTable();
+        renderContasSelects();
+        form.reset();
+      });
+    }
+
+    const tbody = $('#tbl-contas-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir conta? Isso não remove transações vinculadas; saldos serão recalculados.')) return;
+          state.contas = state.contas.filter(c => c.id !== id);
+          // remover transações ligadas à conta ou transferências que envolvam
+          state.transacoes = state.transacoes.filter(t =>
+            t.contaId !== id && t.deContaId !== id && t.paraContaId !== id
+          );
+          recalcSaldos();
+          saveState(state);
+          renderContasTable();
+          renderContasSelects();
+          renderTransacoes();
+        } else if (act === 'edit') {
+          const c = state.contas.find(x => x.id === id);
+          if (!c) return;
+          ($('#ct-nome') || {}).value = c.nome;
+          ($('#ct-banco') || {}).value = c.banco || '';
+          ($('#ct-pessoa') || {}).value = c.pessoaId || '';
+          ($('#ct-saldo-inicial') || {}).value = String(c.saldoInicial);
+          const form = $('#form-conta');
+          if (form) form.setAttribute('data-edit-id', c.id);
+        }
+      });
     }
   }
 
+  // Handlers: Categorias
+  function bindCategorias() {
+    renderCategorias();
+    const form = $('#form-categoria');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const idEdit = form.getAttribute('data-edit-id');
+        const nome = ($('#cat-nome') || {}).value || '';
+        const tipo = ($('#cat-tipo') || {}).value || 'despesa';
+        if (!nome) {
+          alert('Informe o nome da categoria.');
+          return;
+        }
+        if (idEdit) {
+          const c = state.categorias.find(x => x.id === idEdit);
+          if (c) {
+            c.nome = nome;
+            c.tipo = tipo;
+          }
+          form.removeAttribute('data-edit-id');
+        } else {
+          state.categorias.push({ id: uid(), nome, tipo });
+        }
+        saveState(state);
+        renderCategorias();
+        form.reset();
+      });
+    }
+
+    const tbody = $('#tbl-categorias-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir categoria? Transações com esta categoria permanecerão sem categoria.')) return;
+          state.categorias = state.categorias.filter(c => c.id !== id);
+          state.transacoes.forEach(t => {
+            if (t.categoriaId === id) t.categoriaId = null;
+          });
+          saveState(state);
+          renderCategorias();
+          renderTransacoes();
+        } else if (act === 'edit') {
+          const c = state.categorias.find(x => x.id === id);
+          if (!c) return;
+          ($('#cat-nome') || {}).value = c.nome;
+          ($('#cat-tipo') || {}).value = c.tipo;
+          form && form.setAttribute('data-edit-id', c.id);
+        }
+      });
+    }
+  }
+
+  // Handlers: Transações (inclui transferências)
+  function bindTransacoes() {
+    renderContasSelects();
+    renderCategorias();
+    renderTransacoes();
+
+    const form = $('#form-transacao');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const dataISO = ($('#tx-data') || {}).value || new Date().toISOString().slice(0,10);
+        const contaId = ($('#tx-conta') || {}).value || '';
+        const categoriaId = ($('#tx-categoria') || {}).value || '';
+        const valor = Number((($('#tx-valor') || {}).value || '0').replace(',', '.'));
+        const descricao = ($('#tx-descricao') || {}).value || '';
+
+        const deContaId = ($('#tx-de-conta') || {}).value || '';
+        const paraContaId = ($('#tx-para-conta') || {}).value || '';
+
+        const isTransfer = deContaId && paraContaId;
+
+        if (isTransfer) {
+          if (deContaId === paraContaId) {
+            alert('Selecione contas diferentes para transferência.');
+            return;
+          }
+          if (isNaN(valor) || valor <= 0) {
+            alert('Informe um valor válido para a transferência.');
+            return;
+          }
+          state.transacoes.push({
+            id: uid(),
+            dataISO,
+            contaId: null,
+            valor,
+            categoriaId: null,
+            descricao: descricao || 'Transferência',
+            deContaId,
+            paraContaId
+          });
+        } else {
+          if (!contaId || !categoriaId) {
+            alert('Selecione conta e categoria.');
+            return;
+          }
+          if (isNaN(valor) || valor <= 0) {
+            alert('Informe um valor válido.');
+            return;
+          }
+          state.transacoes.push({
+            id: uid(),
+            dataISO,
+            contaId,
+            valor,
+            categoriaId,
+            descricao,
+            deContaId: null,
+            paraContaId: null
+          });
+        }
+
+        recalcSaldos();
+        saveState(state);
+        renderTransacoes();
+        renderContasTable();
+        form.reset();
+      });
+    }
+
+    const tbody = $('#tbl-transacoes-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act="del"]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        state.transacoes = state.transacoes.filter(t => t.id !== id);
+        recalcSaldos();
+        saveState(state);
+        renderTransacoes();
+        renderContasTable();
+      });
+    }
+  }
+
+  // Navegação
+  function bindNav() {
+    $all('[data-tab]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const tabId = btn.getAttribute('data-tab');
+        showTab(tabId);
+      });
+    });
+
+    // Botão sair (apenas volta à tela de login.html se existir)
+    const btnSair = $('#btn-sair');
+    if (btnSair) {
+      btnSair.addEventListener('click', () => {
+        // para demo local, apenas redireciona
+        window.location.href = 'login.html';
+      });
+    }
+  }
+
+  function init() {
+    bindNav();
+    bindContas();
+    bindCategorias();
+    bindTransacoes();
+
+    // Abre a primeira aba existente
+    const firstPane = document.querySelector('.tab-pane');
+    if (firstPane) showTab(firstPane.id);
+  }
+
+  // Esperar DOM
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
