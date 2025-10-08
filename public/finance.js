@@ -1,591 +1,914 @@
-// FinPilot IE - Finance Management (LocalStorage)
+// FinPilot IE - LocalStorage (EUR)
+// Ajustes: Transações sem coluna "Conta"; adicionar "Transferência De/Para"
+// Ordenação alfabética em categorias e todos os selects
+// Despesa Fixa com Titular (quem paga)
+// Dashboard com cards: total de Despesa Fixa por titular; cards de cada dívida por titular
+(function () {
+  'use strict';
 
-// ========== UTILITY FUNCTIONS ==========
-function genId() {
-  if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
-  return 'id-' + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-}
+  const CURRENCY = 'EUR';
+  const LS_KEY = 'finpilot_ie_v1';
 
-function showToast(message) {
-  const toast = document.getElementById('toast');
-  if (!toast) return;
-  toast.textContent = message;
-  toast.className = 'toast show';
-  setTimeout(() => { toast.className = 'toast'; }, 3000);
-}
+  function $(sel) { return document.querySelector(sel); }
+  function $all(sel) { return Array.from(document.querySelectorAll(sel)); }
+  function fmtMoney(v) { return Number(v || 0).toLocaleString('pt-PT', { style: 'currency', currency: CURRENCY }); }
+  function uid() { return 'id_' + Math.random().toString(36).slice(2, 10); }
+  function todayISO() { return new Date().toISOString().slice(0,10); }
+  function sortAsc(a, b) { return a.localeCompare(b, 'pt', { sensitivity: 'base' }); }
 
-function formatCurrency(value) {
-  return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' }).format(Number(value || 0));
-}
+  const defaultState = {
+    pessoas: [],
+    contas: [],       // {id, titularNome, banco, tipoConta, saldoInicial, saldoAtual, pessoaId}
+    categorias: [],   // {id, nome, tipo}
+    transacoes: [],   // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
+    salarios: [],     // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
+    recorrentes: [],  // {id, categoriaId, nome, valor, dataISO?, semanaDoMes?, diaDaSemana?, titularNome?}
+    dividas: [],      // {id, categoriaId, nome, valor, vencimentoISO?, fimISO?, semanaDoMes?, titularNome?}
+    gastos: []        // {id, dataISO, titularNome, banco, descricao, valor, contaIdVinculada}
+  };
 
-function formatDate(dateStr) {
-  if (!dateStr) return '';
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString('pt-PT');
-}
+  function loadState() {
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (!raw) return { ...defaultState };
+      const parsed = JSON.parse(raw);
+      return { ...defaultState, ...parsed };
+    } catch { return { ...defaultState }; }
+  }
+  function saveState(st) { localStorage.setItem(LS_KEY, JSON.stringify(st)); }
 
-// ========== LOCALSTORAGE HELPERS ==========
-function getLS(key) {
-  try { return JSON.parse(localStorage.getItem(key) || '[]'); } catch { return []; }
-}
+  let state = loadState();
 
-function setLS(key, data) {
-  localStorage.setItem(key, JSON.stringify(data));
-}
-
-// ========== MODAL MANAGEMENT ==========
-function openModal(modalId, editData) {
-  const modal = document.getElementById(modalId);
-  if (!modal) return;
-
-  // Reset if form exists
-  const form = modal.querySelector('form');
-  if (form) form.reset();
-
-  if (modalId === 'account-modal') {
-    document.getElementById('account-id').value = editData?.id || '';
-    document.getElementById('account-owner-name').value = editData?.owner_name || '';
-    document.getElementById('account-name').value = editData?.name || '';
-    document.getElementById('account-bank').value = editData?.bank || '';
-    document.getElementById('account-balance').value = editData?.balance != null ? String(editData.balance) : '';
-    document.getElementById('account-modal-title').textContent = editData ? 'Editar Conta' : 'Nova Conta';
+  // Semeadura inicial
+  if (state.pessoas.length === 0) {
+    const p1 = { id: uid(), nome: 'Eu' };
+    const p2 = { id: uid(), nome: 'Cônjuge' };
+    state.pessoas.push(p1, p2);
+    state.contas.push(
+      { id: uid(), titularNome: 'Eu', banco: 'Meu Banco', tipoConta: 'Corrente', saldoInicial: 1000, saldoAtual: 1000, pessoaId: p1.id },
+      { id: uid(), titularNome: 'Cônjuge', banco: 'Banco Cônjuge', tipoConta: 'Poupança', saldoInicial: 800, saldoAtual: 800, pessoaId: p2.id }
+    );
+    const catSal = { id: uid(), nome: 'Salário', tipo: 'receita' };
+    const catMer = { id: uid(), nome: 'Mercado', tipo: 'despesa' };
+    const catAlu = { id: uid(), nome: 'Aluguel', tipo: 'despesa' };
+    state.categorias.push(catSal, catMer, catAlu);
+    saveState(state);
+  }
+  // Garantir categoria Salário existe
+  if (!state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita')) {
+    state.categorias.push({ id: uid(), nome: 'Salário', tipo: 'receita' });
+    saveState(state);
   }
 
-  if (modalId === 'category-modal' && editData) {
-    document.getElementById('category-id').value = editData.id || '';
-    document.getElementById('category-owner-name').value = editData.owner_name || '';
-    document.getElementById('category-name').value = editData.name || '';
-    document.getElementById('category-type').value = editData.type || 'expense';
-    document.getElementById('category-modal-title').textContent = 'Editar Categoria';
-  } else if (modalId === 'category-modal') {
-    document.getElementById('category-modal-title').textContent = 'Adicionar Categoria';
+  // Helpers de opções ordenadas
+  function getUniqueTitularesSorted() {
+    const set = new Set(state.contas.map(c => (c.titularNome || '').trim()).filter(Boolean));
+    return Array.from(set).sort(sortAsc);
   }
-
-  if (modalId === 'transaction-modal' && editData) {
-    document.getElementById('transaction-id').value = editData.id || '';
-    document.getElementById('transaction-owner-name').value = editData.owner_name || '';
-    document.getElementById('transaction-date').value = editData.date || '';
-    document.getElementById('transaction-description').value = editData.description || '';
-    document.getElementById('transaction-amount').value = editData.amount != null ? String(editData.amount) : '';
-    document.getElementById('transaction-account').value = editData.account_id || '';
-    document.getElementById('transaction-category').value = editData.category_id || '';
-    document.getElementById('transaction-modal-title').textContent = 'Editar Transação';
-  } else if (modalId === 'transaction-modal') {
-    document.getElementById('transaction-modal-title').textContent = 'Adicionar Transação';
-  }
-
-  modal.classList.add('show');
-}
-
-function closeModal(modalId) {
-  const modal = document.getElementById(modalId);
-  if (!modal) return;
-  modal.classList.remove('show');
-}
-
-function initModalWiring() {
-  // Close buttons and cancel buttons
-  document.querySelectorAll('[data-modal]').forEach(el => {
-    el.addEventListener('click', () => {
-      const target = el.getAttribute('data-modal');
-      closeModal(target);
+  function renderTitularOptions(selectEl) {
+    if (!selectEl) return;
+    const values = getUniqueTitularesSorted();
+    selectEl.innerHTML = '';
+    const blank = document.createElement('option'); blank.value=''; blank.textContent='Selecione';
+    selectEl.appendChild(blank);
+    values.forEach(nome => {
+      const opt = document.createElement('option'); opt.value = nome; opt.textContent = nome; selectEl.appendChild(opt);
     });
-  });
-
-  // Click outside to close
-  document.querySelectorAll('.modal').forEach(modal => {
-    modal.addEventListener('click', (e) => {
-      if (e.target === modal) {
-        modal.classList.remove('show');
+  }
+  function renderBancoOptionsForTitular(selectEl, titular) {
+    if (!selectEl) return;
+    const bancos = Array.from(new Set(
+      state.contas
+        .filter(c => (c.titularNome||'').trim().toLowerCase() === (titular||'').trim().toLowerCase())
+        .map(c => (c.banco||'').trim())
+        .filter(Boolean)
+    )).sort(sortAsc);
+    selectEl.innerHTML = '';
+    const blank = document.createElement('option'); blank.value=''; blank.textContent='Selecione';
+    selectEl.appendChild(blank);
+    bancos.forEach(b => {
+      const opt = document.createElement('option'); opt.value = b; opt.textContent = b; selectEl.appendChild(opt);
+    });
+  }
+  function renderCategoriaOptions(selectEl, tipoFilter /* 'despesa'|'receita'|undefined */) {
+    if (!selectEl) return;
+    const cats = state.categorias
+      .filter(c => !tipoFilter || c.tipo === tipoFilter)
+      .slice()
+      .sort((a,b)=> sortAsc(a.nome||'', b.nome||''));
+    selectEl.innerHTML = '';
+    const blank = document.createElement('option'); blank.value=''; blank.textContent='Selecione';
+    selectEl.appendChild(blank);
+    cats.forEach(c => {
+      const opt = document.createElement('option'); opt.value = c.id; opt.textContent = c.nome; selectEl.appendChild(opt);
+    });
+  }
+  function findContaByTitularAndBanco(nome, banco) {
+    const n = (nome||'').trim().toLowerCase();
+    const b = (banco||'').trim().toLowerCase();
+    return state.contas.find(c => (c.titularNome||'').trim().toLowerCase()===n && (c.banco||'').trim().toLowerCase()===b) || null;
+  }
+  function recalcSaldos() {
+    state.contas.forEach(c => c.saldoAtual = Number(c.saldoInicial || 0));
+    state.transacoes.forEach(t => {
+      if (t.deContaId && t.paraContaId) {
+        const de = state.contas.find(c => c.id === t.deContaId);
+        const para = state.contas.find(c => c.id === t.paraContaId);
+        const val = Number(t.valor || 0);
+        if (de) de.saldoAtual -= val;
+        if (para) para.saldoAtual += val;
+      } else {
+        const conta = state.contas.find(c => c.id === t.contaId);
+        const cat = state.categorias.find(c => c.id === t.categoriaId);
+        const val = Number(t.valor || 0);
+        if (conta) {
+          if (cat && cat.tipo === 'despesa') conta.saldoAtual -= val;
+          else conta.saldoAtual += val;
+        }
       }
     });
-  });
-
-  // ESC to close topmost open modal
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape') {
-      const opened = Array.from(document.querySelectorAll('.modal.show'));
-      if (opened.length) {
-        const last = opened[opened.length - 1];
-        last.classList.remove('show');
-      }
-    }
-  });
-}
-
-// ========== PEOPLE MANAGEMENT ==========
-function loadPeople() { return getLS('people'); }
-function savePerson(name) {
-  const people = loadPeople();
-  const newPerson = { id: genId(), name: name.trim() };
-  people.push(newPerson);
-  setLS('people', people);
-  return newPerson;
-}
-function deletePerson(id) {
-  const people = loadPeople().filter(p => p.id !== id);
-  setLS('people', people);
-}
-function renderPeopleList() {
-  const people = loadPeople();
-  const list = document.getElementById('people-list');
-  if (!list) return;
-  if (!people.length) {
-    list.innerHTML = '<li class="text-gray-500">Nenhuma pessoa cadastrada.</li>';
-    return;
-  }
-  list.innerHTML = people.map(p => `
-    <li class="flex justify-between items-center py-1">
-      <span>${p.name}</span>
-      <button class="text-red-500 hover:text-red-700 text-sm" onclick="handleDeletePerson('${p.id}')">Remover</button>
-    </li>
-  `).join('');
-}
-function populatePeopleDropdowns() {
-  const people = loadPeople();
-  const selects = [
-    'account-owner-name','transaction-owner-name','category-owner-name',
-    'recurring-owner-name','budget-owner-name','debt-owner-name',
-    'csv-owner-name','owner-filter'
-  ];
-  selects.forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const current = el.value;
-    const isFilter = id === 'owner-filter';
-    el.innerHTML = isFilter ? '<option value="">Todas as Pessoas</option>' : '';
-    people.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.name;
-      opt.textContent = p.name;
-      el.appendChild(opt);
-    });
-    if (current) el.value = current;
-  });
-}
-window.handleDeletePerson = function(id) {
-  if (!confirm('Tem certeza que deseja remover esta pessoa?')) return;
-  deletePerson(id);
-  renderPeopleList();
-  populatePeopleDropdowns();
-  showToast('Pessoa removida com sucesso!');
-};
-
-// ========== ACCOUNTS MANAGEMENT ==========
-function loadAccounts() { return getLS('accounts'); }
-function saveAccount(account) {
-  const accounts = loadAccounts();
-  const idx = accounts.findIndex(a => a.id === account.id);
-  if (idx >= 0) accounts[idx] = { ...accounts[idx], ...account };
-  else { account.id = account.id || genId(); accounts.push(account); }
-  setLS('accounts', accounts);
-  return account;
-}
-function deleteAccount(id) {
-  const accounts = loadAccounts().filter(a => a.id !== id);
-  setLS('accounts', accounts);
-}
-function renderAccounts() {
-  const accounts = loadAccounts();
-  const container = document.getElementById('accounts-list');
-  if (!container) return;
-  const filter = document.getElementById('owner-filter')?.value || '';
-  const filtered = filter ? accounts.filter(a => a.owner_name === filter) : accounts;
-  if (!filtered.length) {
-    container.innerHTML = '<p class="text-gray-500">Nenhuma conta cadastrada.</p>';
-    return;
-  }
-  container.innerHTML = filtered.map(acc => `
-    <div class="account-item">
-      <div class="account-item-info">
-        <h4>${acc.name}</h4>
-        <p>${acc.bank ? acc.bank + ' • ' : ''}Saldo: ${formatCurrency(acc.balance)}${acc.owner_name ? ' • ' + acc.owner_name : ''}</p>
-      </div>
-      <div class="account-item-actions">
-        <button class="btn btn-secondary btn-sm" onclick="handleEditAccount('${acc.id}')">Editar</button>
-        <button class="btn btn-secondary btn-sm" onclick="handleDeleteAccount('${acc.id}')">Excluir</button>
-      </div>
-    </div>
-  `).join('');
-}
-function populateAccountDropdowns() {
-  const accounts = loadAccounts();
-  ['transaction-account','recurring-account','csv-account'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const current = el.value;
-    el.innerHTML = '<option value="">Selecione uma conta</option>';
-    accounts.forEach(acc => {
-      const opt = document.createElement('option');
-      opt.value = acc.id;
-      opt.textContent = acc.name + (acc.owner_name ? ' (' + acc.owner_name + ')' : '');
-      el.appendChild(opt);
-    });
-    if (current) el.value = current;
-  });
-}
-window.handleEditAccount = function(id) {
-  const acc = loadAccounts().find(a => a.id === id);
-  if (!acc) return;
-  openModal('account-modal', acc);
-};
-window.handleDeleteAccount = function(id) {
-  if (!confirm('Tem certeza que deseja excluir esta conta?')) return;
-  deleteAccount(id);
-  renderAccounts();
-  populateAccountDropdowns();
-  showToast('Conta excluída com sucesso!');
-};
-
-// ========== CATEGORIES MANAGEMENT ==========
-function loadCategories() { return getLS('categories'); }
-function saveCategory(category) {
-  const categories = loadCategories();
-  const idx = categories.findIndex(c => c.id === category.id);
-  if (idx >= 0) categories[idx] = { ...categories[idx], ...category };
-  else { category.id = category.id || genId(); categories.push(category); }
-  setLS('categories', categories);
-  return category;
-}
-function deleteCategory(id) {
-  const categories = loadCategories().filter(c => c.id !== id);
-  setLS('categories', categories);
-}
-function renderCategories() {
-  const categories = loadCategories();
-  const tbody = document.getElementById('categories-table-body');
-  if (!tbody) return;
-  const filter = document.getElementById('owner-filter')?.value || '';
-  const filtered = filter ? categories.filter(c => c.owner_name === filter) : categories;
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria cadastrada.</td></tr>';
-    return;
-  }
-  tbody.innerHTML = filtered.map(cat => `
-    <tr>
-      <td class="py-2 px-4 border-b">${cat.owner_name || '—'}</td>
-      <td class="py-2 px-4 border-b">${cat.name}</td>
-      <td class="py-2 px-4 border-b">${cat.type === 'income' ? 'Receita' : 'Despesa'}</td>
-      <td class="py-2 px-4 border-b">
-        <button class="text-blue-500 hover:text-blue-700 mr-2" onclick="handleEditCategory('${cat.id}')">Editar</button>
-        <button class="text-red-500 hover:text-red-700" onclick="handleDeleteCategory('${cat.id}')">Excluir</button>
-      </td>
-    </tr>
-  `).join('');
-}
-function populateCategoryDropdowns() {
-  const categories = loadCategories();
-  ['transaction-category','recurring-category','budget-category','csv-category'].forEach(id => {
-    const el = document.getElementById(id);
-    if (!el) return;
-    const current = el.value;
-    el.innerHTML = '<option value="">Selecione uma categoria</option>';
-    categories.forEach(cat => {
-      const opt = document.createElement('option');
-      opt.value = cat.id;
-      opt.textContent = cat.name + ' (' + (cat.type === 'income' ? 'Receita' : 'Despesa') + ')';
-      el.appendChild(opt);
-    });
-    if (current) el.value = current;
-  });
-}
-window.handleEditCategory = function(id) {
-  const cat = loadCategories().find(c => c.id === id);
-  if (!cat) return;
-  openModal('category-modal', cat);
-};
-window.handleDeleteCategory = function(id) {
-  if (!confirm('Tem certeza que deseja excluir esta categoria?')) return;
-  deleteCategory(id);
-  renderCategories();
-  populateCategoryDropdowns();
-  showToast('Categoria excluída com sucesso!');
-};
-
-// ========== TRANSACTIONS MANAGEMENT ==========
-function loadTransactions() { return getLS('transactions'); }
-function saveTransaction(transaction) {
-  const transactions = loadTransactions();
-  const idx = transactions.findIndex(t => t.id === transaction.id);
-  if (idx >= 0) transactions[idx] = { ...transactions[idx], ...transaction };
-  else { transaction.id = transaction.id || genId(); transactions.push(transaction); }
-  setLS('transactions', transactions);
-  return transaction;
-}
-function deleteTransaction(id) {
-  const transactions = loadTransactions().filter(t => t.id !== id);
-  setLS('transactions', transactions);
-}
-function renderTransactions() {
-  const transactions = loadTransactions();
-  const tbody = document.getElementById('transactions-table-body');
-  if (!tbody) return;
-  const filter = document.getElementById('owner-filter')?.value || '';
-  const filtered = filter ? transactions.filter(t => t.owner_name === filter) : transactions;
-  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="7" class="text-center py-4 text-gray-500">Nenhuma transação cadastrada.</td></tr>';
-    return;
-  }
-  const accounts = loadAccounts();
-  const categories = loadCategories();
-  tbody.innerHTML = filtered.map(tx => {
-    const account = accounts.find(a => a.id === tx.account_id);
-    const category = categories.find(c => c.id === tx.category_id);
-    const amountClass = tx.amount >= 0 ? 'text-green-600' : 'text-red-600';
-    return `
-      <tr>
-        <td class="py-2 px-4 border-b">${tx.owner_name || '—'}</td>
-        <td class="py-2 px-4 border-b">${formatDate(tx.date)}</td>
-        <td class="py-2 px-4 border-b">${tx.description}</td>
-        <td class="py-2 px-4 border-b ${amountClass}">${formatCurrency(tx.amount)}</td>
-        <td class="py-2 px-4 border-b">${account ? account.name : '—'}</td>
-        <td class="py-2 px-4 border-b">${category ? category.name : '—'}</td>
-        <td class="py-2 px-4 border-b">
-          <button class="text-blue-500 hover:text-blue-700 mr-2" onclick="handleEditTransaction('${tx.id}')">Editar</button>
-          <button class="text-red-500 hover:text-red-700" onclick="handleDeleteTransaction('${tx.id}')">Excluir</button>
-        </td>
-      </tr>
-    `;
-  }).join('');
-}
-window.handleEditTransaction = function(id) {
-  const tx = loadTransactions().find(t => t.id === id);
-  if (!tx) return;
-  openModal('transaction-modal', tx);
-};
-window.handleDeleteTransaction = function(id) {
-  if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
-  deleteTransaction(id);
-  renderTransactions();
-  updateDashboard();
-  showToast('Transação excluída com sucesso!');
-};
-
-// ========== DASHBOARD ==========
-function updateDashboard() {
-  const transactions = loadTransactions();
-  const accounts = loadAccounts();
-  const totalBalance = accounts.reduce((sum, acc) => sum + (Number(acc.balance) || 0), 0);
-  const tb = document.getElementById('total-balance');
-  if (tb) tb.textContent = formatCurrency(totalBalance);
-
-  const now = new Date();
-  const m = now.getMonth(), y = now.getFullYear();
-  const monthly = transactions.filter(tx => {
-    const d = new Date(tx.date);
-    return !isNaN(d) && d.getMonth() === m && d.getFullYear() === y;
-    });
-  const income = monthly.filter(t => t.amount > 0).reduce((s, t) => s + Number(t.amount), 0);
-  const expenses = Math.abs(monthly.filter(t => t.amount < 0).reduce((s, t) => s + Number(t.amount), 0));
-
-  const mi = document.getElementById('monthly-income');
-  const me = document.getElementById('monthly-expenses');
-  if (mi) mi.textContent = formatCurrency(income);
-  if (me) me.textContent = formatCurrency(expenses);
-}
-
-// ========== TAB MANAGEMENT ==========
-function initTabs() {
-  const tabButtons = document.querySelectorAll('.tab-button');
-  const tabContents = document.querySelectorAll('.tab-content');
-
-  tabButtons.forEach(button => {
-    button.addEventListener('click', () => {
-      const targetTab = button.getAttribute('data-tab');
-      tabButtons.forEach(btn => btn.classList.remove('active'));
-      tabContents.forEach(content => content.classList.remove('active'));
-      button.classList.add('active');
-      const targetContent = document.getElementById(targetTab);
-      if (targetContent) targetContent.classList.add('active');
-
-      switch (targetTab) {
-        case 'dashboard': updateDashboard(); break;
-        case 'accounts': renderAccounts(); break;
-        case 'transactions': renderTransactions(); break;
-        case 'categories': renderCategories(); break;
-        case 'settings': renderPeopleList(); break;
-      }
-    });
-  });
-}
-
-// ========== FORM HANDLERS ==========
-function initForms() {
-  // Account
-  const accountForm = document.getElementById('account-form');
-  if (accountForm) {
-    accountForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const account = {
-        id: document.getElementById('account-id').value || genId(),
-        owner_name: document.getElementById('account-owner-name').value,
-        name: document.getElementById('account-name').value.trim(),
-        bank: document.getElementById('account-bank').value.trim(),
-        balance: Number(document.getElementById('account-balance').value) || 0
-      };
-      if (!account.name) { showToast('Por favor, informe o nome da conta.'); return; }
-      saveAccount(account);
-      renderAccounts();
-      populateAccountDropdowns();
-      closeModal('account-modal');
-      showToast('Conta salva com sucesso!');
-    });
   }
 
-  // Transaction
-  const transactionForm = document.getElementById('transaction-form');
-  if (transactionForm) {
-    transactionForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const transaction = {
-        id: document.getElementById('transaction-id').value || genId(),
-        owner_name: document.getElementById('transaction-owner-name').value,
-        date: document.getElementById('transaction-date').value,
-        description: document.getElementById('transaction-description').value.trim(),
-        amount: Number(document.getElementById('transaction-amount').value) || 0,
-        account_id: document.getElementById('transaction-account').value,
-        category_id: document.getElementById('transaction-category').value
-      };
-      if (!transaction.description || !transaction.account_id || !transaction.category_id) {
-        showToast('Por favor, preencha todos os campos obrigatórios.');
-        return;
-      }
-      saveTransaction(transaction);
-      renderTransactions();
-      updateDashboard();
-      closeModal('transaction-modal');
-      showToast('Transação salva com sucesso!');
+  // DASHBOARD
+  function renderDashboard() {
+    const cards = $('#dashboard-cards');
+    const totalEl = $('#dashboard-total');
+    const fixasWrap = $('#dashboard-fixas');
+    const dividasWrap = $('#dashboard-dividas');
+    if (!cards || !totalEl) return;
+
+    recalcSaldos();
+    cards.innerHTML = '';
+    // Contas
+    const contasOrdered = state.contas.slice().sort((a,b)=> sortAsc(a.titularNome||'', b.titularNome||'') || sortAsc(a.banco||'', b.banco||''));
+    contasOrdered.forEach(c => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML = `
+        <h3>${c.titularNome} • <span class="accent">${c.banco || '-'}</span></h3>
+        <div class="value">${fmtMoney(c.saldoAtual)}</div>
+        <div class="sub">${c.tipoConta || ''}</div>
+      `;
+      cards.appendChild(div);
     });
-  }
+    const total = state.contas.reduce((acc,c)=>acc+Number(c.saldoAtual||0),0);
+    totalEl.textContent = fmtMoney(total);
 
-  // Category
-  const categoryForm = document.getElementById('category-form');
-  if (categoryForm) {
-    categoryForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const category = {
-        id: document.getElementById('category-id').value || genId(),
-        owner_name: document.getElementById('category-owner-name').value,
-        name: document.getElementById('category-name').value.trim(),
-        type: document.getElementById('category-type').value
-      };
-      if (!category.name) { showToast('Por favor, informe o nome da categoria.'); return; }
-      saveCategory(category);
-      renderCategories();
-      populateCategoryDropdowns();
-      closeModal('category-modal');
-      showToast('Categoria salva com sucesso!');
-    });
-  }
-
-  // Add Person
-  const addPersonBtn = document.getElementById('add-person-button');
-  if (addPersonBtn) {
-    addPersonBtn.addEventListener('click', () => {
-      const input = document.getElementById('new-person-name');
-      const name = input.value.trim();
-      if (!name) { showToast('Por favor, informe o nome da pessoa.'); return; }
-      savePerson(name);
-      renderPeopleList();
-      populatePeopleDropdowns();
-      input.value = '';
-      showToast('Pessoa adicionada com sucesso!');
-    });
-  }
-}
-
-// ========== BUTTON HANDLERS ==========
-function initButtons() {
-  const addAccountBtn = document.getElementById('add-account-button');
-  if (addAccountBtn) addAccountBtn.addEventListener('click', () => openModal('account-modal'));
-
-  const addTransactionBtn = document.getElementById('add-transaction-button');
-  if (addTransactionBtn) addTransactionBtn.addEventListener('click', () => openModal('transaction-modal'));
-
-  const addCategoryBtn = document.getElementById('add-category-button');
-  if (addCategoryBtn) addCategoryBtn.addEventListener('click', () => openModal('category-modal'));
-
-  const addRecurringBtn = document.getElementById('add-recurring-button');
-  if (addRecurringBtn) addRecurringBtn.addEventListener('click', () => openModal('recurring-modal'));
-
-  const addDebtBtn = document.getElementById('add-debt-button');
-  if (addDebtBtn) addDebtBtn.addEventListener('click', () => openModal('debt-modal'));
-
-  const addBudgetBtn = document.getElementById('add-budget-button');
-  if (addBudgetBtn) addBudgetBtn.addEventListener('click', () => openModal('budget-modal'));
-
-  const importCsvBtn = document.getElementById('import-transactions-button');
-  if (importCsvBtn) importCsvBtn.addEventListener('click', () => openModal('import-csv-modal'));
-
-  const exportCsvBtn = document.getElementById('export-transactions-button');
-  if (exportCsvBtn) {
-    exportCsvBtn.addEventListener('click', () => {
-      const rows = [['Pessoa','Data','Descrição','Valor','Conta','Categoria']];
-      const txs = loadTransactions();
-      const accounts = loadAccounts();
-      const categories = loadCategories();
-      txs.forEach(tx => {
-        const acc = accounts.find(a => a.id === tx.account_id);
-        const cat = categories.find(c => c.id === tx.category_id);
-        rows.push([
-          tx.owner_name || '',
-          tx.date || '',
-          tx.description || '',
-          String(tx.amount || 0),
-          acc ? acc.name : '',
-          cat ? cat.name : ''
-        ]);
+    // Despesas Fixas por Titular
+    if (fixasWrap) {
+      fixasWrap.innerHTML = '';
+      const mapa = {};
+      state.recorrentes.forEach(r => {
+        const t = (r.titularNome || '').trim() || '(Sem titular)';
+        mapa[t] = (mapa[t] || 0) + Number(r.valor || 0);
       });
-      const csv = rows.map(r => r.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')).join('\n');
-      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'transacoes.csv';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('CSV exportado.');
+      Object.keys(mapa).sort(sortAsc).forEach(tit => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        div.innerHTML = `
+          <h3>Fixas • <span class="accent">${tit}</span></h3>
+          <div class="value">${fmtMoney(mapa[tit])}</div>
+          <div class="sub">Total de despesas fixas</div>
+        `;
+        fixasWrap.appendChild(div);
+      });
+    }
+
+    // Dívidas por Título e Titular (um cartão para cada combinação)
+    if (dividasWrap) {
+      dividasWrap.innerHTML = '';
+      const combos = {};
+      state.dividas.forEach(d => {
+        const tit = (d.titularNome || '').trim() || '(Sem titular)';
+        const nome = (d.nome || '').trim() || '(Sem nome)';
+        const key = `${tit}||${nome}`;
+        combos[key] = (combos[key] || 0) + Number(d.valor || 0);
+      });
+      Object.keys(combos)
+        .sort((ka,kb)=>{
+          const [ta,na]=ka.split('||'); const [tb,nb]=kb.split('||');
+          return sortAsc(ta,tb) || sortAsc(na,nb);
+        })
+        .forEach(key => {
+          const [tit, nome] = key.split('||');
+          const val = combos[key];
+          const div = document.createElement('div');
+          div.className = 'card';
+          div.innerHTML = `
+            <h3>${nome} • <span class="accent">${tit}</span></h3>
+            <div class="value">${fmtMoney(val)}</div>
+            <div class="sub">Total desse título (por titular)</div>
+          `;
+          dividasWrap.appendChild(div);
+        });
+    }
+  }
+
+  // CONTAS
+  function renderContasTable() {
+    const tbody = $('#tbl-contas-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = state.contas.slice().sort((a,b)=> sortAsc(a.titularNome||'', b.titularNome||'') || sortAsc(a.banco||'', b.banco||''));
+    ordered.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${c.titularNome || ''}</td>
+        <td>${c.banco || ''}</td>
+        <td>${c.tipoConta || ''}</td>
+        <td style="text-align:right">${fmtMoney(c.saldoInicial)}</td>
+        <td style="text-align:right">${fmtMoney(c.saldoAtual)}</td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${c.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${c.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+    renderDashboard();
+  }
+  function renderContasSelectsForTransfers() {
+    const selDe = $('#tx-de-conta');
+    const selPara = $('#tx-para-conta');
+    const contas = state.contas.slice().sort((a,b)=>{
+      const la = `${a.titularNome} - ${a.tipoConta} (${a.banco||'-'})`;
+      const lb = `${b.titularNome} - ${b.tipoConta} (${b.banco||'-'})`;
+      return sortAsc(la, lb);
+    });
+    [selDe, selPara].forEach(sel => {
+      if (!sel) return;
+      sel.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = ''; blank.textContent = 'Selecione';
+      sel.appendChild(blank);
+      contas.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = `${c.titularNome} - ${c.tipoConta} (${c.banco || '-'})`;
+        sel.appendChild(opt);
+      });
     });
   }
+  function bindContas() {
+    renderContasTable();
+    renderContasSelectsForTransfers();
 
-  const ownerFilter = document.getElementById('owner-filter');
-  if (ownerFilter) {
-    ownerFilter.addEventListener('change', () => {
-      renderAccounts();
-      renderTransactions();
-      renderCategories();
+    const form = $('#form-conta');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const idEdit = form.getAttribute('data-edit-id');
+        const titularNome = ($('#ct-titular') || {}).value || '';
+        const tipoConta = ($('#ct-tipo') || {}).value || '';
+        const banco = ($('#ct-banco') || {}).value || '';
+        const saldoInicial = Number((($('#ct-saldo-inicial') || {}).value || '0').replace(',', '.'));
+
+        if (!titularNome.trim() || !tipoConta.trim()) { alert('Informe Titular e Tipo de Conta.'); return; }
+
+        let pessoa = state.pessoas.find(p => p.nome.toLowerCase() === titularNome.trim().toLowerCase());
+        if (!pessoa) { pessoa = { id: uid(), nome: titularNome.trim() }; state.pessoas.push(pessoa); }
+
+        if (idEdit) {
+          const c = state.contas.find(x => x.id === idEdit);
+          if (c) {
+            c.titularNome = titularNome.trim();
+            c.tipoConta = tipoConta.trim();
+            c.banco = banco;
+            c.pessoaId = pessoa.id;
+            c.saldoInicial = isNaN(saldoInicial) ? 0 : saldoInicial;
+          }
+          form.removeAttribute('data-edit-id');
+        } else {
+          state.contas.push({
+            id: uid(),
+            titularNome: titularNome.trim(),
+            tipoConta: tipoConta.trim(),
+            banco,
+            pessoaId: pessoa.id,
+            saldoInicial: isNaN(saldoInicial) ? 0 : saldoInicial,
+            saldoAtual: isNaN(saldoInicial) ? 0 : saldoInicial
+          });
+        }
+
+        recalcSaldos();
+        saveState(state);
+        renderContasTable();
+        renderContasSelectsForTransfers();
+        renderDashboard();
+
+        // Atualiza selects em outras abas
+        renderTitularOptions($('#gs-titular'));
+        renderTitularOptions($('#sl-nome'));
+        renderTitularOptions($('#rc-titular'));
+        renderTitularOptions($('#dv-titular'));
+        renderBancoOptionsForTitular($('#gs-banco'), ($('#gs-titular')||{}).value || '');
+        renderBancoOptionsForTitular($('#sl-banco'), ($('#sl-nome')||{}).value || '');
+
+        form.reset();
+      });
+    }
+
+    const tbody = $('#tbl-contas-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir conta? Isso também removerá transferências relacionadas.')) return;
+          state.contas = state.contas.filter(c => c.id !== id);
+          state.transacoes = state.transacoes.filter(t => t.contaId !== id && t.deContaId !== id && t.paraContaId !== id);
+          recalcSaldos();
+          saveState(state);
+          renderContasTable();
+          renderContasSelectsForTransfers();
+          renderDashboard();
+
+          renderTitularOptions($('#gs-titular'));
+          renderBancoOptionsForTitular($('#gs-banco'), ($('#gs-titular')||{}).value || '');
+          renderTitularOptions($('#sl-nome'));
+          renderBancoOptionsForTitular($('#sl-banco'), ($('#sl-nome')||{}).value || '');
+          renderTitularOptions($('#rc-titular'));
+          renderTitularOptions($('#dv-titular'));
+          renderGastos();
+          renderTransacoes();
+        } else if (act === 'edit') {
+          const c = state.contas.find(x => x.id === id);
+          if (!c) return;
+          ($('#ct-titular') || {}).value = c.titularNome || '';
+          ($('#ct-tipo') || {}).value = c.tipoConta || '';
+          ($('#ct-banco') || {}).value = c.banco || '';
+          ($('#ct-saldo-inicial') || {}).value = String(c.saldoInicial || 0);
+          form && form.setAttribute('data-edit-id', c.id);
+        }
+      });
+    }
+  }
+
+  // CATEGORIAS
+  function renderCategorias() {
+    const tbody = $('#tbl-categorias-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = state.categorias.slice().sort((a,b)=> sortAsc(a.nome||'', b.nome||'') || sortAsc(a.tipo||'', b.tipo||''));
+    ordered.forEach(cat => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${cat.nome}</td>
+        <td><span class="badge ${cat.tipo}">${cat.tipo}</span></td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${cat.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${cat.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Atualizar selects dependentes ordenados
+    renderCategoriaOptions($('#rc-categoria'), 'despesa');
+    renderCategoriaOptions($('#dv-categoria'), 'despesa');
+  }
+  function bindCategorias() {
+    renderCategorias();
+    const form = $('#form-categoria');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const idEdit = form.getAttribute('data-edit-id');
+        const nome = ($('#cat-nome') || {}).value || '';
+        const tipo = ($('#cat-tipo') || {}).value || 'despesa';
+        if (!nome.trim()) { alert('Informe o nome.'); return; }
+        if (idEdit) {
+          const c = state.categorias.find(x => x.id === idEdit);
+          if (c) { c.nome = nome.trim(); c.tipo = tipo; }
+          form.removeAttribute('data-edit-id');
+        } else {
+          state.categorias.push({ id: uid(), nome: nome.trim(), tipo });
+        }
+        saveState(state);
+        renderCategorias();
+      });
+    }
+    const tbody = $('#tbl-categorias-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir tipo?')) return;
+          state.categorias = state.categorias.filter(c => c.id !== id);
+          saveState(state);
+          renderCategorias();
+        } else if (act === 'edit') {
+          const c = state.categorias.find(x => x.id === id);
+          if (!c) return;
+          ($('#cat-nome') || {}).value = c.nome;
+          ($('#cat-tipo') || {}).value = c.tipo;
+          form && form.setAttribute('data-edit-id', c.id);
+        }
+      });
+    }
+  }
+
+  // GASTOS
+  function renderGastos() {
+    const tbody = $('#tbl-gastos-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.gastos].sort((a,b)=> (a.dataISO||'').localeCompare(b.dataISO||'')).reverse();
+    ordered.forEach(g => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${(g.dataISO||'').slice(0,10)}</td>
+        <td>${g.titularNome}</td>
+        <td>${g.banco}</td>
+        <td>${g.descricao || ''}</td>
+        <td style="text-align:right">${fmtMoney(g.valor)}</td>
+        <td><button class="btn danger" data-act="del" data-id="${g.id}">Excluir</button></td>
+      `;
+      tbody.appendChild(tr);
     });
   }
-}
+  function bindGastos() {
+    renderTitularOptions($('#gs-titular'));
+    renderBancoOptionsForTitular($('#gs-banco'), '');
+    const gsTit = $('#gs-titular');
+    if (gsTit) gsTit.addEventListener('change', ()=> renderBancoOptionsForTitular($('#gs-banco'), gsTit.value || ''));
+    renderGastos();
 
-// ========== INIT ==========
-document.addEventListener('DOMContentLoaded', () => {
-  initTabs();
-  initModalWiring();
-  initForms();
-  initButtons();
+    const form = $('#form-gasto');
+    if (!form) return;
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const valor = Number((($('#gs-valor')||{}).value || '0').replace(',','.'));
+      const dataISO = ($('#gs-data')||{}).value || todayISO();
+      const titularNome = ($('#gs-titular')||{}).value || '';
+      const banco = ($('#gs-banco')||{}).value || '';
+      const descricao = ($('#gs-desc')||{}).value || '';
 
-  // Ensure dropdowns are populated
-  populatePeopleDropdowns();
-  populateAccountDropdowns();
-  populateCategoryDropdowns();
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+      if (!titularNome.trim()) { alert('Selecione o titular.'); return; }
+      if (!banco.trim()) { alert('Selecione o banco.'); return; }
 
-  // Initial renders
-  updateDashboard();
-  renderAccounts();
-  renderTransactions();
-  renderCategories();
+      const conta = findContaByTitularAndBanco(titularNome, banco);
+      if (!conta) { alert('Conta não encontrada para este titular e banco.'); return; }
 
-  // Optional: seed people for quick start (comment if not needed)
-  const people = loadPeople();
-  if (!people.length) {
-    savePerson('Joao');
-    savePerson('Maria');
-    populatePeopleDropdowns();
-    renderPeopleList();
+      // Categoria "Gasto"
+      let catGasto = state.categorias.find(c => c.nome.toLowerCase() === 'gasto' && c.tipo === 'despesa');
+      if (!catGasto) { catGasto = { id: uid(), nome: 'Gasto', tipo: 'despesa' }; state.categorias.push(catGasto); }
+
+      state.gastos.push({
+        id: uid(), dataISO, titularNome, banco, descricao, valor, contaIdVinculada: conta.id
+      });
+
+      // Transação de despesa
+      state.transacoes.push({
+        id: uid(), dataISO, contaId: conta.id, valor,
+        categoriaId: catGasto.id, descricao: descricao || 'Gasto',
+        deContaId: null, paraContaId: null
+      });
+
+      recalcSaldos();
+      saveState(state);
+      renderGastos();
+      renderContasTable();
+      renderDashboard();
+
+      ($('#gs-valor')||{}).value = '';
+      ($('#gs-data')||{}).value = '';
+      ($('#gs-desc')||{}).value = '';
+    });
+
+    const tbody = $('#tbl-gastos-body');
+    if (tbody) {
+      tbody.addEventListener('click', function(e){
+        const btn = e.target.closest('button[data-act="del"]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const gasto = state.gastos.find(g => g.id === id);
+        state.gastos = state.gastos.filter(g => g.id !== id);
+
+        // Remover transação correspondente (heurística)
+        if (gasto) {
+          const idx = state.transacoes.findIndex(t =>
+            t.contaId === gasto.contaIdVinculada &&
+            Number(t.valor) === Number(gasto.valor) &&
+            (t.dataISO || '').slice(0,10) === (gasto.dataISO || '').slice(0,10) &&
+            (t.descricao || '').toLowerCase() === (gasto.descricao || 'gasto').toLowerCase()
+          );
+          if (idx >= 0) state.transacoes.splice(idx,1);
+        }
+
+        recalcSaldos();
+        saveState(state);
+        renderGastos();
+        renderContasTable();
+        renderDashboard();
+      });
+    }
   }
-});
+
+  // TRANSFERÊNCIAS (Transações)
+  function renderTransacoes() {
+    const tbody = $('#tbl-transacoes-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.transacoes].sort((a,b)=> (a.dataISO||'').localeCompare(b.dataISO||'')).reverse();
+    ordered.forEach(t => {
+      const isTransfer = !!(t.deContaId && t.paraContaId);
+      let deNome = '-', paraNome = '-';
+      if (isTransfer) {
+        const de = state.contas.find(c => c.id === t.deContaId);
+        const para = state.contas.find(c => c.id === t.paraContaId);
+        deNome = de ? `${de.titularNome} - ${de.tipoConta} (${de.banco||'-'})` : '-';
+        paraNome = para ? `${para.titularNome} - ${para.tipoConta} (${para.banco||'-'})` : '-';
+      }
+      const tipoBadge = isTransfer ? '<span class="badge transfer">Transferência</span>' :
+                        (t.categoriaId ? '<span class="badge despesa">Despesa</span>' : '<span class="badge receita">Receita</span>');
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${(t.dataISO||'').slice(0,10)}</td>
+        <td>${tipoBadge}</td>
+        <td>${deNome}</td>
+        <td>${paraNome}</td>
+        <td style="text-align:right">${fmtMoney(t.valor)}</td>
+        <td>${t.descricao || ''}</td>
+        <td><button class="btn danger" data-act="del" data-id="${t.id}">Excluir</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  function bindTransacoes() {
+    renderContasSelectsForTransfers();
+    renderTransacoes();
+
+    const form = $('#form-transacao');
+    if (form) {
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const dataISO = ($('#tx-data') || {}).value || todayISO();
+        const valor = Number((($('#tx-valor') || {}).value || '0').replace(',', '.'));
+        const descricao = ($('#tx-descricao') || {}).value || '';
+        const deContaId = ($('#tx-de-conta') || {}).value || '';
+        const paraContaId = ($('#tx-para-conta') || {}).value || '';
+
+        const isTransfer = deContaId && paraContaId;
+        if (!isTransfer) { alert('Selecione as contas De e Para.'); return; }
+        if (deContaId === paraContaId) { alert('Selecione contas diferentes.'); return; }
+        if (isNaN(valor) || valor <= 0) { alert('Valor inválido.'); return; }
+
+        state.transacoes.push({
+          id: uid(), dataISO, contaId: null, valor, categoriaId: null,
+          descricao: descricao || 'Transferência', deContaId, paraContaId
+        });
+
+        recalcSaldos();
+        saveState(state);
+        renderTransacoes();
+        renderContasTable();
+        renderDashboard();
+        form.reset();
+      });
+    }
+
+    const tbody = $('#tbl-transacoes-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act="del"]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        state.transacoes = state.transacoes.filter(t => t.id !== id);
+        recalcSaldos();
+        saveState(state);
+        renderTransacoes();
+        renderContasTable();
+        renderDashboard();
+      });
+    }
+  }
+
+  // SALÁRIOS
+  function ensureCategoriaSalario() {
+    let cat = state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita');
+    if (!cat) { cat = { id: uid(), nome: 'Salário', tipo: 'receita' }; state.categorias.push(cat); }
+    return cat;
+  }
+  function renderSalarioNomeOptions() { renderTitularOptions($('#sl-nome')); }
+  function renderSalarioBancoOptionsForTitular(titular) { renderBancoOptionsForTitular($('#sl-banco'), titular); }
+  function renderSalarios() {
+    const tbody = $('#tbl-salarios-body'); if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.salarios].sort((a,b)=> (a.dataISO||'').localeCompare(b.dataISO||'')).reverse();
+    ordered.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${(s.dataISO||'').slice(0,10)}</td>
+        <td>${s.nome}</td>
+        <td>${s.banco || ''}</td>
+        <td>${typeof s.horas === 'number' ? s.horas : (s.horas || '')}</td>
+        <td style="text-align:right">${fmtMoney(s.valor)}</td>
+        <td><button class="btn danger" data-act="del" data-id="${s.id}">Excluir</button></td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  function bindSalarios() {
+    renderSalarioNomeOptions(); renderSalarioBancoOptionsForTitular('');
+    const slNome = $('#sl-nome'); if (slNome) slNome.addEventListener('change', () => renderSalarioBancoOptionsForTitular(slNome.value || ''));
+    renderSalarios();
+
+    const form = $('#form-salario'); if (!form) return;
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const nome = ($('#sl-nome') || {}).value || '';
+      const banco = ($('#sl-banco') || {}).value || '';
+      const valor = Number((($('#sl-valor') || {}).value || '0').replace(',', '.'));
+      const horas = Number((($('#sl-horas') || {}).value || '0').replace(',', '.'));
+      const dataISO = ($('#sl-data') || {}).value || todayISO();
+
+      if (!nome.trim()) { alert('Selecione o titular.'); return; }
+      if (!banco.trim()) { alert('Selecione o banco.'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor de salário válido.'); return; }
+
+      const conta = findContaByTitularAndBanco(nome, banco);
+      if (!conta) { alert('Conta não encontrada para este titular e banco.'); return; }
+
+      const catSalario = ensureCategoriaSalario();
+
+      state.salarios.push({
+        id: uid(), dataISO, nome: nome.trim(), banco: banco.trim(),
+        horas: isNaN(horas) ? null : horas, valor: isNaN(valor) ? 0 : valor, contaIdVinculada: conta.id
+      });
+
+      state.transacoes.push({
+        id: uid(), dataISO, contaId: conta.id, valor,
+        categoriaId: catSalario.id, descricao: `Salário ${nome.trim()}`,
+        deContaId: null, paraContaId: null
+      });
+
+      recalcSaldos();
+      saveState(state);
+      renderSalarios();
+      renderTransacoes();
+      renderContasTable();
+      renderDashboard();
+
+      ($('#sl-valor') || {}).value = '';
+      ($('#sl-horas') || {}).value = '';
+      ($('#sl-data') || {}).value = '';
+    });
+
+    const tbody = $('#tbl-salarios-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act="del"]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const sal = state.salarios.find(s => s.id === id);
+        state.salarios = state.salarios.filter(s => s.id !== id);
+        if (sal) {
+          const idx = state.transacoes.findIndex(t =>
+            t.contaId === sal.contaIdVinculada &&
+            Number(t.valor) === Number(sal.valor) &&
+            (t.dataISO || '').slice(0,10) === (sal.dataISO || '').slice(0,10) &&
+            (t.descricao || '').toLowerCase().includes('salário')
+          );
+          if (idx >= 0) state.transacoes.splice(idx, 1);
+        }
+        recalcSaldos();
+        saveState(state);
+        renderSalarios();
+        renderTransacoes();
+        renderContasTable();
+        renderDashboard();
+      });
+    }
+  }
+
+  // DESPESA FIXA
+  function humanizeSemanaDia(semana, dia) {
+    const semanaTxt = semana ? `${semana}ª` : '';
+    const dias = { '1':'Seg', '2':'Ter', '3':'Qua', '4':'Qui', '5':'Sex', '6':'Sáb', '0':'Dom' };
+    const diaTxt = (dia !== undefined && dia !== null && String(dia) !== '') ? dias[String(dia)] : '';
+    if (semanaTxt && diaTxt) return `${semanaTxt} • ${diaTxt}`;
+    if (semanaTxt) return semanaTxt;
+    if (diaTxt) return diaTxt;
+    return '';
+  }
+  function renderRecorrentes() {
+    const tbody = $('#tbl-recorrentes-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.recorrentes].sort((a,b)=> sortAsc(a.titularNome||'', b.titularNome||'') || sortAsc(a.nome||'', b.nome||''));
+    ordered.forEach(r => {
+      const venc = r.dataISO ? (r.dataISO || '').slice(0,10) : '';
+      const semanaDia = humanizeSemanaDia(r.semanaDoMes, r.diaDaSemana);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${r.nome || '(sem nome)'}</td>
+        <td>${r.titularNome || '-'}</td>
+        <td style="text-align:right">${fmtMoney(r.valor)}</td>
+        <td>${venc || '-'}</td>
+        <td>${semanaDia || '-'}</td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${r.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${r.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Popular selects ordenados
+    renderCategoriaOptions($('#rc-categoria'), 'despesa');
+    renderTitularOptions($('#rc-titular'));
+  }
+  function bindRecorrentes() {
+    renderRecorrentes();
+    const form = $('#form-recorrente'); if (!form) return;
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const idEdit = form.getAttribute('data-edit-id');
+      const categoriaId = ($('#rc-categoria') || {}).value || '';
+      const valor = Number((($('#rc-valor') || {}).value || '0').replace(',', '.'));
+      const dataISO = ($('#rc-data') || {}).value || '';
+      const semana = ($('#rc-semana') || {}).value || '';
+      const dia = ($('#rc-dia-semana') || {}).value || '';
+      const titularNome = ($('#rc-titular') || {}).value || '';
+
+      if (!categoriaId) { alert('Selecione o Nome (Tipo de Despesa).'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+      if (!titularNome.trim()) { alert('Selecione o titular responsável.'); return; }
+
+      const cat = state.categorias.find(c => c.id === categoriaId);
+      const nome = cat ? cat.nome : '';
+      const semanaNum = semana ? Number(semana) : null;
+      const diaNum = (dia || dia === '0') ? Number(dia) : null;
+
+      if (idEdit) {
+        const r = state.recorrentes.find(x => x.id === idEdit);
+        if (r) {
+          r.categoriaId=categoriaId; r.nome=nome; r.valor=valor; r.dataISO=dataISO;
+          r.semanaDoMes=semanaNum||null; r.diaDaSemana=(dia !== '' ? diaNum : null);
+          r.titularNome = titularNome.trim();
+        }
+        form.removeAttribute('data-edit-id');
+      } else {
+        state.recorrentes.push({
+          id: uid(), categoriaId, nome, valor, dataISO,
+          semanaDoMes: semanaNum||null, diaDaSemana: (dia !== '' ? diaNum : null),
+          titularNome: titularNome.trim()
+        });
+      }
+      saveState(state); renderRecorrentes(); renderDashboard(); form.reset();
+    });
+
+    const tbody = $('#tbl-recorrentes-body');
+    if (tbody) {
+      tbody.addEventListener('click', function(e){
+        const btn = e.target.closest('button[data-act]'); if (!btn) return;
+        const id = btn.getAttribute('data-id'); const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir esta Despesa Fixa?')) return;
+          state.recorrentes = state.recorrentes.filter(r => r.id !== id);
+          saveState(state); renderRecorrentes(); renderDashboard();
+        } else if (act === 'edit') {
+          const r = state.recorrentes.find(x => x.id === id); if (!r) return;
+          ($('#rc-categoria')||{}).value = r.categoriaId || '';
+          ($('#rc-valor')||{}).value = String(r.valor || 0);
+          ($('#rc-data')||{}).value = r.dataISO || '';
+          ($('#rc-semana')||{}).value = r.semanaDoMes || '';
+          ($('#rc-dia-semana')||{}).value = (r.diaDaSemana === 0 ? '0' : (r.diaDaSemana || ''));
+          ($('#rc-titular')||{}).value = r.titularNome || '';
+          form.setAttribute('data-edit-id', r.id);
+        }
+      });
+    }
+  }
+
+  // DÍVIDAS
+  function humanizeSemana(semana) { return semana ? `${semana}ª` : ''; }
+  function renderDividas() {
+    const tbody = $('#tbl-dividas-body'); if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.dividas].sort((a,b)=> sortAsc(a.titularNome||'', b.titularNome||'') || sortAsc(a.nome||'', b.nome||''));
+    ordered.forEach(d => {
+      const venc = d.vencimentoISO ? (d.vencimentoISO || '').slice(0,10) : '-';
+      const fim = d.fimISO ? (d.fimISO || '').slice(0,10) : '-';
+      const semana = humanizeSemana(d.semanaDoMes);
+      const titular = d.titularNome || '-';
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${d.nome || '(sem nome)'}</td>
+        <td>${titular}</td>
+        <td style="text-align:right">${fmtMoney(d.valor)}</td>
+        <td>${venc}</td>
+        <td>${fim}</td>
+        <td>${semana || '-'}</td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${d.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${d.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // selects ordenados
+    renderCategoriaOptions($('#dv-categoria'), 'despesa');
+    renderTitularOptions($('#dv-titular'));
+  }
+  function bindDividas() {
+    renderDividas();
+    const form = $('#form-divida'); if (!form) return;
+
+    form.addEventListener('submit', function(e){
+      e.preventDefault();
+      const idEdit = form.getAttribute('data-edit-id');
+      const categoriaId = ($('#dv-categoria') || {}).value || '';
+      const valor = Number((($('#dv-valor') || {}).value || '0').replace(',', '.'));
+      const vencimentoISO = ($('#dv-vencimento') || {}).value || '';
+      const fimISO = ($('#dv-fim') || {}).value || '';
+      const semana = ($('#dv-semana') || {}).value || '';
+      const titularNome = ($('#dv-titular') || {}).value || '';
+
+      if (!categoriaId) { alert('Selecione o Nome da dívida (Tipo de Despesa).'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+      if (!titularNome.trim()) { alert('Selecione o titular da dívida.'); return; }
+
+      const cat = state.categorias.find(c => c.id === categoriaId);
+      const nome = cat ? cat.nome : '';
+      const semanaNum = semana ? Number(semana) : null;
+
+      if (idEdit) {
+        const d = state.dividas.find(x => x.id === idEdit);
+        if (d) { d.categoriaId=categoriaId; d.nome=nome; d.valor=valor; d.vencimentoISO=vencimentoISO; d.fimISO=fimISO; d.semanaDoMes=semanaNum||null; d.titularNome=titularNome.trim(); }
+        form.removeAttribute('data-edit-id');
+      } else {
+        state.dividas.push({ id: uid(), categoriaId, nome, valor, vencimentoISO, fimISO, semanaDoMes: semanaNum||null, titularNome: titularNome.trim() });
+      }
+
+      saveState(state);
+      renderDividas();
+      renderDashboard();
+      form.reset();
+    });
+
+    const tbody = $('#tbl-dividas-body');
+    if (tbody) {
+      tbody.addEventListener('click', function(e){
+        const btn = e.target.closest('button[data-act]'); if (!btn) return;
+        const id = btn.getAttribute('data-id'); const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir esta Dívida?')) return;
+          state.dividas = state.dividas.filter(d => d.id !== id);
+          saveState(state); renderDividas(); renderDashboard();
+        } else if (act === 'edit') {
+          const d = state.dividas.find(x => x.id === id); if (!d) return;
+          ($('#dv-categoria')||{}).value = d.categoriaId || '';
+          ($('#dv-valor')||{}).value = String(d.valor || 0);
+          ($('#dv-vencimento')||{}).value = d.vencimentoISO || '';
+          ($('#dv-fim')||{}).value = d.fimISO || '';
+          ($('#dv-semana')||{}).value = d.semanaDoMes || '';
+          ($('#dv-titular')||{}).value = d.titularNome || '';
+          form.setAttribute('data-edit-id', d.id);
+        }
+      });
+    }
+  }
+
+  // NAV
+  function showTab(tabId) {
+    $all('.tab-pane').forEach(el => el.style.display = 'none');
+    const el = document.getElementById(tabId);
+    if (el) el.style.display = 'block';
+    $all('[data-tab]').forEach(btn => {
+      if (btn.getAttribute('data-tab') === tabId) btn.classList.add('active'); else btn.classList.remove('active');
+    });
+    if (tabId === 'tab-dashboard') renderDashboard();
+  }
+  function bindNav() {
+    $all('[data-tab]').forEach(btn => { btn.addEventListener('click', () => showTab(btn.getAttribute('data-tab'))); });
+    const btnSair = $('#btn-sair'); if (btnSair) btnSair.addEventListener('click', () => { window.location.href = 'login.html'; });
+  }
+
+  // INIT
+  function init() {
+    bindNav();
+    bindContas();
+    bindCategorias();
+    bindGastos();
+    bindTransacoes();
+    bindSalarios();
+    bindRecorrentes();
+    bindDividas();
+
+    const firstPane = document.querySelector('.tab-pane');
+    if (firstPane) showTab(firstPane.id);
+    renderDashboard();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
+})();
