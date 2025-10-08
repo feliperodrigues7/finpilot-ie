@@ -1,721 +1,532 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-PT">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FinPilot IE</title>
   <style>
     :root {
-      --bg: #f6f8fb;
-      --panel: #ffffff;
-      --text: #0f172a;
-      --muted: #475569;
-      --border: #e5e7eb;
-      --primary: #2563eb;
-      --success: #16a34a;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --info: #06b6d4;
-      --accent-1: #8b5cf6;
-      --accent-2: #f43f5e;
+      --bg: #0b1020;
+      --panel: #121937;
+      --panel-2: #0f1530;
+      --text: #eef2ff;
+      --muted: #aab3d9;
+      --accent: #7aa2ff;
+      --accent-2: #88e1ff;
+      --danger: #ff6b6b;
+      --success: #36d399;
+      --warning: #ffd166;
+      --badge-despesa: #ff7a7a;
+      --badge-receita: #4cd3a8;
+      --badge-transfer: #88e1ff;
+      --border: #223064;
     }
     * { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-      min-height: 100%;
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(180deg, #0b1020, #0c1230 35%, #0a0f26);
+      color: var(--text);
     }
-    .wrap { max-width: 1100px; margin: 24px auto 56px auto; padding: 0 16px; }
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .logo {
-      width: 36px; height: 36px; border-radius: 8px;
-      background: conic-gradient(from 0deg, var(--primary), var(--success), var(--accent-1), var(--accent-2), var(--primary));
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+    header {
+      padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);
+      background: rgba(10, 16, 40, 0.6); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10;
     }
-    .title { font-weight: 800; font-size: 20px; letter-spacing: 0.2px; }
-    .muted { color: var(--muted); font-size: 13px; }
-
-    nav.tabs {
-      display: flex; flex-wrap: wrap; gap: 8px; background: #ffffff;
-      border: 1px solid var(--border); border-radius: 12px; padding: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    header .brand {
+      display: flex; gap: 10px; align-items: center; font-weight: 700; letter-spacing: 0.5px;
     }
-    nav.tabs button {
-      appearance: none; border: 1px solid var(--border); background: #f8fafc;
-      color: var(--text); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
-    }
-    nav.tabs button:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
-    nav.tabs button.active {
-      background: linear-gradient(180deg, #e0ecff 0%, #dbeafe 100%);
-      border-color: #bfdbfe; color: #1e40af; box-shadow: 0 6px 18px rgba(37, 99, 235, 0.20);
-    }
-
-    .panel {
-      margin-top: 16px; background: var(--panel); border: 1px solid var(--border);
-      border-radius: 14px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06);
-    }
-
-    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-    .grid-2 { grid-template-columns: 1fr; }
-    .grid-3 { grid-template-columns: 1fr; }
-    @media (min-width: 980px) { 
-      .grid-2 { grid-template-columns: 1fr 1fr; } 
-      .grid-3 { grid-template-columns: 1fr 1fr 1fr; } 
-    }
-
-    h2 { margin: 0 0 12px 0; font-size: 16px; font-weight: 800; color: #0f172a; }
-
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
-    .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-    .row-1 { grid-template-columns: 1fr; }
-
-    label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: inline-block; }
-    input, select, textarea {
-      width: 100%; background: #ffffff; border: 1px solid #dbe2ea; color: var(--text);
-      border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .12s ease, box-shadow .12s ease;
-    }
-    input:focus, select:focus, textarea:focus { border-color: #a3c3ff; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    textarea { min-height: 80px; resize: vertical; }
-
-    .actions { display: flex; gap: 10px; margin-top: 10px; }
+    header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 16px var(--accent); }
+    header .actions { display: flex; align-items: center; gap: 12px; }
     .btn {
-      appearance: none; border: 1px solid var(--border); background: #f8fafc; color: #0f172a;
-      padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
+      background: linear-gradient(135deg, #1a2458, #17214d); border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform .06s ease, background .2s;
     }
-    .btn:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
-    .btn.primary { background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%); color: #fff; border-color: #60a5fa; }
-    .btn.danger { background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%); color: #fff; border-color: #fda4af; }
+    .btn:hover { transform: translateY(-1px); background: linear-gradient(135deg, #1e2a66, #1a265c); }
+    .btn.danger { background: linear-gradient(135deg, #5a1e2a, #4d1721); border-color: #6a2630; }
+    .btn.danger:hover { background: linear-gradient(135deg, #6a2630, #5a1e2a); }
+    .btn.secondary { background: linear-gradient(135deg, #243055, #1b2548); }
+    .btn.primary { background: linear-gradient(135deg, #2044a0, #19398a); border-color: #2a54c4; }
 
-    table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
-    thead th {
-      text-align: left; padding: 10px; font-weight: 700; font-size: 13px; color: #0f172a;
-      background: #f1f5f9; border-bottom: 1px solid var(--border);
+    main { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 16px; }
+    nav {
+      background: linear-gradient(180deg, #0f1530, #0c1230); border: 1px solid var(--border); border-radius: 12px; padding: 10px;
+      position: sticky; top: 76px; height: calc(100vh - 92px); overflow: auto;
     }
-    tbody td { padding: 10px; border-top: 1px solid var(--border); font-size: 14px; color: #0f172a; }
-    tbody tr:hover { background: #f8fafc; }
-
-    .tab-pane { display: none; }
-    .note { margin: 8px 0 0 0; font-size: 12px; color: var(--muted); }
-
+    nav .nav-btn {
+      width: 100%; text-align: left; border-radius: 10px; margin: 6px 0; padding: 10px 12px; color: var(--muted);
+      background: transparent; border: 1px solid transparent; cursor: pointer;
+    }
+    nav .nav-btn.active { color: var(--text); background: linear-gradient(135deg, #18224a, #131c3d); border-color: var(--border); }
+    section.content {
+      background: linear-gradient(180deg, #10173a, #0f1534); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+    }
+    .grid-cards {
+      display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
+    }
     .card {
-      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+      border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: linear-gradient(180deg, #111a3f, #101739);
+      box-shadow: inset 0 0 0 1px #0c1230;
     }
-    .card h3 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; font-weight: 700; }
-    .card .value { font-weight: 800; font-size: 20px; color: #0f172a; }
-    .sub { font-size: 12px; color: var(--muted); }
-    .accent { color: #1e40af; font-weight: 700; }
+    .card h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
+    .card h3 .accent { color: var(--accent-2); }
+    .card .value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .card .sub { font-size: 12px; color: var(--muted); }
 
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
-    .badge.receita { background: var(--success); }
-    .badge.despesa { background: var(--danger); }
-    .badge.transfer { background: var(--info); }
+    .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
+    .toolbar .spacer { flex: 1; }
+    .section-title { font-size: 16px; margin: 12px 0; }
 
-    /* Modal Styles */
-    .modal { 
-      display: none; 
-      position: fixed; 
-      z-index: 1000; 
-      left: 0; 
-      top: 0; 
-      width: 100%; 
-      height: 100%; 
-      overflow: auto; 
-      background-color: rgba(0,0,0,0.5); 
+    table { width: 100%; border-collapse: collapse; }
+    th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; font-size: 14px; }
+    th { text-align: left; color: var(--muted); font-weight: 600; }
+    tr:hover td { background: rgba(255,255,255,0.02); }
+
+    .form { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; background: linear-gradient(180deg, #0f1532, #0e1430); margin-bottom: 12px; }
+    .form .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
+    .form .form-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: 12px; color: var(--muted); }
+    input, select {
+      background: #0c1230; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px;
+      outline: none; transition: border-color .2s;
     }
-    .modal.show { display: flex; align-items: center; justify-content: center; }
-    .modal-content { 
-      background-color: #fefefe; 
-      padding: 24px; 
-      border-radius: 12px; 
-      width: 90%; 
-      max-width: 520px; 
-      position: relative;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    input:focus, select:focus { border-color: var(--accent); }
+
+    .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+    .badge {
+      display: inline-block; padding: 3px 8px; font-size: 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text);
+      background: #0d1332;
     }
-    .modal-header { 
-      display: flex; 
-      align-items: center; 
-      justify-content: space-between; 
-      margin-bottom: 20px; 
-      padding-bottom: 12px;
-      border-bottom: 1px solid #e5e7eb;
+    .badge.despesa { background: rgba(255, 90, 90, .12); border-color: rgba(255, 90, 90, .3); color: #ffb0b0; }
+    .badge.receita { background: rgba(76, 211, 168, .12); border-color: rgba(76, 211, 168, .3); color: #9be8cd; }
+    .badge.transfer { background: rgba(136, 225, 255, .12); border-color: rgba(136, 225, 255, .3); color: #b6f0ff; }
+
+    .modal {
+      position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+      background: rgba(0,0,0,0.45); z-index: 50; padding: 16px;
     }
-    .modal-header h3 { margin: 0; font-size: 18px; font-weight: 700; }
-    .close-button { 
-      color: #9ca3af; 
-      font-size: 28px; 
-      font-weight: bold; 
-      line-height: 1;
-      cursor: pointer;
-      background: none;
-      border: none;
-      padding: 0;
-      width: 32px;
-      height: 32px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 6px;
-      transition: all 0.2s;
+    .modal.show { display: flex; }
+    .modal-content {
+      width: 100%; max-width: 720px; background: linear-gradient(180deg, #12193a, #0f1532); border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.35);
     }
-    .close-button:hover, .close-button:focus { 
-      color: #374151; 
-      background: #f3f4f6;
+    .modal-header {
+      display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border);
     }
-    .form-row { margin-bottom: 16px; }
-    .form-row label { 
-      display: block; 
-      font-size: 13px; 
-      font-weight: 600; 
-      color: #374151; 
-      margin-bottom: 6px; 
+    .modal-header h2 { margin: 0; font-size: 18px; }
+    .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
+    .btn-modal { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: #17214d; color: var(--text); cursor: pointer; }
+    .close-button {
+      background: transparent; color: var(--muted); border: none; font-size: 22px; cursor: pointer; padding: 0 6px;
     }
-    .form-row input, .form-row select { 
-      width: 100%; 
-      padding: 10px 12px; 
-      border: 1px solid #d1d5db; 
-      border-radius: 8px; 
-      font-size: 14px;
-      transition: border-color 0.2s;
-    }
-    .form-row input:focus, .form-row select:focus { 
-      outline: none; 
-      border-color: #2563eb; 
-      box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-    }
-    .modal-actions { 
-      display: flex; 
-      gap: 10px; 
-      justify-content: flex-end; 
-      margin-top: 24px; 
-      padding-top: 16px;
-      border-top: 1px solid #e5e7eb;
-    }
-    .btn-modal { 
-      padding: 10px 20px; 
-      border-radius: 8px; 
-      border: none; 
-      cursor: pointer; 
-      font-weight: 500;
-      font-size: 14px;
-      transition: all 0.2s;
-    }
-    .btn-modal.primary { background: #2563eb; color: white; }
-    .btn-modal.primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
-    .btn-modal.secondary { background: #f3f4f6; color: #374151; }
-    .btn-modal.secondary:hover { background: #e5e7eb; }
-    .card-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
+    .help { color: var(--muted); font-size: 12px; }
+    .accent { color: var(--accent-2); }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="logo"></div>
-        <div class="title">FinPilot IE</div>
-      </div>
-      <div class="muted">Pessoal • EUR</div>
-    </header>
+  <header>
+    <div class="brand">
+      <div class="dot"></div>
+      <div>FinPilot IE</div>
+    </div>
+    <div class="actions">
+      <button id="btn-sair" class="btn">Sair</button>
+    </div>
+  </header>
 
-    <nav class="tabs">
-      <button class="active" data-tab="tab-dashboard">Dashboard</button>
-      <button data-tab="tab-contas">Contas</button>
-      <button data-tab="tab-gastos">Gastos</button>
-      <button data-tab="tab-transacoes">Transações</button>
-      <button data-tab="tab-salarios">Salários</button>
-      <button data-tab="tab-categorias">Tipos de Despesas</button>
-      <button data-tab="tab-recorrentes">Despesa Fixa</button>
-      <button data-tab="tab-dividas">Dívidas</button>
-      <button data-tab="tab-relatorios">Relatórios</button>
-      <button data-tab="tab-config">Configurações</button>
-      <button id="btn-sair" title="Sair">Sair</button>
+  <main>
+    <nav>
+      <button class="nav-btn active" data-tab="tab-dashboard">Dashboard</button>
+      <button class="nav-btn" data-tab="tab-contas">Contas</button>
+      <button class="nav-btn" data-tab="tab-gastos">Gastos</button>
+      <button class="nav-btn" data-tab="tab-salarios">Salários</button>
+      <button class="nav-btn" data-tab="tab-transacoes">Transferências</button>
+      <button class="nav-btn" data-tab="tab-categorias">Categorias</button>
+      <button class="nav-btn" data-tab="tab-recorrentes">Despesas Fixas</button>
+      <button class="nav-btn" data-tab="tab-dividas">Dívidas</button>
     </nav>
 
-    <!-- Dashboard -->
-    <section id="tab-dashboard" class="panel tab-pane" style="display:block">
-      <h2>Resumo</h2>
-      <div class="grid grid-3" id="dashboard-cards"></div>
-      <div class="card" style="margin-top:14px">
-        <h3>Total Consolidado</h3>
-        <div class="value" id="dashboard-total"></div>
-        <div class="sub">Soma dos saldos atuais de todas as contas</div>
-      </div>
-
-      <h2 style="margin-top:18px">Despesas Fixas por Titular</h2>
-      <div class="grid grid-3" id="dashboard-fixas"></div>
-
-      <h2 style="margin-top:18px">Dívidas por Título e Titular</h2>
-      <div class="grid grid-3" id="dashboard-dividas"></div>
-    </section>
-
-    <!-- Contas -->
-    <section id="tab-contas" class="panel tab-pane">
-      <div class="grid grid-1">
-        <div class="card">
-          <div class="card-header-row">
-            <h2 style="margin:0">Minhas Contas</h2>
-            <button id="btn-open-account-modal" class="btn primary">+ Nova conta</button>
+    <section class="content">
+      <div id="tab-dashboard" class="tab-pane">
+        <h2 class="section-title">Resumo</h2>
+        <div class="grid-cards" id="dashboard-cards"></div>
+        <div class="form" style="margin-top:12px;">
+          <div class="grid" style="grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));">
+            <div class="card">
+              <h3>Total em Contas</h3>
+              <div id="dashboard-total" class="value">€ 0,00</div>
+              <div class="sub">Soma de todos os saldos atuais</div>
+            </div>
           </div>
-          <table>
-            <thead>
-              <tr>
-                <th>Titular</th>
-                <th>Banco</th>
-                <th>Tipo de Conta</th>
-                <th style="text-align:right">Saldo Inicial</th>
-                <th style="text-align:right">Saldo Atual</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-contas-body"></tbody>
-          </table>
         </div>
+
+        <h3 class="section-title">Despesas Fixas por Titular</h3>
+        <div class="grid-cards" id="dashboard-fixas"></div>
+
+        <h3 class="section-title">Dívidas por Título e Titular</h3>
+        <div class="grid-cards" id="dashboard-dividas"></div>
+      </div>
+
+      <div id="tab-contas" class="tab-pane" style="display:none;">
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Minhas Contas</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-account-modal" class="btn primary">+ Nova conta</button>
+        </div>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Titular</th>
+              <th>Banco</th>
+              <th>Tipo de Conta</th>
+              <th>Saldo Inicial</th>
+              <th>Saldo Atual</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-contas-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-gastos" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Gastos</h2>
+        <form id="form-gasto" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="gs-data">Data</label>
+              <input type="date" id="gs-data" />
+            </div>
+            <div class="form-group">
+              <label for="gs-titular">Titular</label>
+              <select id="gs-titular"></select>
+            </div>
+            <div class="form-group">
+              <label for="gs-banco">Banco</label>
+              <select id="gs-banco"></select>
+            </div>
+            <div class="form-group">
+              <label for="gs-desc">Descrição</label>
+              <input type="text" id="gs-desc" placeholder="Ex.: Mercado" />
+            </div>
+            <div class="form-group">
+              <label for="gs-valor">Valor</label>
+              <input type="number" step="0.01" id="gs-valor" placeholder="0,00" />
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Adicionar Gasto</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Titular</th>
+              <th>Banco</th>
+              <th>Descrição</th>
+              <th>Valor</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-gastos-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-salarios" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Salários</h2>
+        <form id="form-salario" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="sl-data">Data</label>
+              <input type="date" id="sl-data" />
+            </div>
+            <div class="form-group">
+              <label for="sl-nome">Titular</label>
+              <select id="sl-nome"></select>
+            </div>
+            <div class="form-group">
+              <label for="sl-banco">Banco</label>
+              <select id="sl-banco"></select>
+            </div>
+            <div class="form-group">
+              <label for="sl-horas">Horas</label>
+              <input type="number" step="0.01" id="sl-horas" placeholder="Opcional" />
+            </div>
+            <div class="form-group">
+              <label for="sl-valor">Valor</label>
+              <input type="number" step="0.01" id="sl-valor" placeholder="0,00" />
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Adicionar Salário</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Titular</th>
+              <th>Banco</th>
+              <th>Horas</th>
+              <th>Valor</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-salarios-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-transacoes" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Transferências</h2>
+        <form id="form-transacao" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="tx-data">Data</label>
+              <input type="date" id="tx-data" />
+            </div>
+
+            <div class="form-group">
+              <label for="tx-de-titular">De • Titular</label>
+              <select id="tx-de-titular"></select>
+            </div>
+            <div class="form-group">
+              <label for="tx-de-banco">De • Banco</label>
+              <select id="tx-de-banco"></select>
+            </div>
+
+            <div class="form-group">
+              <label for="tx-para-titular">Para • Titular</label>
+              <select id="tx-para-titular"></select>
+            </div>
+            <div class="form-group">
+              <label for="tx-para-banco">Para • Banco</label>
+              <select id="tx-para-banco"></select>
+            </div>
+
+            <div class="form-group">
+              <label for="tx-valor">Valor</label>
+              <input type="number" step="0.01" id="tx-valor" placeholder="0,00" />
+            </div>
+            <div class="form-group">
+              <label for="tx-desc">Descrição</label>
+              <input type="text" id="tx-desc" placeholder="Opcional" />
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Transferir</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Data</th>
+              <th>Tipo</th>
+              <th>De</th>
+              <th>Para</th>
+              <th>Valor</th>
+              <th>Descrição</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-transacoes-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-categorias" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Categorias</h2>
+        <form id="form-categoria" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="cat-nome">Nome</label>
+              <input type="text" id="cat-nome" placeholder="Ex.: Mercado, Aluguel..." />
+            </div>
+            <div class="form-group">
+              <label for="cat-tipo">Tipo</label>
+              <select id="cat-tipo">
+                <option value="despesa">Despesa</option>
+                <option value="receita">Receita</option>
+              </select>
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Guardar</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Tipo</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-categorias-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-recorrentes" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Despesas Fixas</h2>
+        <form id="form-recorrente" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="rc-categoria">Nome (Tipo de Despesa)</label>
+              <select id="rc-categoria"></select>
+              <div class="help">Dica: adicione nomes novos em Categorias (como Despesa).</div>
+            </div>
+            <div class="form-group">
+              <label for="rc-valor">Valor</label>
+              <input type="number" step="0.01" id="rc-valor" placeholder="0,00" />
+            </div>
+            <div class="form-group">
+              <label for="rc-data">Data (fixa)</label>
+              <input type="date" id="rc-data" />
+            </div>
+            <div class="form-group">
+              <label for="rc-semana">Semana do mês</label>
+              <select id="rc-semana">
+                <option value="">—</option>
+                <option value="1">1ª</option>
+                <option value="2">2ª</option>
+                <option value="3">3ª</option>
+                <option value="4">4ª</option>
+                <option value="5">5ª</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="rc-dia-semana">Dia da semana</label>
+              <select id="rc-dia-semana">
+                <option value="">—</option>
+                <option value="1">Seg</option>
+                <option value="2">Ter</option>
+                <option value="3">Qua</option>
+                <option value="4">Qui</option>
+                <option value="5">Sex</option>
+                <option value="6">Sáb</option>
+                <option value="0">Dom</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="rc-titular">Titular (quem paga)</label>
+              <select id="rc-titular"></select>
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Guardar</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Titular</th>
+              <th>Valor</th>
+              <th>Data</th>
+              <th>Semana/Dia</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-recorrentes-body"></tbody>
+        </table>
+      </div>
+
+      <div id="tab-dividas" class="tab-pane" style="display:none;">
+        <h2 class="section-title">Dívidas</h2>
+        <form id="form-divida" class="form">
+          <div class="grid">
+            <div class="form-group">
+              <label for="dv-categoria">Nome (Tipo de Despesa)</label>
+              <select id="dv-categoria"></select>
+            </div>
+            <div class="form-group">
+              <label for="dv-valor">Valor</label>
+              <input type="number" step="0.01" id="dv-valor" placeholder="0,00" />
+            </div>
+            <div class="form-group">
+              <label for="dv-vencimento">Vencimento</label>
+              <input type="date" id="dv-vencimento" />
+            </div>
+            <div class="form-group">
+              <label for="dv-fim">Fim (opcional)</label>
+              <input type="date" id="dv-fim" />
+            </div>
+            <div class="form-group">
+              <label for="dv-semana">Semana do mês</label>
+              <select id="dv-semana">
+                <option value="">—</option>
+                <option value="1">1ª</option>
+                <option value="2">2ª</option>
+                <option value="3">3ª</option>
+                <option value="4">4ª</option>
+                <option value="5">5ª</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="dv-titular">Titular</label>
+              <select id="dv-titular"></select>
+            </div>
+          </div>
+          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
+            <button type="submit" class="btn">Guardar</button>
+          </div>
+        </form>
+
+        <table>
+          <thead>
+            <tr>
+              <th>Nome</th>
+              <th>Titular</th>
+              <th>Valor</th>
+              <th>Vencimento</th>
+              <th>Fim</th>
+              <th>Semana</th>
+              <th>Ações</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-dividas-body"></tbody>
+        </table>
       </div>
     </section>
+  </main>
 
-    <!-- Gastos -->
-    <section id="tab-gastos" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo Gasto</h2>
-          <form id="form-gasto">
-            <div class="row">
-              <div>
-                <label for="gs-valor">Valor do gasto</label>
-                <input id="gs-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-              <div>
-                <label for="gs-data">Data</label>
-                <input id="gs-data" type="date" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="gs-titular">Titular (quem pagou)</label>
-                <select id="gs-titular"></select>
-              </div>
-              <div>
-                <label for="gs-banco">Banco utilizado</label>
-                <select id="gs-banco"></select>
-              </div>
-            </div>
-            <div class="row-1">
-              <div>
-                <label for="gs-desc">Descrição do gasto</label>
-                <input id="gs-desc" type="text" placeholder="Ex.: Mercado, Farmácia, Restaurante..." />
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Gasto</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">O gasto será debitado da conta do titular/banco selecionados e refletirá no saldo atual.</p>
-        </div>
-        <div>
-          <h2>Gastos</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Titular</th>
-                <th>Banco</th>
-                <th>Descrição</th>
-                <th style="text-align:right">Valor</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-gastos-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Transações -->
-    <section id="tab-transacoes" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Transferência entre Contas</h2>
-          <form id="form-transacao">
-            <div class="row">
-              <div>
-                <label for="tx-data">Data</label>
-                <input id="tx-data" type="date" />
-              </div>
-              <div>
-                <label for="tx-valor">Valor</label>
-                <input id="tx-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="tx-de-titular">De: Titular</label>
-                <select id="tx-de-titular"></select>
-              </div>
-              <div>
-                <label for="tx-de-banco">De: Banco</label>
-                <select id="tx-de-banco"></select>
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="tx-para-titular">Para: Titular</label>
-                <select id="tx-para-titular"></select>
-              </div>
-              <div>
-                <label for="tx-para-banco">Para: Banco</label>
-                <select id="tx-para-banco"></select>
-              </div>
-            </div>
-            <div class="row-1">
-              <div>
-                <label for="tx-desc">Descrição (opcional)</label>
-                <input id="tx-desc" type="text" placeholder="Ex.: Transferência para poupança" />
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Registre aqui apenas transferências entre contas.</p>
-        </div>
-        <div>
-          <h2>Transações</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Transferência De</th>
-                <th>Transferência Para</th>
-                <th style="text-align:right">Valor</th>
-                <th>Descrição</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-transacoes-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Salários -->
-    <section id="tab-salarios" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo Salário</h2>
-          <form id="form-salario">
-            <div class="row">
-              <div>
-                <label for="sl-nome">Nome (quem recebeu)</label>
-                <select id="sl-nome"></select>
-              </div>
-              <div>
-                <label for="sl-valor">Valor do salário</label>
-                <input id="sl-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="sl-horas">Horas trabalhadas</label>
-                <input id="sl-horas" type="number" step="0.01" placeholder="Ex.: 160" />
-              </div>
-              <div>
-                <label for="sl-data">Data</label>
-                <input id="sl-data" type="date" />
-              </div>
-            </div>
-            <div class="row-1">
-              <div>
-                <label for="sl-banco">Banco (onde caiu o salário)</label>
-                <select id="sl-banco"></select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Salário</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Selecione o Titular e o Banco de uma conta cadastrada. O valor será somado ao saldo dessa conta e registrado como receita "Salário".</p>
-        </div>
-        <div>
-          <h2>Salários Lançados</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Nome</th>
-                <th>Banco</th>
-                <th>Horas</th>
-                <th style="text-align:right">Valor</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-salarios-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tipos de Despesas (Categorias) -->
-    <section id="tab-categorias" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo/Editar Tipo de Despesa</h2>
-          <form id="form-categoria">
-            <div class="row">
-              <div>
-                <label for="cat-nome">Nome</label>
-                <input id="cat-nome" type="text" placeholder="Ex.: Aluguel, Mercado, Salário" />
-              </div>
-              <div>
-                <label for="cat-tipo">Tipo</label>
-                <select id="cat-tipo">
-                  <option value="despesa">Despesa</option>
-                  <option value="receita">Receita</option>
-                </select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Tipo</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-        </div>
-        <div>
-          <h2>Tipos de Despesas e Receitas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-categorias-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Despesa Fixa -->
-    <section id="tab-recorrentes" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova Despesa Fixa</h2>
-          <form id="form-recorrente">
-            <div class="row">
-              <div>
-                <label for="rc-categoria">Nome (selecionar do Tipo de Despesa)</label>
-                <select id="rc-categoria"></select>
-              </div>
-              <div>
-                <label for="rc-valor">Valor</label>
-                <input id="rc-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="rc-data">Data de vencimento (opcional)</label>
-                <input id="rc-data" type="date" />
-              </div>
-              <div>
-                <label for="rc-semana">Semana do mês que pagaremos</label>
-                <select id="rc-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">1ª semana</option>
-                  <option value="2">2ª semana</option>
-                  <option value="3">3ª semana</option>
-                  <option value="4">4ª semana</option>
-                  <option value="5">5ª semana (quando houver)</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="rc-dia-semana">Dia da semana (opcional)</label>
-                <select id="rc-dia-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">Segunda</option>
-                  <option value="2">Terça</option>
-                  <option value="3">Quarta</option>
-                  <option value="4">Quinta</option>
-                  <option value="5">Sexta</option>
-                  <option value="6">Sábado</option>
-                  <option value="0">Domingo</option>
-                </select>
-              </div>
-              <div>
-                <label for="rc-titular">Titular (quem paga)</label>
-                <select id="rc-titular"></select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Despesa Fixa</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Informe a data de vencimento e/ou a semana do mês que pagarão, e o titular responsável.</p>
-        </div>
-        <div>
-          <h2>Despesas Fixas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Titular</th>
-                <th>Valor</th>
-                <th>Vencimento</th>
-                <th>Semana/Dia</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-recorrentes-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Dívidas -->
-    <section id="tab-dividas" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova Dívida</h2>
-          <form id="form-divida">
-            <div class="row">
-              <div>
-                <label for="dv-categoria">Nome da dívida (Tipos de Despesas)</label>
-                <select id="dv-categoria"></select>
-              </div>
-              <div>
-                <label for="dv-valor">Valor</label>
-                <input id="dv-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="dv-vencimento">Data de vencimento mensal</label>
-                <input id="dv-vencimento" type="date" />
-              </div>
-              <div>
-                <label for="dv-fim">Data de finalização da dívida</label>
-                <input id="dv-fim" type="date" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="dv-semana">Semana que será paga</label>
-                <select id="dv-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">1ª semana</option>
-                  <option value="2">2ª semana</option>
-                  <option value="3">3ª semana</option>
-                  <option value="4">4ª semana</option>
-                  <option value="5">5ª semana (quando houver)</option>
-                </select>
-              </div>
-              <div>
-                <label for="dv-titular">Titular da dívida</label>
-                <select id="dv-titular"></select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Dívida</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-        </div>
-        <div>
-          <h2>Dívidas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Titular</th>
-                <th>Valor</th>
-                <th>Vencimento mensal</th>
-                <th>Finalização</th>
-                <th>Semana</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-dividas-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Relatórios -->
-    <section id="tab-relatorios" class="panel tab-pane">
-      <h2>Relatórios</h2>
-      <p class="muted">Em breve.</p>
-    </section>
-
-    <!-- Configurações -->
-    <section id="tab-config" class="panel tab-pane">
-      <h2>Configurações</h2>
-      <p class="muted">Sem backend nesta versão. Dados no LocalStorage.</p>
-      <div class="actions">
-        <button class="btn danger" id="btn-clear">Apagar todos os dados locais</button>
-      </div>
-    </section>
-  </div>
-
-  <!-- Account Modal -->
+  <!-- Modal de Conta -->
   <div id="account-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
-        <h3 id="account-modal-title">Adicionar Conta</h3>
-        <button class="close-button" data-modal="account-modal">&times;</button>
+        <h2 id="account-modal-title">Nova Conta</h2>
+        <button class="close-button" data-modal="account-modal" aria-label="Fechar">&times;</button>
       </div>
       <form id="account-form">
-        <input type="hidden" id="account-id">
-        <div class="form-row">
-          <label for="account-owner-name">Pessoa:</label>
-          <select id="account-owner-name" required></select>
+        <input type="hidden" id="account-id" />
+        <div class="grid" style="padding: 12px;">
+          <div class="form-group">
+            <label for="account-owner-name">Pessoa (Titular)</label>
+            <input type="text" id="account-owner-name" placeholder="Ex.: João" />
+          </div>
+          <div class="form-group">
+            <label for="account-name">Tipo de Conta</label>
+            <input type="text" id="account-name" placeholder="Ex.: Corrente, Poupança..." />
+          </div>
+          <div class="form-group">
+            <label for="account-bank">Banco</label>
+            <input type="text" id="account-bank" placeholder="Ex.: Santander" />
+          </div>
+          <div class="form-group">
+            <label for="account-balance">Saldo Inicial</label>
+            <input type="number" step="0.01" id="account-balance" placeholder="0,00" />
+          </div>
         </div>
-        <div class="form-row">
-          <label for="account-name">Nome da Conta:</label>
-          <input type="text" id="account-name" required>
-        </div>
-        <div class="form-row">
-          <label for="account-bank">Banco:</label>
-          <input type="text" id="account-bank" placeholder="Ex: Millennium">
-        </div>
-        <div class="form-row">
-          <label for="account-balance">Saldo Inicial (EUR):</label>
-          <input type="number" id="account-balance" step="0.01" placeholder="0.00" required>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-modal secondary" data-modal="account-modal">Cancelar</button>
-          <button type="submit" class="btn-modal primary">Salvar</button>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="account-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
         </div>
       </form>
     </div>
   </div>
 
   <script src="finance.js"></script>
-  <script>
-    (function() {
-      function $(sel){ return document.querySelector(sel); }
-      const btn = $('#btn-clear');
-      if (btn) {
-        btn.addEventListener('click', function() {
-          if (confirm('Tem certeza que deseja apagar todos os dados locais?')) {
-            localStorage.removeItem('finpilot_ie_v1');
-            window.location.reload();
-          }
-        });
-      }
-    })();
-  </script>
 </body>
 </html>
