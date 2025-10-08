@@ -211,6 +211,7 @@
     .btn-modal.primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
     .btn-modal.secondary { background: #f3f4f6; color: #374151; }
     .btn-modal.secondary:hover { background: #e5e7eb; }
+    .card-header-row { display:flex; align-items:center; justify-content:space-between; margin-bottom:10px; }
   </style>
 </head>
 <body>
@@ -256,47 +257,20 @@
 
     <!-- Contas -->
     <section id="tab-contas" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova/Editar Conta</h2>
-          <form id="form-conta">
-            <div class="row">
-              <div>
-                <label for="ct-titular">Titular (digite o nome)</label>
-                <input id="ct-titular" type="text" placeholder="Ex.: João, Maria" />
-              </div>
-              <div>
-                <label for="ct-tipo">Tipo de Conta</label>
-                <input id="ct-tipo" type="text" placeholder="Ex.: Corrente, Poupança" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="ct-banco">Banco</label>
-                <input id="ct-banco" type="text" placeholder="Ex.: Meu Banco" />
-              </div>
-              <div>
-                <label for="ct-saldo-inicial">Saldo Inicial</label>
-                <input id="ct-saldo-inicial" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Conta</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Saldo atual é recalculado com base no saldo inicial + transações.</p>
-        </div>
-        <div>
-          <h2>Minhas Contas</h2>
+      <div class="grid grid-1">
+        <div class="card">
+          <div class="card-header-row">
+            <h2 style="margin:0">Minhas Contas</h2>
+            <button id="btn-open-account-modal" class="btn primary">+ Nova conta</button>
+          </div>
           <table>
             <thead>
               <tr>
                 <th>Titular</th>
                 <th>Banco</th>
                 <th>Tipo de Conta</th>
-                <th>Saldo Inicial</th>
-                <th>Saldo Atual</th>
+                <th style="text-align:right">Saldo Inicial</th>
+                <th style="text-align:right">Saldo Atual</th>
                 <th>Ações</th>
               </tr>
             </thead>
