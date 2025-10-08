@@ -13,7 +13,6 @@
       --muted: #475569;
       --border: #e5e7eb;
       --primary: #2563eb;
-      --primary-2: #1d4ed8;
       --success: #16a34a;
       --danger: #ef4444;
       --warning: #f59e0b;
@@ -27,9 +26,6 @@
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
       min-height: 100%;
     }
-    a { color: var(--primary); text-decoration: none; }
-    a:hover { text-decoration: underline; }
-
     .wrap { max-width: 1100px; margin: 24px auto 56px auto; padding: 0 16px; }
     header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
     .brand { display: flex; align-items: center; gap: 10px; }
@@ -63,7 +59,11 @@
 
     .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
     .grid-2 { grid-template-columns: 1fr; }
-    @media (min-width: 980px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+    .grid-3 { grid-template-columns: 1fr; }
+    @media (min-width: 980px) { 
+      .grid-2 { grid-template-columns: 1fr 1fr; } 
+      .grid-3 { grid-template-columns: 1fr 1fr 1fr; } 
+    }
 
     h2 { margin: 0 0 12px 0; font-size: 16px; font-weight: 800; color: #0f172a; }
 
@@ -100,6 +100,18 @@
     .tab-pane { display: none; }
     .note { margin: 8px 0 0 0; font-size: 12px; color: var(--muted); }
 
+    .card {
+      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    }
+    .card h3 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; font-weight: 700; }
+    .card .value { font-weight: 800; font-size: 20px; color: #0f172a; }
+    .sub { font-size: 12px; color: var(--muted); }
+    .accent { color: #1e40af; font-weight: 700; }
+
     .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
     .badge.receita { background: var(--success); }
     .badge.despesa { background: var(--danger); }
@@ -117,7 +129,9 @@
     </header>
 
     <nav class="tabs">
-      <button class="active" data-tab="tab-contas">Contas</button>
+      <button class="active" data-tab="tab-dashboard">Dashboard</button>
+      <button data-tab="tab-contas">Contas</button>
+      <button data-tab="tab-gastos">Gastos</button>
       <button data-tab="tab-transacoes">Transações</button>
       <button data-tab="tab-salarios">Salários</button>
       <button data-tab="tab-categorias">Tipos de Despesas</button>
@@ -128,8 +142,19 @@
       <button id="btn-sair" title="Sair">Sair</button>
     </nav>
 
+    <!-- Dashboard -->
+    <section id="tab-dashboard" class="panel tab-pane" style="display:block">
+      <h2>Resumo</h2>
+      <div class="grid grid-3" id="dashboard-cards"></div>
+      <div class="card" style="margin-top:14px">
+        <h3>Total Consolidado</h3>
+        <div class="value" id="dashboard-total"></div>
+        <div class="sub">Soma dos saldos atuais de todas as contas</div>
+      </div>
+    </section>
+
     <!-- Contas -->
-    <section id="tab-contas" class="panel tab-pane" style="display:block">
+    <section id="tab-contas" class="panel tab-pane">
       <div class="grid grid-2">
         <div>
           <h2>Nova/Editar Conta</h2>
@@ -180,11 +205,69 @@
       </div>
     </section>
 
+    <!-- Gastos -->
+    <section id="tab-gastos" class="panel tab-pane">
+      <div class="grid grid-2">
+        <div>
+          <h2>Novo Gasto</h2>
+          <form id="form-gasto">
+            <div class="row">
+              <div>
+                <label for="gs-valor">Valor do gasto</label>
+                <input id="gs-valor" type="number" step="0.01" placeholder="0.00" />
+              </div>
+              <div>
+                <label for="gs-data">Data</label>
+                <input id="gs-data" type="date" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="gs-titular">Titular (quem pagou)</label>
+                <select id="gs-titular"></select>
+              </div>
+              <div>
+                <label for="gs-banco">Banco utilizado</label>
+                <select id="gs-banco"></select>
+              </div>
+            </div>
+            <div class="row-1">
+              <div>
+                <label for="gs-desc">Descrição do gasto</label>
+                <input id="gs-desc" type="text" placeholder="Ex.: Mercado, Farmácia, Restaurante..." />
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Gasto</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+          <p class="note">O gasto será debitado da conta do titular/banco selecionados e refletirá no saldo atual.</p>
+        </div>
+        <div>
+          <h2>Gastos</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Titular</th>
+                <th>Banco</th>
+                <th>Descrição</th>
+                <th style="text-align:right">Valor</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-gastos-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- Transações -->
     <section id="tab-transacoes" class="panel tab-pane">
       <div class="grid grid-2">
         <div>
-          <h2>Nova Transação ou Transferência</h2>
+          <h2>Transferência entre Contas</h2>
           <form id="form-transacao">
             <div class="row">
               <div>
@@ -194,17 +277,6 @@
               <div>
                 <label for="tx-valor">Valor</label>
                 <input id="tx-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-
-            <div class="row">
-              <div>
-                <label for="tx-conta">Conta (para Receita/Despesa)</label>
-                <select id="tx-conta"></select>
-              </div>
-              <div>
-                <label for="tx-categoria">Categoria (Receita/Despesa)</label>
-                <select id="tx-categoria"></select>
               </div>
             </div>
 
@@ -222,7 +294,7 @@
             <div class="row-1">
               <div>
                 <label for="tx-descricao">Descrição</label>
-                <input id="tx-descricao" type="text" placeholder="Ex.: Salário de Outubro, Mercado, Aluguel, etc." />
+                <input id="tx-descricao" type="text" placeholder="Opcional" />
               </div>
             </div>
 
@@ -231,7 +303,7 @@
               <button class="btn" type="reset">Limpar</button>
             </div>
           </form>
-          <p class="note">Use (Conta+Categoria) para receita/despesa OU (De/Para) para transferência.</p>
+          <p class="note">Registre aqui apenas transferências entre contas.</p>
         </div>
         <div>
           <h2>Transações</h2>
