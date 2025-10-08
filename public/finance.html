@@ -7,34 +7,36 @@
   <title>FinPilot IE</title>
   <style>
     :root {
-      --bg: #0f172a;          /* slate-900 */
-      --bg-soft: #111827;     /* gray-900 */
-      --panel: #111827;       /* gray-900 */
-      --panel-2: #0b1220;
-      --text: #e5e7eb;        /* gray-200 */
-      --muted: #9ca3af;       /* gray-400 */
-      --accent: #22c55e;      /* green-500 */
-      --accent-2: #16a34a;    /* green-600 */
+      --bg: #f6f8fb;          /* fundo clean */
+      --panel: #ffffff;       /* cartões brancos */
+      --text: #0f172a;        /* slate-900 */
+      --muted: #475569;       /* slate-600 */
+      --border: #e5e7eb;      /* gray-200 */
+      --primary: #2563eb;     /* blue-600 */
+      --primary-2: #1d4ed8;   /* blue-700 */
+      --success: #16a34a;     /* green-600 */
       --danger: #ef4444;      /* red-500 */
-      --border: #1f2937;      /* gray-800 */
-      --link: #60a5fa;        /* blue-400 */
+      --warning: #f59e0b;     /* amber-500 */
+      --info: #06b6d4;        /* cyan-500 */
+      --accent-1: #8b5cf6;    /* violet-500 */
+      --accent-2: #f43f5e;    /* rose-500 */
     }
     * { box-sizing: border-box; }
     html, body {
       margin: 0;
       padding: 0;
-      background: linear-gradient(135deg, var(--bg) 0%, #0b1020 100%);
+      background: var(--bg);
       color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
       min-height: 100%;
     }
-    a { color: var(--link); text-decoration: none; }
+    a { color: var(--primary); text-decoration: none; }
     a:hover { text-decoration: underline; }
 
     .wrap {
       max-width: 1100px;
-      margin: 24px auto;
-      padding: 0 16px 48px 16px;
+      margin: 24px auto 56px auto;
+      padding: 0 16px;
     }
 
     header {
@@ -53,54 +55,56 @@
       width: 36px;
       height: 36px;
       border-radius: 8px;
-      background: radial-gradient(circle at 30% 30%, var(--accent), #0ea5e9 70%);
-      box-shadow: 0 0 24px rgba(34, 197, 94, 0.25);
+      background: conic-gradient(from 0deg, var(--primary), var(--success), var(--accent-1), var(--accent-2), var(--primary));
+      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
     }
     .title {
-      font-weight: 700;
+      font-weight: 800;
       font-size: 20px;
       letter-spacing: 0.2px;
     }
+    .muted { color: var(--muted); font-size: 13px; }
 
     nav.tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
-      background: rgba(255, 255, 255, 0.02);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 12px;
       padding: 8px;
-      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 8px 20px rgba(0,0,0,0.25);
-      backdrop-filter: blur(6px);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     nav.tabs button {
       appearance: none;
       border: 1px solid var(--border);
-      background: linear-gradient(180deg, #0e162c 0%, #0b1220 100%);
+      background: #f8fafc;
       color: var(--text);
       padding: 10px 12px;
       border-radius: 10px;
       cursor: pointer;
       font-size: 14px;
-      transition: all .18s ease;
+      transition: all .14s ease;
     }
     nav.tabs button:hover {
       transform: translateY(-1px);
-      border-color: #243046;
+      border-color: #cbd5e1;
+      background: #f1f5f9;
     }
     nav.tabs button.active {
-      background: linear-gradient(180deg, #132041 0%, #101a33 100%);
-      border-color: #2a3b5d;
-      box-shadow: 0 0 0 1px rgba(96,165,250,0.15), 0 8px 22px rgba(2,6,23,0.5);
+      background: linear-gradient(180deg, #e0ecff 0%, #dbeafe 100%);
+      border-color: #bfdbfe;
+      color: #1e40af;
+      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.20);
     }
 
     .panel {
       margin-top: 16px;
-      background: linear-gradient(180deg, rgba(17,24,39,0.85) 0%, rgba(10,15,27,0.85) 100%);
+      background: var(--panel);
       border: 1px solid var(--border);
       border-radius: 14px;
       padding: 16px;
-      box-shadow: 0 10px 28px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.02);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     }
 
     .grid {
@@ -115,10 +119,9 @@
     h2 {
       margin: 0 0 12px 0;
       font-size: 16px;
-      font-weight: 700;
-      color: #e9eef7;
+      font-weight: 800;
+      color: #0f172a;
     }
-    .muted { color: var(--muted); font-size: 13px; }
 
     .row {
       display: grid;
@@ -137,18 +140,18 @@
     }
     input, select, textarea {
       width: 100%;
-      background: #0a1222;
-      border: 1px solid #1b2740;
+      background: #ffffff;
+      border: 1px solid #dbe2ea;
       color: var(--text);
       border-radius: 10px;
       padding: 10px 12px;
       font-size: 14px;
       outline: none;
-      transition: border-color .15s ease, box-shadow .15s ease;
+      transition: border-color .12s ease, box-shadow .12s ease;
     }
     input:focus, select:focus, textarea:focus {
-      border-color: #2d467a;
-      box-shadow: 0 0 0 2px rgba(96,165,250,0.15);
+      border-color: #a3c3ff;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
     }
     textarea { min-height: 80px; resize: vertical; }
 
@@ -160,25 +163,28 @@
     .btn {
       appearance: none;
       border: 1px solid var(--border);
-      background: linear-gradient(180deg, #0c1a34 0%, #09142a 100%);
+      background: #f8fafc;
       color: var(--text);
       padding: 10px 14px;
       border-radius: 10px;
       cursor: pointer;
       font-size: 14px;
-      transition: all .15s ease;
+      transition: all .14s ease;
     }
     .btn:hover {
       transform: translateY(-1px);
-      border-color: #2a3b5d;
+      border-color: #cbd5e1;
+      background: #f1f5f9;
     }
     .btn.primary {
-      background: linear-gradient(180deg, #1c6b3a 0%, #155c30 100%);
-      border-color: #1e7c45;
+      background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
+      color: #fff;
+      border-color: #60a5fa;
     }
     .btn.danger {
-      background: linear-gradient(180deg, #6b1c1c 0%, #5c1515 100%);
-      border-color: #7c1e1e;
+      background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%);
+      color: #fff;
+      border-color: #fda4af;
     }
 
     table {
@@ -187,24 +193,25 @@
       border: 1px solid var(--border);
       border-radius: 12px;
       overflow: hidden;
-      background: #0b1221;
+      background: #fff;
     }
     thead th {
       text-align: left;
       padding: 10px;
-      font-weight: 600;
+      font-weight: 700;
       font-size: 13px;
-      color: #cbd5e1;
-      background: #0e172e;
-      border-bottom: 1px solid #1b2740;
+      color: #0f172a;
+      background: #f1f5f9;
+      border-bottom: 1px solid var(--border);
     }
     tbody td {
       padding: 10px;
-      border-top: 1px solid #1b2740;
+      border-top: 1px solid var(--border);
       font-size: 14px;
+      color: #0f172a;
     }
     tbody tr:hover {
-      background: rgba(96,165,250,0.05);
+      background: #f8fafc;
     }
 
     .tab-pane { display: none; }
@@ -213,6 +220,19 @@
       font-size: 12px;
       color: var(--muted);
     }
+
+    /* badges coloridos */
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #fff;
+    }
+    .badge.receita { background: var(--success); }
+    .badge.despesa { background: var(--danger); }
+    .badge.transfer { background: var(--info); }
   </style>
 </head>
 <body>
@@ -245,18 +265,18 @@
           <form id="form-conta">
             <div class="row">
               <div>
-                <label for="ct-nome">Nome da Conta</label>
-                <input id="ct-nome" type="text" placeholder="Ex.: Conta Principal" />
+                <label for="ct-titular">Titular (digite o nome)</label>
+                <input id="ct-titular" type="text" placeholder="Ex.: João, Maria" />
               </div>
               <div>
-                <label for="ct-banco">Banco</label>
-                <input id="ct-banco" type="text" placeholder="Ex.: Meu Banco" />
+                <label for="ct-tipo">Tipo de Conta</label>
+                <input id="ct-tipo" type="text" placeholder="Ex.: Corrente, Poupança" />
               </div>
             </div>
             <div class="row">
               <div>
-                <label for="ct-pessoa">Titular</label>
-                <select id="ct-pessoa"></select>
+                <label for="ct-banco">Banco</label>
+                <input id="ct-banco" type="text" placeholder="Ex.: Meu Banco" />
               </div>
               <div>
                 <label for="ct-saldo-inicial">Saldo Inicial</label>
@@ -275,9 +295,9 @@
           <table>
             <thead>
               <tr>
-                <th>Conta</th>
-                <th>Banco</th>
                 <th>Titular</th>
+                <th>Banco</th>
+                <th>Tipo de Conta</th>
                 <th>Saldo Inicial</th>
                 <th>Saldo Atual</th>
                 <th>Ações</th>
@@ -331,7 +351,7 @@
             <div class="row-1">
               <div>
                 <label for="tx-descricao">Descrição</label>
-                <input id="tx-descricao" type="text" placeholder="Ex.: Salário de Outubro, Mercado, Renda, etc." />
+                <input id="tx-descricao" type="text" placeholder="Ex.: Salário de Outubro, Mercado, Aluguel, etc." />
               </div>
             </div>
 
@@ -340,7 +360,7 @@
               <button class="btn" type="reset">Limpar</button>
             </div>
           </form>
-          <p class="note">Preencha EITHER (Conta+Categoria) para receita/despesa OR (De/Para) para transferência.</p>
+          <p class="note">Use (Conta+Categoria) para receita/despesa OU (De/Para) para transferência.</p>
         </div>
         <div>
           <h2>Transações</h2>
@@ -348,7 +368,7 @@
             <thead>
               <tr>
                 <th>Data</th>
-                <th>Categoria/Tipo</th>
+                <th>Tipo</th>
                 <th>Conta</th>
                 <th style="text-align:right">Valor</th>
                 <th>Descrição</th>
@@ -429,7 +449,7 @@
     <!-- Configurações -->
     <section id="tab-config" class="panel tab-pane">
       <h2>Configurações</h2>
-      <p class="muted">Sem backend nesta versão. Dados armazenados no LocalStorage do navegador.</p>
+      <p class="muted">Sem backend nesta versão. Dados no LocalStorage.</p>
       <div class="actions">
         <button class="btn danger" id="btn-clear">Apagar todos os dados locais</button>
       </div>
@@ -438,13 +458,12 @@
 
   <script src="finance.js"></script>
   <script>
-    // Util extra: limpar LocalStorage com confirmação
     (function() {
       function $(sel){ return document.querySelector(sel); }
       const btn = $('#btn-clear');
       if (btn) {
         btn.addEventListener('click', function() {
-          if (confirm('Tem certeza que deseja apagar todos os dados locais? Essa ação não pode ser desfeita.')) {
+          if (confirm('Tem certeza que deseja apagar todos os dados locais?')) {
             localStorage.removeItem('finpilot_ie_v1');
             window.location.reload();
           }
