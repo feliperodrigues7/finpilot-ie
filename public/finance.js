@@ -1,37 +1,48 @@
-/* FinPilot IE - Frontend LocalStorage
-   - Delegação de eventos para todos os botões
-   - Modais reutilizáveis
-   - Confirmações de exclusão quando solicitado
-   - Layout e IDs compatíveis com finance.html acima
+/* FinPilot IE - Frontend LocalStorage (versão com Contas + selects integrados)
+   - Abastece Titular/Banco/Contas nas demais abas
+   - Delegação de eventos
+   - Confirmações de exclusão
+   - EUR e datas padrão
 */
 
 (function () {
-  // Utilidades
+  // Utils
   const qs = (s, el = document) => el.querySelector(s);
   const qsa = (s, el = document) => Array.from(el.querySelectorAll(s));
-  const fmtEUR = (n) =>
-    (Number(n) || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  const fmtEUR = (n) => (Number(n) || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
+  const STORAGE_KEY = "finpilot_ie_v1";
 
   const state = {
+    contas: [],
     gastos: [],
     salarios: [],
     transferencias: [],
     categorias: [],
     fixas: [],
-    dividas: [],
-    contas: [
-      { id: "a1", nome: "Giseli - Corrente", banco: "AIB", titular: "Giseli" },
-      { id: "a2", nome: "FR - Poupança", banco: "Revolut", titular: "FR" }
-    ],
+    dividas: []
   };
 
-  const STORAGE_KEY = "finpilot_ie_v1";
-
+  function uid() {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+  function today() {
+    const d = new Date();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+  function persist() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
   function load() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) {
-        // seed leve para telas
+        // seed inicial para ficar parecido com as suas telas
+        state.contas = [
+          { id: uid(), nome: "Giseli - Corrente", titular: "Giseli", banco: "AIB", tipo: "Corrente", saldo_inicial: 0 },
+          { id: uid(), nome: "FR - Poupança", titular: "FR", banco: "Revolut", tipo: "Poupança", saldo_inicial: 0 },
+        ];
         state.categorias = [
           { id: uid(), nome: "Aluguel", tipo: "despesa" },
           { id: uid(), nome: "Convelio", tipo: "despesa" },
@@ -47,28 +58,51 @@
           { id: uid(), data: "2025-08-10", titular: "Giseli", banco: "AIB", horas: 35, valor: 520 },
         ];
         state.transferencias = [
-          { id: uid(), data: "2025-08-10", tipo: "Transferência", de: "Giseli - Corrente (AIB)", para: "FR - Poupanca (Revolut)", valor: 300, descricao: "300 reais para completar aluguel que sera pago na quinta dia 10/10/2025" },
+          { id: uid(), data: "2025-08-10", tipo: "Transferência", de: "Giseli - Corrente (AIB)", para: "FR - Poupança (Revolut)", valor: 300, descricao: "300 reais para completar aluguel que sera pago na quinta dia 10/10/2025" },
           { id: uid(), data: "2025-08-10", tipo: "Despesa", de: "-", para: "-", valor: 520, descricao: "Salário Giseli" },
         ];
         state.fixas = [
-          { id: uid(), nome: "Convelio", titular: "FR", valor: 47.5, data: "2025-10-19", regra: "1ª • Qua" }
+          { id: uid(), nome: "Convelio", titular: "FR", valor: 47.5, data: "2025-10-19", semana: "1", dia: "Qua" }
         ];
         persist();
         return;
       }
       const parsed = JSON.parse(raw);
       Object.assign(state, parsed);
+      // migração simples: se não tiver 'contas', inicializa vazio (para você re-cadastrar) sem apagar seus outros dados
+      if (!Array.isArray(state.contas)) state.contas = [];
     } catch (e) {
       console.error("Erro ao carregar storage", e);
     }
   }
 
-  function persist() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  // Helpers derivadas
+  function pessoasFromContas() {
+    const set = new Set(state.contas.map((c) => (c.titular || "").trim()).filter(Boolean));
+    return Array.from(set);
   }
-
-  function uid() {
-    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  function contasOptions() {
+    // label: "Titular - Tipo (Banco)"
+    return state.contas.map(c => ({
+      value: c.id,
+      label: `${c.titular} - ${c.tipo} (${c.banco})`
+    }));
+  }
+  function contaById(id) {
+    return state.contas.find(c => c.id === id);
+  }
+  function renderOptions(selectEl, options, selectedValue) {
+    selectEl.innerHTML = "";
+    options.forEach(opt => {
+      const o = document.createElement("option");
+      if (typeof opt === "string") {
+        o.value = opt; o.textContent = opt;
+      } else {
+        o.value = opt.value; o.textContent = opt.label;
+      }
+      if (selectedValue != null && String(selectedValue) === String(o.value)) o.selected = true;
+      selectEl.appendChild(o);
+    });
   }
 
   // Navegação
@@ -91,8 +125,8 @@
         if (!el) return;
         el.classList.toggle("hidden", k !== tab);
       });
-      // render ao trocar
       switch (tab) {
+        case "contas": renderContas(); break;
         case "gastos": renderGastos(); break;
         case "salarios": renderSalarios(); break;
         case "transferencias": renderTransfers(); break;
@@ -110,13 +144,12 @@
       history.replaceState(null, "", `#${a.dataset.tab}`);
     });
 
-    // rota inicial
     const hash = location.hash.replace("#", "");
     const initial = ["dashboard","contas","gastos","salarios","transferencias","categorias","fixas","dividas"].includes(hash) ? hash : "dashboard";
     activate(initial);
   }
 
-  // Modal reutilizável
+  // Modal
   const modal = {
     open(opts) {
       this.opts = opts;
@@ -182,12 +215,88 @@
   function wireModalButtons() {
     qs("#modalClose").addEventListener("click", () => modal.close());
     qs("#modalCancel").addEventListener("click", () => modal.close());
-    qs("#backdrop").addEventListener("click", (e) => {
-      if (e.target.id === "backdrop") modal.close();
+    qs("#backdrop").addEventListener("click", (e) => { if (e.target.id === "backdrop") modal.close(); });
+  }
+
+  // Contas
+  function renderContas() {
+    const tbody = qs("#tblContas tbody");
+    tbody.innerHTML = "";
+    state.contas.forEach((c) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${c.nome}</td>
+        <td>${c.titular}</td>
+        <td>${c.banco}</td>
+        <td>${c.tipo}</td>
+        <td>${fmtEUR(c.saldo_inicial || 0)}</td>
+        <td class="actions">
+          <button class="btn ghost" data-act="edit-conta" data-id="${c.id}">Editar</button>
+          <button class="btn danger" data-act="del-conta" data-id="${c.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+  function wireContas() {
+    qs("#btnNewConta").addEventListener("click", () => {
+      modal.open({
+        title: "Nova conta",
+        fields: [
+          { label: "Nome da conta", name: "nome", type: "text", required: true, placeholder: "Ex.: Giseli - Corrente" },
+          { label: "Titular (pessoa)", name: "titular", type: "text", required: true, placeholder: "Ex.: Giseli" },
+          { label: "Banco", name: "banco", type: "text", required: true, placeholder: "Ex.: AIB" },
+          { label: "Tipo", name: "tipo", type: "select", options: ["Corrente","Poupança","Cartão","Outro"], value: "Corrente" },
+          { label: "Saldo inicial (EUR)", name: "saldo_inicial", type: "number", step: "0.01", value: 0 }
+        ],
+        onSubmit: (data) => {
+          state.contas.unshift({
+            id: uid(),
+            nome: data.nome,
+            titular: data.titular,
+            banco: data.banco,
+            tipo: data.tipo,
+            saldo_inicial: Number(data.saldo_inicial || 0)
+          });
+          persist(); renderContas();
+        }
+      });
+    });
+
+    qs("#tblContas").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === "del-conta") {
+        if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
+        state.contas = state.contas.filter(c => c.id !== id);
+        persist(); renderContas();
+      } else if (act === "edit-conta") {
+        const c = state.contas.find(x => x.id === id);
+        if (!c) return;
+        modal.open({
+          title: "Editar conta",
+          fields: [
+            { label: "Nome da conta", name: "nome", type: "text", required: true, value: c.nome },
+            { label: "Titular (pessoa)", name: "titular", type: "text", required: true, value: c.titular },
+            { label: "Banco", name: "banco", type: "text", required: true, value: c.banco },
+            { label: "Tipo", name: "tipo", type: "select", options: ["Corrente","Poupança","Cartão","Outro"], value: c.tipo },
+            { label: "Saldo inicial (EUR)", name: "saldo_inicial", type: "number", step: "0.01", value: c.saldo_inicial || 0 }
+          ],
+          onSubmit: (data) => {
+            Object.assign(c, {
+              nome: data.nome, titular: data.titular, banco: data.banco, tipo: data.tipo,
+              saldo_inicial: Number(data.saldo_inicial || 0)
+            });
+            persist(); renderContas();
+          }
+        });
+      }
     });
   }
 
-  // Renderizações
+  // Gastos
   function renderGastos() {
     const tbody = qs("#tblGastos tbody");
     tbody.innerHTML = "";
@@ -207,7 +316,76 @@
       tbody.appendChild(tr);
     });
   }
+  function wireGastos() {
+    qs("#btnNewGasto").addEventListener("click", () => {
+      const people = pessoasFromContas();
+      const contas = contasOptions();
+      modal.open({
+        title: "Novo gasto",
+        fields: [
+          { label: "Data", name: "data", type: "date", required: true, value: today() },
+          { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"] },
+          { label: "Banco (conta)", name: "banco_id", type: "select", options: contas },
+          { label: "Descrição", name: "descricao", type: "textarea", rows: 3 },
+          { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true }
+        ],
+        onSubmit: (data) => {
+          const conta = contaById(data.banco_id);
+          state.gastos.unshift({
+            id: uid(),
+            data: data.data,
+            titular: data.titular,
+            banco: conta ? `${conta.banco}` : "",
+            descricao: data.descricao || "",
+            valor: Number(data.valor || 0),
+            conta_id: data.banco_id || null
+          });
+          persist(); renderGastos();
+        }
+      });
+    });
 
+    qs("#tblGastos").addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-act]");
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === "del-gasto") {
+        if (!confirm("Tem certeza que deseja excluir este gasto?")) return;
+        state.gastos = state.gastos.filter((g) => g.id !== id);
+        persist(); renderGastos();
+      } else if (act === "edit-gasto") {
+        const g = state.gastos.find((x) => x.id === id);
+        if (!g) return;
+        const people = pessoasFromContas();
+        const contas = contasOptions();
+        modal.open({
+          title: "Editar gasto",
+          fields: [
+            { label: "Data", name: "data", type: "date", required: true, value: g.data },
+            { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"], value: g.titular },
+            { label: "Banco (conta)", name: "banco_id", type: "select", options: contas, value: g.conta_id || "" },
+            { label: "Descrição", name: "descricao", type: "textarea", rows: 3, value: g.descricao },
+            { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true, value: g.valor }
+          ],
+          onSubmit: (data) => {
+            const conta = contaById(data.banco_id);
+            Object.assign(g, {
+              data: data.data,
+              titular: data.titular,
+              banco: conta ? `${conta.banco}` : "",
+              descricao: data.descricao || "",
+              valor: Number(data.valor || 0),
+              conta_id: data.banco_id || null
+            });
+            persist(); renderGastos();
+          }
+        });
+      }
+    });
+  }
+
+  // Salários
   function renderSalarios() {
     const tbody = qs("#tblSalarios tbody");
     tbody.innerHTML = "";
@@ -226,148 +404,16 @@
       tbody.appendChild(tr);
     });
   }
-
-  function renderTransfers() {
-    const tbody = qs("#tblTransfers tbody");
-    tbody.innerHTML = "";
-    state.transferencias.forEach((t) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${t.data}</td>
-        <td><span class="pill">${t.tipo}</span></td>
-        <td>${t.de}</td>
-        <td>${t.para}</td>
-        <td>${fmtEUR(t.valor)}</td>
-        <td>${t.descricao || ""}</td>
-        <td class="actions">
-          <button class="btn danger" data-act="del-transfer" data-id="${t.id}">Excluir</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function renderCategorias() {
-    const tbody = qs("#tblCategorias tbody");
-    tbody.innerHTML = "";
-    state.categorias.forEach((c) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${c.nome}</td>
-        <td><span class="pill">${c.tipo}</span></td>
-        <td class="actions">
-          <button class="btn ghost" data-act="edit-categoria" data-id="${c.id}">Editar</button>
-          <button class="btn danger" data-act="del-categoria" data-id="${c.id}">Excluir</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function renderFixas() {
-    const tbody = qs("#tblFixas tbody");
-    tbody.innerHTML = "";
-    state.fixas.forEach((f) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${f.nome}</td>
-        <td>${f.titular}</td>
-        <td>${fmtEUR(f.valor)}</td>
-        <td>${f.data || ""}</td>
-        <td>${f.regra || ""}</td>
-        <td class="actions">
-          <button class="btn ghost" data-act="edit-fixa" data-id="${f.id}">Editar</button>
-          <button class="btn danger" data-act="del-fixa" data-id="${f.id}">Excluir</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  function renderDividas() {
-    const tbody = qs("#tblDividas tbody");
-    tbody.innerHTML = "";
-    state.dividas.forEach((d) => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${d.credor}</td>
-        <td>${d.titular || ""}</td>
-        <td>${fmtEUR(d.valor)}</td>
-        <td>${d.vencimento || ""}</td>
-        <td>${d.status || ""}</td>
-        <td class="actions">
-          <button class="btn ghost" data-act="edit-divida" data-id="${d.id}">Editar</button>
-          <button class="btn danger" data-act="del-divida" data-id="${d.id}">Excluir</button>
-        </td>
-      `;
-      tbody.appendChild(tr);
-    });
-  }
-
-  // Ações por aba (delegadas)
-  function wireGastos() {
-    qs("#btnNewGasto").addEventListener("click", () => {
-      modal.open({
-        title: "Novo gasto",
-        fields: [
-          { label: "Data", name: "data", type: "date", required: true, value: today() },
-          { label: "Titular", name: "titular", type: "text", required: true },
-          { label: "Banco", name: "banco", type: "text" },
-          { label: "Descrição", name: "descricao", type: "textarea", rows: 3 },
-          { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true },
-        ],
-        onSubmit: (data) => {
-          state.gastos.unshift({
-            id: uid(),
-            data: data.data,
-            titular: data.titular,
-            banco: data.banco,
-            descricao: data.descricao,
-            valor: Number(data.valor || 0),
-          });
-          persist(); renderGastos();
-        },
-      });
-    });
-
-    qs("#tblGastos").addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-act]");
-      if (!btn) return;
-      const id = btn.dataset.id;
-      const act = btn.dataset.act;
-      if (act === "del-gasto") {
-        if (!confirm("Tem certeza que deseja excluir este gasto?")) return;
-        state.gastos = state.gastos.filter((g) => g.id !== id);
-        persist(); renderGastos();
-      } else if (act === "edit-gasto") {
-        const g = state.gastos.find((x) => x.id === id);
-        if (!g) return;
-        modal.open({
-          title: "Editar gasto",
-          fields: [
-            { label: "Data", name: "data", type: "date", required: true, value: g.data },
-            { label: "Titular", name: "titular", type: "text", required: true, value: g.titular },
-            { label: "Banco", name: "banco", type: "text", value: g.banco },
-            { label: "Descrição", name: "descricao", type: "textarea", rows: 3, value: g.descricao },
-            { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true, value: g.valor },
-          ],
-          onSubmit: (data) => {
-            Object.assign(g, { data: data.data, titular: data.titular, banco: data.banco, descricao: data.descricao, valor: Number(data.valor || 0) });
-            persist(); renderGastos();
-          },
-        });
-      }
-    });
-  }
-
   function wireSalarios() {
     qs("#btnNewSalario").addEventListener("click", () => {
+      const people = pessoasFromContas();
+      const bancos = Array.from(new Set(state.contas.map(c => c.banco))).map(b => String(b));
       modal.open({
         title: "Novo salário",
         fields: [
           { label: "Data", name: "data", type: "date", required: true, value: today() },
-          { label: "Titular", name: "titular", type: "text", required: true },
-          { label: "Banco", name: "banco", type: "text" },
+          { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"] },
+          { label: "Banco", name: "banco", type: "select", options: bancos.length ? bancos : ["AIB","Revolut"] },
           { label: "Horas", name: "horas", type: "number", step: "1" },
           { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true },
         ],
@@ -397,25 +443,50 @@
     });
   }
 
+  // Transferências
+  function renderTransfers() {
+    const tbody = qs("#tblTransfers tbody");
+    tbody.innerHTML = "";
+    state.transferencias.forEach((t) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${t.data}</td>
+        <td><span class="pill">${t.tipo}</span></td>
+        <td>${t.de_label}</td>
+        <td>${t.para_label}</td>
+        <td>${fmtEUR(t.valor)}</td>
+        <td>${t.descricao || ""}</td>
+        <td class="actions">
+          <button class="btn danger" data-act="del-transfer" data-id="${t.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
   function wireTransfers() {
     qs("#btnNewTransfer").addEventListener("click", () => {
+      const contas = contasOptions();
       modal.open({
         title: "Nova transferência",
         fields: [
           { label: "Data", name: "data", type: "date", required: true, value: today() },
           { label: "Tipo", name: "tipo", type: "select", options: ["Transferência", "Despesa"], value: "Transferência" },
-          { label: "De", name: "de", type: "text", placeholder: "Ex.: Giseli - Corrente (AIB)" },
-          { label: "Para", name: "para", type: "text", placeholder: "Ex.: FR - Poupanca (Revolut)" },
+          { label: "De (conta)", name: "de_id", type: "select", options: contas },
+          { label: "Para (conta)", name: "para_id", type: "select", options: contas },
           { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true },
           { label: "Descrição", name: "descricao", type: "textarea", rows: 3 },
         ],
         onSubmit: (data) => {
+          const cDe = contaById(data.de_id);
+          const cPara = contaById(data.para_id);
           state.transferencias.unshift({
             id: uid(),
             data: data.data,
             tipo: data.tipo,
-            de: data.de || "-",
-            para: data.para || "-",
+            de_id: data.de_id || null,
+            para_id: data.para_id || null,
+            de_label: cDe ? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})` : "-",
+            para_label: cPara ? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})` : "-",
             valor: Number(data.valor || 0),
             descricao: data.descricao || "",
           });
@@ -428,7 +499,6 @@
       const btn = e.target.closest("button[data-act]");
       if (!btn) return;
       if (btn.dataset.act === "del-transfer") {
-        // Aqui você mencionou que atualmente exclui sem perguntar; adicionamos confirmação:
         if (!confirm("Tem certeza que deseja excluir esta transferência?")) return;
         const id = btn.dataset.id;
         state.transferencias = state.transferencias.filter((t) => t.id !== id);
@@ -437,6 +507,23 @@
     });
   }
 
+  // Categorias (igual versão anterior, ok)
+  function renderCategorias() {
+    const tbody = qs("#tblCategorias tbody");
+    tbody.innerHTML = "";
+    state.categorias.forEach((c) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${c.nome}</td>
+        <td><span class="pill">${c.tipo}</span></td>
+        <td class="actions">
+          <button class="btn ghost" data-act="edit-categoria" data-id="${c.id}">Editar</button>
+          <button class="btn danger" data-act="del-categoria" data-id="${c.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
   function wireCategorias() {
     qs("#btnNewCategoria").addEventListener("click", () => {
       modal.open({
@@ -480,16 +567,42 @@
     });
   }
 
+  // Fixas (semana/dia selects)
+  const SEMANAS = ["1", "2", "3", "4", "5"];
+  const DIAS = ["Seg","Ter","Qua","Qui","Sex","Sáb","Dom"];
+
+  function renderFixas() {
+    const tbody = qs("#tblFixas tbody");
+    tbody.innerHTML = "";
+    state.fixas.forEach((f) => {
+      const tr = document.createElement("tr");
+      const regraLabel = (f.semana && f.dia) ? `${f.semana}ª • ${f.dia}` : "";
+      tr.innerHTML = `
+        <td>${f.nome}</td>
+        <td>${f.titular}</td>
+        <td>${fmtEUR(f.valor)}</td>
+        <td>${f.data || ""}</td>
+        <td>${regraLabel}</td>
+        <td class="actions">
+          <button class="btn ghost" data-act="edit-fixa" data-id="${f.id}">Editar</button>
+          <button class="btn danger" data-act="del-fixa" data-id="${f.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
   function wireFixas() {
     qs("#btnNewFixa").addEventListener("click", () => {
+      const people = pessoasFromContas();
       modal.open({
         title: "Nova despesa fixa",
         fields: [
           { label: "Nome", name: "nome", type: "text", required: true },
-          { label: "Titular", name: "titular", type: "text", required: true },
+          { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"] },
           { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true },
           { label: "Data (opcional)", name: "data", type: "date" },
-          { label: "Semana/Dia (ex.: 1ª • Qua)", name: "regra", type: "text", placeholder: "1ª • Qua" },
+          { label: "Semana", name: "semana", type: "select", options: SEMANAS.map(s => ({ value: s, label: `${s}ª` })) , value: "1" },
+          { label: "Dia da semana", name: "dia", type: "select", options: DIAS, value: "Qua" },
         ],
         onSubmit: (data) => {
           state.fixas.unshift({
@@ -498,7 +611,8 @@
             titular: data.titular,
             valor: Number(data.valor || 0),
             data: data.data || "",
-            regra: data.regra || "",
+            semana: data.semana || "",
+            dia: data.dia || ""
           });
           persist(); renderFixas();
         },
@@ -517,14 +631,16 @@
       } else if (act === "edit-fixa") {
         const f = state.fixas.find((x) => x.id === id);
         if (!f) return;
+        const people = pessoasFromContas();
         modal.open({
           title: "Editar despesa fixa",
           fields: [
             { label: "Nome", name: "nome", type: "text", required: true, value: f.nome },
-            { label: "Titular", name: "titular", type: "text", required: true, value: f.titular },
+            { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"], value: f.titular },
             { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true, value: f.valor },
             { label: "Data (opcional)", name: "data", type: "date", value: f.data },
-            { label: "Semana/Dia", name: "regra", type: "text", value: f.regra },
+            { label: "Semana", name: "semana", type: "select", options: SEMANAS.map(s => ({ value: s, label: `${s}ª` })), value: f.semana || "1" },
+            { label: "Dia da semana", name: "dia", type: "select", options: DIAS, value: f.dia || "Qua" },
           ],
           onSubmit: (data) => {
             Object.assign(f, {
@@ -532,7 +648,8 @@
               titular: data.titular,
               valor: Number(data.valor || 0),
               data: data.data || "",
-              regra: data.regra || "",
+              semana: data.semana || "",
+              dia: data.dia || ""
             });
             persist(); renderFixas();
           },
@@ -541,13 +658,34 @@
     });
   }
 
+  // Dívidas (Nome da dívida + Titular select)
+  function renderDividas() {
+    const tbody = qs("#tblDividas tbody");
+    tbody.innerHTML = "";
+    state.dividas.forEach((d) => {
+      const tr = document.createElement("tr");
+      tr.innerHTML = `
+        <td>${d.nome || ""}</td>
+        <td>${d.titular || ""}</td>
+        <td>${fmtEUR(d.valor)}</td>
+        <td>${d.vencimento || ""}</td>
+        <td>${d.status || ""}</td>
+        <td class="actions">
+          <button class="btn ghost" data-act="edit-divida" data-id="${d.id}">Editar</button>
+          <button class="btn danger" data-act="del-divida" data-id="${d.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
   function wireDividas() {
     qs("#btnNewDivida").addEventListener("click", () => {
+      const people = pessoasFromContas();
       modal.open({
         title: "Nova dívida",
         fields: [
-          { label: "Credor", name: "credor", type: "text", required: true },
-          { label: "Titular", name: "titular", type: "text" },
+          { label: "Nome da dívida", name: "nome", type: "text", required: true },
+          { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"] },
           { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true },
           { label: "Vencimento", name: "vencimento", type: "date" },
           { label: "Status", name: "status", type: "select", options: ["aberta", "paga", "negociada"], value: "aberta" },
@@ -555,7 +693,7 @@
         onSubmit: (data) => {
           state.dividas.unshift({
             id: uid(),
-            credor: data.credor,
+            nome: data.nome,
             titular: data.titular || "",
             valor: Number(data.valor || 0),
             vencimento: data.vencimento || "",
@@ -578,18 +716,19 @@
       } else if (act === "edit-divida") {
         const d = state.dividas.find((x) => x.id === id);
         if (!d) return;
+        const people = pessoasFromContas();
         modal.open({
           title: "Editar dívida",
           fields: [
-            { label: "Credor", name: "credor", type: "text", required: true, value: d.credor },
-            { label: "Titular", name: "titular", type: "text", value: d.titular },
+            { label: "Nome da dívida", name: "nome", type: "text", required: true, value: d.nome },
+            { label: "Titular", name: "titular", type: "select", options: people.length ? people : ["Giseli","FR"], value: d.titular },
             { label: "Valor (EUR)", name: "valor", type: "number", step: "0.01", required: true, value: d.valor },
             { label: "Vencimento", name: "vencimento", type: "date", value: d.vencimento },
             { label: "Status", name: "status", type: "select", options: ["aberta", "paga", "negociada"], value: d.status || "aberta" },
           ],
           onSubmit: (data) => {
             Object.assign(d, {
-              credor: data.credor,
+              nome: data.nome,
               titular: data.titular || "",
               valor: Number(data.valor || 0),
               vencimento: data.vencimento || "",
@@ -606,26 +745,18 @@
   function wireSair() {
     qs("#btnSair").addEventListener("click", () => {
       if (!confirm("Sair e limpar sessão local?")) return;
-      // manter dados; apenas simular logout
       location.href = "login.html";
     });
   }
 
-  // Helpers
-  function today() {
-    const d = new Date();
-    const m = String(d.getMonth() + 1).padStart(2, "0");
-    const day = String(d.getDate()).padStart(2, "0");
-    return `${d.getFullYear()}-${m}-${day}`;
-  }
-
-  // Inicialização
+  // Init
   function init() {
     load();
     initNav();
     wireModalButtons();
     wireSair();
 
+    wireContas();
     wireGastos();
     wireSalarios();
     wireTransfers();
