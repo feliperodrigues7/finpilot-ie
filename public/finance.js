@@ -147,7 +147,6 @@
         if (modalId) closeModal(modalId);
       });
     });
-
     // Click outside modal
     $all('.modal').forEach(modal => {
       modal.addEventListener('click', function(e) {
@@ -201,7 +200,7 @@
       });
     }
 
-    // Dívidas por Título e Titular (um cartão para cada combinação)
+    // Dívidas por Título e Titular
     if (dividasWrap) {
       dividasWrap.innerHTML = '';
       const combos = {};
@@ -271,12 +270,27 @@
       select.appendChild(opt);
     });
   }
+
   function bindContas() {
     renderContasTable();
     renderContasSelectsForTransfers();
     renderPessoasInModal();
 
-    // Form antigo (manter compatibilidade)
+    // Botão "+ Nova conta" -> abre modal limpo
+    const btnOpenAccount = $('#btn-open-account-modal');
+    if (btnOpenAccount) {
+      btnOpenAccount.addEventListener('click', () => {
+        const form = $('#account-form');
+        if (form) form.reset();
+        $('#account-id').value = '';
+        renderPessoasInModal();
+        const title = $('#account-modal-title');
+        if (title) title.textContent = 'Nova Conta';
+        openModal('account-modal');
+      });
+    }
+
+    // Form antigo (se ainda existir no HTML, manter compatibilidade)
     const form = $('#form-conta');
     if (form) {
       form.addEventListener('submit', function (e) {
@@ -415,9 +429,10 @@
         } else if (act === 'edit') {
           const c = state.contas.find(x => x.id === id);
           if (!c) return;
-          
-          // Abrir modal com dados
+
+          // Abrir modal com dados existentes
           $('#account-id').value = c.id;
+          renderPessoasInModal(); // garante opções atualizadas
           $('#account-owner-name').value = c.pessoaId || '';
           $('#account-name').value = c.tipoConta || '';
           $('#account-bank').value = c.banco || '';
