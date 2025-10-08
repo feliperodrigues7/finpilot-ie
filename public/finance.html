@@ -1,121 +1,545 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FinPilot IE — Financeiro</title>
-  <link rel="icon" href="./favicon.ico" />
-  <style>
-    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; margin: 24px; }
-    nav { display:flex; gap:8px; margin-bottom: 16px; }
-    nav a { padding:8px 12px; border:1px solid #ddd; border-radius:8px; text-decoration:none; color:#111; }
-    nav a.active { background:#111; color:#fff; }
-    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-    .card { border:1px solid #e0e0e0; border-radius:8px; padding:16px; margin-bottom:16px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border-bottom:1px solid #eee; padding:8px; text-align:left; font-size:14px; }
-    th { background:#fafafa; }
-    input, select, textarea { padding:8px; border:1px solid #ccc; border-radius:6px; }
-    button { padding:8px 12px; border:0; border-radius:6px; background:#111; color:#fff; cursor:pointer; }
-    .hidden { display:none; }
-    .muted { color:#666; font-size:12px; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinPilot IE - Financeiro Pessoal</title>
+    <link rel="icon" href="./favicon.ico" />
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; }
+        .tab-button.active { @apply bg-blue-600 text-white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.4); }
+        .modal-content { background-color: #fefefe; margin: 10% auto; padding: 20px; border: 1px solid #888; width: 80%; max-width: 600px; border-radius: 8px; position: relative; }
+        .close-button { color: #aaa; float: right; font-size: 28px; font-weight: bold; }
+        .close-button:hover, .close-button:focus { color: black; text-decoration: none; cursor: pointer; }
+        .toast {
+            visibility: hidden;
+            min-width: 250px;
+            margin-left: -125px;
+            background-color: #333;
+            color: #fff;
+            text-align: center;
+            border-radius: 2px;
+            padding: 16px;
+            position: fixed;
+            z-index: 1;
+            left: 50%;
+            bottom: 30px;
+            font-size: 17px;
+            white-space: nowrap;
+        }
+        .toast.show {
+            visibility: visible;
+            -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+            animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        }
+        @-webkit-keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+        @-webkit-keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+        @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
 </head>
-<body>
-  <h1>FinPilot IE — Financeiro</h1>
-  <div id="status" class="muted">Carregando...</div>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">FinPilot IE - Financeiro Pessoal</h1>
+            <div class="flex items-center space-x-4">
+                <select id="owner-filter" class="p-2 border rounded">
+                    <option value="">Todas as Pessoas</option>
+                </select>
+                <button id="logout-button" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Sair</button>
+            </div>
+        </div>
 
-  <nav>
-    <a href="#" data-tab="accounts" class="active">Contas</a>
-    <a href="#" data-tab="transactions">Transações</a>
-    <a href="#" data-tab="debts">Dívidas</a>
-    <a href="./admin.html" style="margin-left:auto;">Voltar ao Admin</a>
-  </nav>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="flex border-b border-gray-200">
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600 active" data-tab="dashboard">Dashboard</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="accounts">Contas</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="transactions">Transações</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="categories">Categorias</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="recurring">Recorrentes</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="budgets">Orçamento</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="debts">Dívidas</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="reports">Relatórios</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="settings">Configurações</button>
+            </div>
 
-  <section id="tab-accounts">
-    <div class="card">
-      <h3>Nova Conta</h3>
-      <div class="row">
-        <input id="acc-name" placeholder="Nome da conta (ex.: Corrente Revolut)" />
-        <select id="acc-type">
-          <option value="checking">Conta Corrente</option>
-          <option value="savings">Poupança</option>
-          <option value="credit_card">Cartão de Crédito</option>
-          <option value="wallet">Carteira</option>
-          <option value="other">Outra</option>
-        </select>
-        <input id="acc-opening" type="number" step="0.01" placeholder="Saldo inicial (EUR)" />
-        <button id="btn-add-account">Adicionar</button>
-      </div>
-    </div>
-    <div class="card">
-      <h3>Contas</h3>
-      <table>
-        <thead>
-          <tr><th>Nome</th><th>Tipo</th><th>Moeda</th><th>Saldo inicial</th><th>Criada em</th><th>Ações</th></tr>
-        </thead>
-        <tbody id="tb-accounts"></tbody>
-      </table>
-    </div>
-  </section>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active p-4">
+                <h2 class="text-2xl font-semibold mb-4">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Saldo Total</h3>
+                        <p id="total-balance" class="text-3xl font-extrabold text-blue-700">€0.00</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Receitas Mês</h3>
+                        <p id="monthly-income" class="text-3xl font-extrabold text-green-700">€0.00</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Despesas Mês</h3>
+                        <p id="monthly-expenses" class="text-3xl font-extrabold text-red-700">€0.00</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold mb-3">Próximas Recorrências</h3>
+                    <div id="upcoming-recurring-list" class="space-y-2">
+                        <p class="text-gray-500">Nenhuma recorrência futura.</p>
+                    </div>
+                </div>
+            </div>
 
-  <section id="tab-transactions" class="hidden">
-    <div class="card">
-      <h3>Nova Transação</h3>
-      <div class="row">
-        <input id="tx-date" type="date" />
-        <select id="tx-account"></select>
-        <select id="tx-category"></select>
-        <input id="tx-amount" type="number" step="0.01" placeholder="Valor (+ entrada, - saída)" />
-        <input id="tx-memo" placeholder="Nota (opcional)" />
-        <button id="btn-add-tx">Adicionar</button>
-      </div>
-      <div class="muted">Dica: entradas são positivas; despesas são negativas.</div>
-    </div>
-    <div class="card">
-      <h3>Transações</h3>
-      <div class="row" style="margin-bottom:8px;">
-        <label>Período:</label>
-        <input id="tx-from" type="date" />
-        <input id="tx-to" type="date" />
-        <button id="btn-filter-tx">Filtrar</button>
-        <button id="btn-export-tx">Exportar CSV</button>
-      </div>
-      <table>
-        <thead>
-          <tr><th>Data</th><th>Conta</th><th>Categoria</th><th>Valor</th><th>Memo</th><th>Ações</th></tr>
-        </thead>
-        <tbody id="tb-transactions"></tbody>
-      </table>
-    </div>
-  </section>
+            <!-- Accounts Tab -->
+            <div id="accounts" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Contas</h2>
+                <button id="add-account-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Conta</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Nome</th>
+                                <th class="py-2 px-4 border-b">Saldo</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="accounts-table-body">
+                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma conta cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-  <section id="tab-debts" class="hidden">
-    <div class="card">
-      <h3>Nova Dívida</h3>
-      <div class="row">
-        <input id="debt-creditor" placeholder="Credor (ex.: Banco X / Cartão Y)" />
-        <input id="debt-principal" type="number" step="0.01" placeholder="Principal (EUR)" />
-        <input id="debt-apr" type="number" step="0.0001" placeholder="APR anual (%)" />
-        <input id="debt-monthly" type="number" step="0.0001" placeholder="Juros mensal (%)" />
-        <input id="debt-due-day" type="number" min="1" max="31" placeholder="Dia vencimento" />
-        <input id="debt-min" type="number" step="0.01" placeholder="Pagamento mínimo (EUR)" />
-        <button id="btn-add-debt">Adicionar</button>
-      </div>
-      <div class="muted">Preencha APR ou juros mensal (se ambos, usamos mensal).</div>
-    </div>
-    <div class="card">
-      <h3>Dívidas</h3>
-      <table>
-        <thead>
-          <tr><th>Credor</th><th>Principal</th><th>Saldo atual</th><th>APR</th><th>Mensal</th><th>Mínimo</th><th>Venc.</th><th>Status</th><th>Ações</th></tr>
-        </thead>
-        <tbody id="tb-debts"></tbody>
-      </table>
-    </div>
-  </section>
+            <!-- Transactions Tab -->
+            <div id="transactions" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Transações</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <button id="add-transaction-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Adicionar Transação</button>
+                    <div class="flex space-x-2">
+                        <input type="date" id="transaction-start-date" class="p-2 border rounded">
+                        <input type="date" id="transaction-end-date" class="p-2 border rounded">
+                        <input type="text" id="transaction-search" placeholder="Buscar..." class="p-2 border rounded">
+                        <button id="export-transactions-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Exportar CSV</button>
+                        <button id="import-transactions-button" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Importar CSV</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Data</th>
+                                <th class="py-2 px-4 border-b">Descrição</th>
+                                <th class="py-2 px-4 border-b">Valor</th>
+                                <th class="py-2 px-4 border-b">Conta</th>
+                                <th class="py-2 px-4 border-b">Categoria</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-500">Nenhuma transação cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module" src="./finance.js"></script>
+            <!-- Categories Tab -->
+            <div id="categories" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Categorias</h2>
+                <button id="add-category-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Categoria</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Nome</th>
+                                <th class="py-2 px-4 border-b">Tipo</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categories-table-body">
+                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recurring Tab -->
+            <div id="recurring" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Recorrências</h2>
+                <button id="add-recurring-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Recorrência</button>
+                <button id="run-recurring-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4 ml-2">Lançar Recorrências do Mês</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Título</th>
+                                <th class="py-2 px-4 border-b">Valor</th>
+                                <th class="py-2 px-4 border-b">Frequência</th>
+                                <th class="py-2 px-4 border-b">Próximo Lançamento</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recurring-table-body">
+                            <tr><td colspan="6" class="text-center py-4 text-gray-500">Nenhuma recorrência cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Budgets Tab -->
+            <div id="budgets" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Orçamento Mensal</h2>
+                <div class="flex items-center mb-4">
+                    <select id="budget-month-filter" class="p-2 border rounded mr-2"></select>
+                    <button id="add-budget-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Definir Orçamento</button>
+                </div>
+                <div id="budgets-list" class="space-y-4">
+                    <p class="text-gray-500">Nenhum orçamento definido para este mês.</p>
+                </div>
+            </div>
+
+            <!-- Debts Tab -->
+            <div id="debts" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Dívidas</h2>
+                <button id="add-debt-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Dívida</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Nome</th>
+                                <th class="py-2 px-4 border-b">Valor Original</th>
+                                <th class="py-2 px-4 border-b">Valor Atual</th>
+                                <th class="py-2 px-4 border-b">Juros (%)</th>
+                                <th class="py-2 px-4 border-b">Juros Mensal Est.</th>
+                                <th class="py-2 px-4 border-b">Vencimento</th>
+                                <th class="py-2 px-4 border-b">Status</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body">
+                            <tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma dívida cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Relatórios</h2>
+                <div class="flex items-center mb-4">
+                    <select id="report-month-filter" class="p-2 border rounded mr-2"></select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Fluxo de Caixa Mensal</h3>
+                        <canvas id="cash-flow-chart"></canvas>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Despesas por Categoria</h3>
+                        <canvas id="expenses-by-category-chart"></canvas>
+                    </div>
+                    <div class="md:col-span-2">
+                        <h3 class="text-xl font-semibold mb-2">Saldo das Contas</h3>
+                        <canvas id="account-balance-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Configurações</h2>
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Gerenciar Pessoas</h3>
+                    <div class="flex mb-2">
+                        <input type="text" id="new-person-name" placeholder="Nome da Pessoa" class="p-2 border rounded flex-grow mr-2">
+                        <button id="add-person-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Adicionar</button>
+                    </div>
+                    <ul id="people-list" class="list-disc pl-5">
+                        <li class="text-gray-500">Nenhuma pessoa cadastrada.</li>
+                    </ul>
+                </div>
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Configurações de Renda</h3>
+                    <p class="text-gray-600">Defina as regras de renda para cada pessoa. Estas regras gerarão transações recorrentes automaticamente.</p>
+                    <!-- Futuramente, formulário para configurar renda por pessoa -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Account Modal -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="account-modal-title">Adicionar Conta</h3>
+            <form id="account-form">
+                <input type="hidden" id="account-id">
+                <div class="mb-4">
+                    <label for="account-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="account-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="account-name" class="block text-gray-700 text-sm font-bold mb-2">Nome da Conta:</label>
+                    <input type="text" id="account-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="account-balance" class="block text-gray-700 text-sm font-bold mb-2">Saldo Inicial:</label>
+                    <input type="number" id="account-balance" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Transaction Modal -->
+    <div id="transaction-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="transaction-modal-title">Adicionar Transação</h3>
+            <form id="transaction-form">
+                <input type="hidden" id="transaction-id">
+                <div class="mb-4">
+                    <label for="transaction-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="transaction-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-date" class="block text-gray-700 text-sm font-bold mb-2">Data:</label>
+                    <input type="date" id="transaction-date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-description" class="block text-gray-700 text-sm font-bold mb-2">Descrição:</label>
+                    <input type="text" id="transaction-description" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-amount" class="block text-gray-700 text-sm font-bold mb-2">Valor:</label>
+                    <input type="number" id="transaction-amount" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-account" class="block text-gray-700 text-sm font-bold mb-2">Conta:</label>
+                    <select id="transaction-account" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="transaction-category" class="block text-gray-700 text-sm font-bold mb-2">Categoria:</label>
+                    <select id="transaction-category" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="category-modal-title">Adicionar Categoria</h3>
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+                <div class="mb-4">
+                    <label for="category-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="category-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="category-name" class="block text-gray-700 text-sm font-bold mb-2">Nome da Categoria:</label>
+                    <input type="text" id="category-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="category-type" class="block text-gray-700 text-sm font-bold mb-2">Tipo:</label>
+                    <select id="category-type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Recurring Rule Modal -->
+    <div id="recurring-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="recurring-modal-title">Adicionar Recorrência</h3>
+            <form id="recurring-form">
+                <input type="hidden" id="recurring-id">
+                <div class="mb-4">
+                    <label for="recurring-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="recurring-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-title" class="block text-gray-700 text-sm font-bold mb-2">Título:</label>
+                    <input type="text" id="recurring-title" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-amount" class="block text-gray-700 text-sm font-bold mb-2">Valor:</label>
+                    <input type="number" id="recurring-amount" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-type" class="block text-gray-700 text-sm font-bold mb-2">Tipo:</label>
+                    <select id="recurring-type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-account" class="block text-gray-700 text-sm font-bold mb-2">Conta:</label>
+                    <select id="recurring-account" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-category" class="block text-gray-700 text-sm font-bold mb-2">Categoria:</label>
+                    <select id="recurring-category" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-frequency" class="block text-gray-700 text-sm font-bold mb-2">Frequência:</label>
+                    <select id="recurring-frequency" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                        <option value="weekly">Semanal</option>
+                        <option value="biweekly">Quinzenal (a cada 14 dias)</option>
+                        <option value="monthly">Mensal</option>
+                    </select>
+                </div>
+                <div id="recurring-schedule-options" class="mb-4">
+                    <!-- Dynamic schedule options will be loaded here -->
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-start-date" class="block text-gray-700 text-sm font-bold mb-2">Data de Início:</label>
+                    <input type="date" id="recurring-start-date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-end-date" class="block text-gray-700 text-sm font-bold mb-2">Data de Fim (Opcional):</label>
+                    <input type="date" id="recurring-end-date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-hourly-rate" class="block text-gray-700 text-sm font-bold mb-2">Taxa por Hora (Opcional, para Semanal):</label>
+                    <input type="number" id="recurring-hourly-rate" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01">
+                </div>
+                <div class="mb-4">
+                    <label for="recurring-hours-per-week" class="block text-gray-700 text-sm font-bold mb-2">Horas por Semana (Opcional, para Semanal):</label>
+                    <input type="number" id="recurring-hours-per-week" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01">
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budget-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="budget-modal-title">Definir Orçamento</h3>
+            <form id="budget-form">
+                <input type="hidden" id="budget-id">
+                <div class="mb-4">
+                    <label for="budget-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="budget-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="budget-month" class="block text-gray-700 text-sm font-bold mb-2">Mês:</label>
+                    <input type="month" id="budget-month" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="budget-category" class="block text-gray-700 text-sm font-bold mb-2">Categoria:</label>
+                    <select id="budget-category" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="budget-amount" class="block text-gray-700 text-sm font-bold mb-2">Valor do Orçamento:</label>
+                    <input type="number" id="budget-amount" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Debt Modal -->
+    <div id="debt-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4" id="debt-modal-title">Adicionar Dívida</h3>
+            <form id="debt-form">
+                <input type="hidden" id="debt-id">
+                <div class="mb-4">
+                    <label for="debt-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa:</label>
+                    <select id="debt-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="debt-name" class="block text-gray-700 text-sm font-bold mb-2">Nome da Dívida:</label>
+                    <input type="text" id="debt-name" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="debt-original-amount" class="block text-gray-700 text-sm font-bold mb-2">Valor Original:</label>
+                    <input type="number" id="debt-original-amount" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <div class="mb-4">
+                    <label for="debt-current-amount" class="block text-gray-700 text-sm font-bold mb-2">Valor Atual:</label>
+                    <input type="number" id="debt-current-amount" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" required>
+                </div>
+                <div class="mb-4">
+                    <label for="debt-interest-rate" class="block text-gray-700 text-sm font-bold mb-2">Taxa de Juros Anual (%):</label>
+                    <input type="number" id="debt-interest-rate" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" step="0.01" min="0">
+                </div>
+                <div class="mb-4">
+                    <label for="debt-interest-type" class="block text-gray-700 text-sm font-bold mb-2">Tipo de Juros:</label>
+                    <select id="debt-interest-type" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                        <option value="simple">Simples</option>
+                        <option value="compound">Composto</option>
+                    </select>
+                </div>
+                <div class="mb-4">
+                    <label for="debt-due-date" class="block text-gray-700 text-sm font-bold mb-2">Data de Vencimento (Opcional):</label>
+                    <input type="date" id="debt-due-date" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
+                </div>
+                <div class="mb-4">
+                    <label for="debt-is-closed" class="block text-gray-700 text-sm font-bold mb-2">Dívida Fechada:</label>
+                    <input type="checkbox" id="debt-is-closed" class="form-checkbox h-5 w-5 text-blue-600">
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Salvar</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import CSV Modal -->
+    <div id="import-csv-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-button">&times;</span>
+            <h3 class="text-xl font-semibold mb-4">Importar Transações CSV</h3>
+            <form id="import-csv-form">
+                <div class="mb-4">
+                    <label for="csv-file" class="block text-gray-700 text-sm font-bold mb-2">Arquivo CSV:</label>
+                    <input type="file" id="csv-file" accept=".csv" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required>
+                </div>
+                <div class="mb-4">
+                    <label for="csv-owner-name" class="block text-gray-700 text-sm font-bold mb-2">Pessoa (para todas as transações do CSV):</label>
+                    <select id="csv-owner-name" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="csv-account" class="block text-gray-700 text-sm font-bold mb-2">Conta Padrão (para todas as transações do CSV):</label>
+                    <select id="csv-account" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <label for="csv-category" class="block text-gray-700 text-sm font-bold mb-2">Categoria Padrão (para todas as transações do CSV):</label>
+                    <select id="csv-category" class="shadow border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" required></select>
+                </div>
+                <div class="mb-4">
+                    <p class="text-gray-700 text-sm font-bold mb-2">Mapeamento de Colunas CSV:</p>
+                    <div id="csv-column-mapping" class="space-y-2">
+                        <!-- Dynamic column mapping inputs will be loaded here -->
+                    </div>
+                </div>
+                <button type="submit" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Importar</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script type="module" src="./finance.js"></script>
 </body>
 </html>
