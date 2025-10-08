@@ -1,0 +1,305 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FinPilot IE</title>
+  <link rel="icon" href="./favicon.ico">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" />
+  <style>
+    body { background:#f7f7fb; }
+    .sidebar { width:240px; }
+    .tab-button.active { background:#3b82f6; color:#fff; }
+    .tab-content { display:none; }
+    .tab-content.active { display:block; }
+    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); }
+    .modal .box { background:#fff; max-width:560px; width:92%; margin:6rem auto; padding:1rem; border-radius:.5rem; }
+    #toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:.75rem 1rem; border-radius:.5rem; opacity:0; pointer-events:none; transition:opacity .2s; }
+    #toast.show { opacity:1; }
+    table { width:100%; border-collapse:collapse; }
+    th, td { border-bottom:1px solid #e5e7eb; text-align:left; }
+  </style>
+</head>
+<body class="text-gray-800">
+<div id="toast"></div>
+<div class="min-h-screen flex">
+  <aside class="sidebar bg-white border-r border-gray-200 p-4">
+    <div class="text-2xl font-extrabold mb-4">FinPilot<br/>IE</div>
+    <div class="space-y-2">
+      <button class="tab-button w-full text-left px-3 py-2 rounded active" data-tab="tab-dashboard">Dashboard</button>
+      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-accounts">Contas</button>
+      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-transactions">Transações</button>
+      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-categories">Categorias</button>
+      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-recurring">Recorrentes</button>
+      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-reports">Relatórios</button>
+    </div>
+    <div class="mt-6 space-y-2">
+      <button id="export-transactions-button" class="w-full bg-green-600 text-white px-3 py-2 rounded">Exportar CSV</button>
+      <button id="logout-button" class="w-full bg-gray-200 px-3 py-2 rounded">Sair</button>
+    </div>
+  </aside>
+  <main class="flex-1 p-6">
+    <section id="tab-dashboard" class="tab-content active">
+      <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-white rounded p-4 shadow">
+          <div class="text-sm text-gray-500">Saldo Total</div>
+          <div id="total-balance" class="text-2xl font-bold">€0,00</div>
+        </div>
+        <div class="bg-white rounded p-4 shadow">
+          <div class="text-sm text-gray-500">Receitas (mês)</div>
+          <div id="monthly-income" class="text-2xl font-bold">€0,00</div>
+        </div>
+        <div class="bg-white rounded p-4 shadow">
+          <div class="text-sm text-gray-500">Despesas (mês)</div>
+          <div id="monthly-expenses" class="text-2xl font-bold">€0,00</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-accounts" class="tab-content">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Contas</h2>
+        <button id="add-account-button" class="bg-blue-600 text-white px-3 py-2 rounded">Adicionar Conta</button>
+      </div>
+      <table class="bg-white rounded shadow">
+        <thead><tr>
+          <th class="py-2 px-3">Pessoa</th>
+          <th class="py-2 px-3">Banco</th>
+          <th class="py-2 px-3">Nome</th>
+          <th class="py-2 px-3">Saldo</th>
+          <th class="py-2 px-3">Ações</th>
+        </tr></thead>
+        <tbody id="accounts-table-body"></tbody>
+      </table>
+    </section>
+
+    <section id="tab-transactions" class="tab-content">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Transações</h2>
+        <button id="add-transaction-button" class="bg-blue-600 text-white px-3 py-2 rounded">Nova Transação</button>
+      </div>
+      <table class="bg-white rounded shadow">
+        <thead><tr>
+          <th class="py-2 px-3">Pessoa</th>
+          <th class="py-2 px-3">Tipo</th>
+          <th class="py-2 px-3">Data</th>
+          <th class="py-2 px-3">Descrição</th>
+          <th class="py-2 px-3">Valor</th>
+          <th class="py-2 px-3">Conta</th>
+          <th class="py-2 px-3">Destino</th>
+          <th class="py-2 px-3">Categoria</th>
+          <th class="py-2 px-3">Ações</th>
+        </tr></thead>
+        <tbody id="transactions-table-body"></tbody>
+      </table>
+    </section>
+
+    <section id="tab-categories" class="tab-content">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Categorias</h2>
+        <button id="add-category-button" class="bg-blue-600 text-white px-3 py-2 rounded">Adicionar Categoria</button>
+      </div>
+      <table class="bg-white rounded shadow">
+        <thead><tr>
+          <th class="py-2 px-3">Pessoa</th>
+          <th class="py-2 px-3">Nome</th>
+          <th class="py-2 px-3">Tipo</th>
+          <th class="py-2 px-3">Ações</th>
+        </tr></thead>
+        <tbody id="categories-table-body"></tbody>
+      </table>
+    </section>
+
+    <section id="tab-recurring" class="tab-content">
+      <div class="flex items-center justify-between mb-3">
+        <h2 class="text-xl font-semibold">Recorrentes</h2>
+        <button id="add-recurring-button" class="bg-blue-600 text-white px-3 py-2 rounded">Novo Recorrente</button>
+      </div>
+      <table class="bg-white rounded shadow">
+        <thead><tr>
+          <th class="py-2 px-3">Pessoa</th>
+          <th class="py-2 px-3">Título</th>
+          <th class="py-2 px-3">Valor</th>
+          <th class="py-2 px-3">Tipo</th>
+          <th class="py-2 px-3">Frequência</th>
+          <th class="py-2 px-3">Próxima</th>
+          <th class="py-2 px-3">Conta</th>
+          <th class="py-2 px-3">Categoria</th>
+          <th class="py-2 px-3">Ações</th>
+        </tr></thead>
+        <tbody id="recurring-table-body"></tbody>
+      </table>
+    </section>
+
+    <section id="tab-reports" class="tab-content">
+      <h2 class="text-xl font-semibold mb-3">Relatórios</h2>
+      <div class="text-gray-500">Em breve.</div>
+    </section>
+  </main>
+</div>
+
+<!-- Modals -->
+<div id="account-modal" class="modal"><div class="box">
+  <h3 class="text-lg font-semibold mb-3">Conta</h3>
+  <form id="account-form" class="space-y-3">
+    <input type="hidden" id="account-id" />
+    <div>
+      <label class="block text-sm">Pessoa</label>
+      <input id="account-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="account-owner-name-list">
+    </div>
+    <div>
+      <label class="block text-sm">Banco</label>
+      <input id="account-bank" class="border rounded px-2 py-1 w-full" placeholder="Ex.: Revolut" />
+    </div>
+    <div>
+      <label class="block text-sm">Nome da Conta</label>
+      <input id="account-name" class="border rounded px-2 py-1 w-full" placeholder="Carteira, Corrente..." />
+    </div>
+    <div>
+      <label class="block text-sm">Saldo Inicial</label>
+      <input id="account-balance" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
+      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
+    </div>
+  </form>
+  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
+</div></div>
+
+<div id="category-modal" class="modal"><div class="box">
+  <h3 class="text-lg font-semibold mb-3">Categoria</h3>
+  <form id="category-form" class="space-y-3">
+    <input type="hidden" id="category-id" />
+    <div>
+      <label class="block text-sm">Pessoa</label>
+      <input id="category-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="category-owner-name-list">
+    </div>
+    <div>
+      <label class="block text-sm">Nome</label>
+      <input id="category-name" class="border rounded px-2 py-1 w-full" />
+    </div>
+    <div>
+      <label class="block text-sm">Tipo</label>
+      <select id="category-type" class="border rounded px-2 py-1 w-full">
+        <option value="expense">Despesa</option>
+        <option value="income">Receita</option>
+      </select>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
+      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
+    </div>
+  </form>
+  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
+</div></div>
+
+<div id="transaction-modal" class="modal"><div class="box">
+  <h3 class="text-lg font-semibold mb-3">Transação</h3>
+  <form id="transaction-form" class="space-y-3">
+    <input type="hidden" id="transaction-id" />
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm">Pessoa</label>
+        <input id="transaction-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="transaction-owner-name-list">
+      </div>
+      <div>
+        <label class="block text-sm">Tipo</label>
+        <select id="transaction-type" class="border rounded px-2 py-1 w-full">
+          <option value="expense">Despesa</option>
+          <option value="income">Receita</option>
+          <option value="transfer">Transferência</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm">Data</label>
+        <input id="transaction-date" type="date" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Descrição</label>
+        <input id="transaction-description" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Valor</label>
+        <input id="transaction-amount" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Conta</label>
+        <select id="transaction-account" class="border rounded px-2 py-1 w-full"></select>
+      </div>
+      <div>
+        <label class="block text-sm">Conta Destino</label>
+        <select id="transaction-account-dst" class="border rounded px-2 py-1 w-full"></select>
+      </div>
+      <div>
+        <label class="block text-sm">Categoria</label>
+        <select id="transaction-category" class="border rounded px-2 py-1 w-full"></select>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
+      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
+    </div>
+  </form>
+  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
+</div></div>
+
+<div id="recurring-modal" class="modal"><div class="box">
+  <h3 class="text-lg font-semibold mb-3">Recorrente</h3>
+  <form id="recurring-form" class="space-y-3">
+    <input type="hidden" id="recurring-id" />
+    <div class="grid grid-cols-2 gap-3">
+      <div>
+        <label class="block text-sm">Pessoa</label>
+        <input id="recurring-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="recurring-owner-name-list">
+      </div>
+      <div>
+        <label class="block text-sm">Título</label>
+        <input id="recurring-title" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Tipo</label>
+        <select id="recurring-type" class="border rounded px-2 py-1 w-full">
+          <option value="expense">Despesa</option>
+          <option value="income">Receita</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm">Valor</label>
+        <input id="recurring-amount" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Frequência</label>
+        <select id="recurring-frequency" class="border rounded px-2 py-1 w-full">
+          <option value="monthly">Mensal</option>
+          <option value="weekly">Semanal</option>
+          <option value="biweekly">Quinzenal</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-sm">Próxima Data</label>
+        <input id="recurring-next" type="date" class="border rounded px-2 py-1 w-full" />
+      </div>
+      <div>
+        <label class="block text-sm">Conta</label>
+        <select id="recurring-account" class="border rounded px-2 py-1 w-full"></select>
+      </div>
+      <div>
+        <label class="block text-sm">Categoria</label>
+        <select id="recurring-category" class="border rounded px-2 py-1 w-full"></select>
+      </div>
+    </div>
+    <div class="flex gap-2 justify-end">
+      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
+      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
+    </div>
+  </form>
+  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
+</div></div>
+
+<script src="finance.js?v=9"></script>
+</body>
+</html>
