@@ -22,7 +22,7 @@
     transacoes: [],   // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
     salarios: [],     // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
     recorrentes: [],  // {id, categoriaId, nome, valor, dataISO?, semanaDoMes?, diaDaSemana?}
-    dividas: [],      // {id, categoriaId, nome, valor, vencimentoISO?, fimISO?, semanaDoMes?}
+    dividas: [],      // {id, categoriaId, nome, valor, vencimentoISO?, fimISO?, semanaDoMes?, titularNome?}
     orcamentos: []
   };
 
@@ -66,9 +66,9 @@
       categoriaId: catAlu.id,
       nome: 'Aluguel',
       valor: 700,
-      dataISO: '',     // usa semana + dia
-      semanaDoMes: 1,  // 1ª semana
-      diaDaSemana: 3   // Quarta
+      dataISO: '',
+      semanaDoMes: 1,
+      diaDaSemana: 3
     });
     // Exemplo de Dívida
     state.dividas.push({
@@ -78,7 +78,8 @@
       valor: 25,
       vencimentoISO: '',
       fimISO: '',
-      semanaDoMes: 2
+      semanaDoMes: 2,
+      titularNome: 'Eu'
     });
     saveState(state);
   } else {
@@ -158,21 +159,21 @@
     const set = new Set(state.contas.map(c => (c.titularNome || '').trim()).filter(Boolean));
     return Array.from(set);
   }
-  function renderSalarioNomeOptions() {
-    const sel = $('#sl-nome');
-    if (!sel) return;
-    sel.innerHTML = '';
+  function renderTitularOptions(selectEl) {
+    if (!selectEl) return;
+    selectEl.innerHTML = '';
     const blank = document.createElement('option');
     blank.value = '';
     blank.textContent = 'Selecione';
-    sel.appendChild(blank);
+    selectEl.appendChild(blank);
     getUniqueTitulares().forEach(nome => {
       const opt = document.createElement('option');
       opt.value = nome;
       opt.textContent = nome;
-      sel.appendChild(opt);
+      selectEl.appendChild(opt);
     });
   }
+  function renderSalarioNomeOptions() { renderTitularOptions($('#sl-nome')); }
   function renderSalarioBancoOptionsForTitular(titular) {
     const sel = $('#sl-banco');
     if (!sel) return;
@@ -377,6 +378,7 @@
         const currentNome = ($('#sl-nome') || {}).value || '';
         renderSalarioBancoOptionsForTitular(currentNome);
         renderCategorias();
+        renderTitularOptions($('#dv-titular'));
 
         form.reset();
       });
@@ -391,8 +393,15 @@
         const act = btn.getAttribute('data-act');
         if (act === 'del') {
           if (!confirm('Excluir conta? Isso também removerá transferências relacionadas.')) return;
+          const conta = state.contas.find(c => c.id === id);
+          const titularRemovido = conta ? conta.titularNome : null;
+
           state.contas = state.contas.filter(c => c.id !== id);
           state.transacoes = state.transacoes.filter(t => t.contaId !== id && t.deContaId !== id && t.paraContaId !== id);
+
+          // Se não existir mais nenhuma conta do titular, opcionalmente manter o titular nas dívidas existentes
+          // Não apagamos dívidas; apenas mantemos o "titularNome" textual
+
           recalcSaldos();
           saveState(state);
           renderContasTable();
@@ -404,6 +413,8 @@
           renderSalarioBancoOptionsForTitular(currentNome);
           renderCategorias();
           renderTransacoes();
+          renderTitularOptions($('#dv-titular'));
+          renderDividas();
         } else if (act === 'edit') {
           const c = state.contas.find(x => x.id === id);
           if (!c) return;
@@ -775,9 +786,11 @@
       const venc = d.vencimentoISO ? (d.vencimentoISO || '').slice(0,10) : '-';
       const fim = d.fimISO ? (d.fimISO || '').slice(0,10) : '-';
       const semana = humanizeSemana(d.semanaDoMes);
+      const titular = d.titularNome || '-';
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${nome}</td>
+        <td>${titular}</td>
         <td style="text-align:right">${fmtMoney(d.valor)}</td>
         <td>${venc}</td>
         <td>${fim}</td>
@@ -790,11 +803,12 @@
       tbody.appendChild(tr);
     });
 
-    // Preencher select com categorias de despesa
+    // Preencher selects dependentes
     const sel = $('#dv-categoria');
     if (sel && sel.children.length <= 1) {
       renderCategorias();
     }
+    renderTitularOptions($('#dv-titular'));
   }
   function bindDividas() {
     renderCategorias();
@@ -811,9 +825,14 @@
       const vencimentoISO = ($('#dv-vencimento') || {}).value || '';
       const fimISO = ($('#dv-fim') || {}).value || '';
       const semana = ($('#dv-semana') || {}).value || '';
+      const titularNome = ($('#dv-titular') || {}).value || '';
 
       if (!categoriaId) { alert('Selecione o Nome da dívida (Tipo de Despesa).'); return; }
       if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+      if (!titularNome.trim()) { alert('Selecione o titular da dívida.'); return; }
+
+      // Garante pessoa no cadastro (apenas para consistência do app)
+      ensurePessoaByName(titularNome);
 
       const cat = state.categorias.find(c => c.id === categoriaId);
       const nome = cat ? cat.nome : '';
@@ -828,6 +847,7 @@
           d.vencimentoISO = vencimentoISO;
           d.fimISO = fimISO;
           d.semanaDoMes = semanaNum || null;
+          d.titularNome = titularNome.trim();
         }
         form.removeAttribute('data-edit-id');
       } else {
@@ -838,7 +858,8 @@
           valor,
           vencimentoISO,
           fimISO,
-          semanaDoMes: semanaNum || null
+          semanaDoMes: semanaNum || null,
+          titularNome: titularNome.trim()
         });
       }
 
@@ -867,6 +888,7 @@
           ($('#dv-vencimento') || {}).value = d.vencimentoISO || '';
           ($('#dv-fim') || {}).value = d.fimISO || '';
           ($('#dv-semana') || {}).value = d.semanaDoMes || '';
+          ($('#dv-titular') || {}).value = d.titularNome || '';
           form.setAttribute('data-edit-id', d.id);
         }
       });
