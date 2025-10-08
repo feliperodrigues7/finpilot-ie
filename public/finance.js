@@ -1,5 +1,5 @@
 // FinPilot IE - LocalStorage (EUR) - Modo claro
-// Contas, Transações, Categorias e NOVO: Salários com selects baseados em Contas
+// Contas, Transações, Tipos (Categorias), Salários e NOVO: Despesa Fixa (Recorrentes)
 (function () {
   'use strict';
 
@@ -21,7 +21,7 @@
     categorias: [], // {id, nome, tipo}
     transacoes: [], // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
     salarios: [],   // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
-    recorrentes: [],
+    recorrentes: [],// {id, categoriaId, nome, valor, dataISO?, semanaDoMes?, diaDaSemana?}
     orcamentos: [],
     dividas: []
   };
@@ -31,7 +31,7 @@
       const raw = localStorage.getItem(LS_KEY);
       if (!raw) return { ...defaultState };
       const parsed = JSON.parse(raw);
-      return { ...defaultState, ...parsed, salarios: parsed.salarios || [] };
+      return { ...defaultState, ...parsed, salarios: parsed.salarios || [], recorrentes: parsed.recorrentes || [] };
     } catch {
       return { ...defaultState };
     }
@@ -49,12 +49,21 @@
       { id: uid(), titularNome: 'Eu', banco: 'Meu Banco', tipoConta: 'Corrente', saldoInicial: 1000, saldoAtual: 1000, pessoaId: p1.id },
       { id: uid(), titularNome: 'Cônjuge', banco: 'Banco Cônjuge', tipoConta: 'Poupança', saldoInicial: 800, saldoAtual: 800, pessoaId: p2.id }
     );
-    state.categorias.push(
-      { id: uid(), nome: 'Salário', tipo: 'receita' },
-      { id: uid(), nome: 'Aluguel', tipo: 'despesa' },
-      { id: uid(), nome: 'Mercado', tipo: 'despesa' },
-      { id: uid(), nome: 'Serviços', tipo: 'despesa' }
-    );
+    const catSal = { id: uid(), nome: 'Salário', tipo: 'receita' };
+    const catAlu = { id: uid(), nome: 'Aluguel', tipo: 'despesa' };
+    const catMer = { id: uid(), nome: 'Mercado', tipo: 'despesa' };
+    const catSrv = { id: uid(), nome: 'Serviços', tipo: 'despesa' };
+    state.categorias.push(catSal, catAlu, catMer, catSrv);
+    // Exemplo de recorrente inicial
+    state.recorrentes.push({
+      id: uid(),
+      categoriaId: catAlu.id,
+      nome: 'Aluguel',
+      valor: 700,
+      dataISO: '',     // usa semana + dia
+      semanaDoMes: 1,  // 1ª semana
+      diaDaSemana: 3   // Quarta
+    });
     saveState(state);
   } else {
     // Garante categoria "Salário"
@@ -75,7 +84,7 @@
     });
   }
 
-  // Pessoas util
+  // Pessoas
   function ensurePessoaByName(nome) {
     const n = (nome || '').trim();
     if (!n) return null;
@@ -108,7 +117,6 @@
       tbody.appendChild(tr);
     });
   }
-
   function renderContasSelects() {
     const selConta = $('#tx-conta');
     const selDe = $('#tx-de-conta');
@@ -129,7 +137,7 @@
     });
   }
 
-  // Salários helpers (selects baseados em contas)
+  // Salários helpers
   function getUniqueTitulares() {
     const set = new Set(state.contas.map(c => (c.titularNome || '').trim()).filter(Boolean));
     return Array.from(set);
@@ -182,7 +190,7 @@
     ) || null;
   }
 
-  // Categorias
+  // Categorias (Tipos de Despesa/Receita)
   function renderCategorias() {
     const tbody = $('#tbl-categorias-body');
     if (!tbody) return;
@@ -200,6 +208,7 @@
       tbody.appendChild(tr);
     });
 
+    // Preenche select de categorias na Transação
     const selCat = $('#tx-categoria');
     if (selCat) {
       selCat.innerHTML = '';
@@ -213,6 +222,24 @@
         opt.textContent = `${cat.nome} (${cat.tipo})`;
         selCat.appendChild(opt);
       });
+    }
+
+    // Preenche select de categorias de DESPESA na Despesa Fixa
+    const selRc = $('#rc-categoria');
+    if (selRc) {
+      selRc.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'Selecione';
+      selRc.appendChild(blank);
+      state.categorias
+        .filter(c => c.tipo === 'despesa')
+        .forEach(cat => {
+          const opt = document.createElement('option');
+          opt.value = cat.id;
+          opt.textContent = cat.nome;
+          selRc.appendChild(opt);
+        });
     }
   }
 
@@ -315,10 +342,11 @@
         renderContasTable();
         renderContasSelects();
 
-        // Atualiza selects da aba Salários
+        // Atualiza selects vinculados
         renderSalarioNomeOptions();
         const currentNome = ($('#sl-nome') || {}).value || '';
         renderSalarioBancoOptionsForTitular(currentNome);
+        renderCategorias(); // atualiza também as listas que dependem de categorias/contas
 
         form.reset();
       });
@@ -340,11 +368,11 @@
           renderContasTable();
           renderContasSelects();
 
-          // Atualiza selects da aba Salários
+          // Atualiza selects vinculados
           renderSalarioNomeOptions();
           const currentNome = ($('#sl-nome') || {}).value || '';
           renderSalarioBancoOptionsForTitular(currentNome);
-
+          renderCategorias();
           renderTransacoes();
         } else if (act === 'edit') {
           const c = state.contas.find(x => x.id === id);
@@ -370,7 +398,7 @@
         const idEdit = form.getAttribute('data-edit-id');
         const nome = ($('#cat-nome') || {}).value || '';
         const tipo = ($('#cat-tipo') || {}).value || 'despesa';
-        if (!nome.trim()) { alert('Informe o nome da categoria.'); return; }
+        if (!nome.trim()) { alert('Informe o nome.'); return; }
         if (idEdit) {
           const c = state.categorias.find(x => x.id === idEdit);
           if (c) { c.nome = nome.trim(); c.tipo = tipo; }
@@ -381,6 +409,7 @@
         saveState(state);
         renderCategorias();
         renderTransacoes();
+        renderRecorrentes(); // atualiza nomes das despesas fixas
         form.reset();
       });
     }
@@ -393,12 +422,14 @@
         const id = btn.getAttribute('data-id');
         const act = btn.getAttribute('data-act');
         if (act === 'del') {
-          if (!confirm('Excluir categoria? Transações com esta categoria permanecerão sem categoria.')) return;
+          if (!confirm('Excluir tipo? Transações permanecerão sem categoria e despesas fixas podem ficar órfãs.')) return;
           state.categorias = state.categorias.filter(c => c.id !== id);
           state.transacoes.forEach(t => { if (t.categoriaId === id) t.categoriaId = null; });
+          state.recorrentes.forEach(r => { if (r.categoriaId === id) r.categoriaId = null; });
           saveState(state);
           renderCategorias();
           renderTransacoes();
+          renderRecorrentes();
         } else if (act === 'edit') {
           const c = state.categorias.find(x => x.id === id);
           if (!c) return;
@@ -477,7 +508,6 @@
     }
     return cat;
   }
-
   function renderSalarios() {
     const tbody = $('#tbl-salarios-body');
     if (!tbody) return;
@@ -498,7 +528,6 @@
       tbody.appendChild(tr);
     });
   }
-
   function bindSalarios() {
     // Popular selects iniciais
     renderSalarioNomeOptions();
@@ -604,6 +633,128 @@
     }
   }
 
+  // DESPESA FIXA (Recorrentes)
+  function humanizeSemanaDia(semana, dia) {
+    const semanaTxt = semana ? `${semana}ª` : '';
+    const dias = { '1':'Seg', '2':'Ter', '3':'Qua', '4':'Qui', '5':'Sex', '6':'Sáb', '0':'Dom' };
+    const diaTxt = dia !== undefined && dia !== null && String(dia) !== '' ? dias[String(dia)] : '';
+    if (semanaTxt && diaTxt) return `${semanaTxt} • ${diaTxt}`;
+    if (semanaTxt) return semanaTxt;
+    if (diaTxt) return diaTxt;
+    return '';
+  }
+  function renderRecorrentes() {
+    const tbody = $('#tbl-recorrentes-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.recorrentes].sort((a,b)=>{
+      const an = (a.nome || '').toLowerCase(), bn = (b.nome || '').toLowerCase();
+      return an.localeCompare(bn);
+    });
+    ordered.forEach(r => {
+      const cat = state.categorias.find(c => c.id === r.categoriaId);
+      const nome = r.nome || (cat ? cat.nome : '(sem nome)');
+      const quando = r.dataISO ? (r.dataISO || '').slice(0,10) : '';
+      const semanaDia = humanizeSemanaDia(r.semanaDoMes, r.diaDaSemana);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${nome}</td>
+        <td style="text-align:right">${fmtMoney(r.valor)}</td>
+        <td>${quando || '-'}</td>
+        <td>${semanaDia || '-'}</td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${r.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${r.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Preencher select do formulário com categorias de despesa
+    const sel = $('#rc-categoria');
+    if (sel && sel.children.length <= 1) {
+      renderCategorias(); // garante opções atuais
+    }
+  }
+  function bindRecorrentes() {
+    renderCategorias();
+    renderRecorrentes();
+
+    const form = $('#form-recorrente');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const idEdit = form.getAttribute('data-edit-id');
+      const categoriaId = ($('#rc-categoria') || {}).value || '';
+      const valor = Number((($('#rc-valor') || {}).value || '0').replace(',', '.'));
+      const dataISO = ($('#rc-data') || {}).value || '';
+      const semana = ($('#rc-semana') || {}).value || '';
+      const dia = ($('#rc-dia-semana') || {}).value || '';
+
+      if (!categoriaId) { alert('Selecione o Nome (Tipo de Despesa).'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+
+      const cat = state.categorias.find(c => c.id === categoriaId);
+      const nome = cat ? cat.nome : '';
+
+      const semanaNum = semana ? Number(semana) : null;
+      const diaNum = (dia || dia === 0 || dia === '0') ? Number(dia) : null;
+
+      if (idEdit) {
+        const r = state.recorrentes.find(x => x.id === idEdit);
+        if (r) {
+          r.categoriaId = categoriaId;
+          r.nome = nome;
+          r.valor = valor;
+          r.dataISO = dataISO;
+          r.semanaDoMes = semanaNum || null;
+          r.diaDaSemana = (dia !== '' ? diaNum : null);
+        }
+        form.removeAttribute('data-edit-id');
+      } else {
+        state.recorrentes.push({
+          id: uid(),
+          categoriaId,
+          nome,
+          valor,
+          dataISO,
+          semanaDoMes: semanaNum || null,
+          diaDaSemana: (dia !== '' ? diaNum : null)
+        });
+      }
+
+      saveState(state);
+      renderRecorrentes();
+      form.reset();
+    });
+
+    const tbody = $('#tbl-recorrentes-body');
+    if (tbody) {
+      tbody.addEventListener('click', function(e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir esta Despesa Fixa?')) return;
+          state.recorrentes = state.recorrentes.filter(r => r.id !== id);
+          saveState(state);
+          renderRecorrentes();
+        } else if (act === 'edit') {
+          const r = state.recorrentes.find(x => x.id === id);
+          if (!r) return;
+          ($('#rc-categoria') || {}).value = r.categoriaId || '';
+          ($('#rc-valor') || {}).value = String(r.valor || 0);
+          ($('#rc-data') || {}).value = r.dataISO || '';
+          ($('#rc-semana') || {}).value = r.semanaDoMes || '';
+          ($('#rc-dia-semana') || {}).value = (r.diaDaSemana === 0 ? '0' : (r.diaDaSemana || ''));
+          form.setAttribute('data-edit-id', r.id);
+        }
+      });
+    }
+  }
+
   // NAV
   function bindNav() {
     $all('[data-tab]').forEach(btn => {
@@ -622,6 +773,7 @@
     bindCategorias();
     bindTransacoes();
     bindSalarios();
+    bindRecorrentes();
     const firstPane = document.querySelector('.tab-pane');
     if (firstPane) showTab(firstPane.id);
   }
