@@ -112,6 +112,7 @@
       grid-template-columns: 1fr;
       gap: 14px;
     }
+    .grid-2 { grid-template-columns: 1fr; }
     @media (min-width: 980px) {
       .grid-2 { grid-template-columns: 1fr 1fr; }
     }
@@ -164,7 +165,7 @@
       appearance: none;
       border: 1px solid var(--border);
       background: #f8fafc;
-      color: var(--text);
+      color: #0f172a;
       padding: 10px 14px;
       border-radius: 10px;
       cursor: pointer;
@@ -248,8 +249,8 @@
       <button class="active" data-tab="tab-contas">Contas</button>
       <button data-tab="tab-transacoes">Transações</button>
       <button data-tab="tab-salarios">Salários</button>
-      <button data-tab="tab-categorias">Categorias</button>
-      <button data-tab="tab-recorrentes">Recorrentes</button>
+      <button data-tab="tab-categorias">Tipos de Despesas</button>
+      <button data-tab="tab-recorrentes">Despesa Fixa</button>
       <button data-tab="tab-orcamento">Orçamento</button>
       <button data-tab="tab-dividas">Dívidas</button>
       <button data-tab="tab-relatorios">Relatórios</button>
@@ -439,11 +440,11 @@
       </div>
     </section>
 
-    <!-- Categorias -->
+    <!-- Tipos de Despesas (Categorias) -->
     <section id="tab-categorias" class="panel tab-pane">
       <div class="grid grid-2">
         <div>
-          <h2>Nova/Editar Categoria</h2>
+          <h2>Novo/Editar Tipo de Despesa</h2>
           <form id="form-categoria">
             <div class="row">
               <div>
@@ -459,13 +460,13 @@
               </div>
             </div>
             <div class="actions">
-              <button class="btn primary" type="submit">Salvar Categoria</button>
+              <button class="btn primary" type="submit">Salvar Tipo</button>
               <button class="btn" type="reset">Limpar</button>
             </div>
           </form>
         </div>
         <div>
-          <h2>Categorias</h2>
+          <h2>Tipos de Despesas e Receitas</h2>
           <table>
             <thead>
               <tr>
@@ -480,10 +481,77 @@
       </div>
     </section>
 
-    <!-- Recorrentes -->
+    <!-- Despesa Fixa (Recorrentes) -->
     <section id="tab-recorrentes" class="panel tab-pane">
-      <h2>Recorrentes</h2>
-      <p class="muted">Em breve. Nesta versão local, foque em Contas, Transações, Salários e Categorias.</p>
+      <div class="grid grid-2">
+        <div>
+          <h2>Nova Despesa Fixa</h2>
+          <form id="form-recorrente">
+            <div class="row">
+              <div>
+                <label for="rc-categoria">Nome (selecionar do Tipo de Despesa)</label>
+                <select id="rc-categoria"></select>
+              </div>
+              <div>
+                <label for="rc-valor">Valor</label>
+                <input id="rc-valor" type="number" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="rc-data">Data (opcional)</label>
+                <input id="rc-data" type="date" />
+              </div>
+              <div>
+                <label for="rc-semana">Semana do mês</label>
+                <select id="rc-semana">
+                  <option value="">Não definido</option>
+                  <option value="1">1ª semana</option>
+                  <option value="2">2ª semana</option>
+                  <option value="3">3ª semana</option>
+                  <option value="4">4ª semana</option>
+                  <option value="5">5ª semana (quando houver)</option>
+                </select>
+              </div>
+            </div>
+            <div class="row-1">
+              <div>
+                <label for="rc-dia-semana">Dia da semana (opcional)</label>
+                <select id="rc-dia-semana">
+                  <option value="">Não definido</option>
+                  <option value="1">Segunda</option>
+                  <option value="2">Terça</option>
+                  <option value="3">Quarta</option>
+                  <option value="4">Quinta</option>
+                  <option value="5">Sexta</option>
+                  <option value="6">Sábado</option>
+                  <option value="0">Domingo</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Despesa Fixa</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+          <p class="note">Você pode informar uma data fixa (ex.: dia 05) ou usar o esquema de 1ª–5ª semana + dia da semana, conforme seu caderno.</p>
+        </div>
+        <div>
+          <h2>Despesas Fixas</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Valor</th>
+                <th>Data</th>
+                <th>Semana/Dia</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-recorrentes-body"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Orçamento -->
