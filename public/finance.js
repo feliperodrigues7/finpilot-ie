@@ -1,9 +1,8 @@
-// FinPilot IE - LocalStorage only (EUR padrão) - MODO CLARO
-// Ajustes: Titular como texto, Tipo de Conta no lugar de Nome da Conta
+// FinPilot IE - LocalStorage (EUR) - Modo claro
+// Contas, Transações, Categorias e NOVO: Salários com selects baseados em Contas
 (function () {
   'use strict';
 
-  // Util
   const CURRENCY = 'EUR';
   const LS_KEY = 'finpilot_ie_v1';
 
@@ -16,12 +15,12 @@
   function uid() { return 'id_' + Math.random().toString(36).slice(2, 10); }
   function todayISO() { return new Date().toISOString().slice(0,10); }
 
-  // Estado
   const defaultState = {
-    pessoas: [], // [{id, nome}]
-    contas: [],  // [{id, titularNome, banco, tipoConta, saldoInicial, saldoAtual, pessoaId}]
-    categorias: [], // [{id, nome, tipo}]
-    transacoes: [], // [{id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}]
+    pessoas: [],
+    contas: [],   // {id, titularNome, banco, tipoConta, saldoInicial, saldoAtual, pessoaId}
+    categorias: [], // {id, nome, tipo}
+    transacoes: [], // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
+    salarios: [],   // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
     recorrentes: [],
     orcamentos: [],
     dividas: []
@@ -32,7 +31,7 @@
       const raw = localStorage.getItem(LS_KEY);
       if (!raw) return { ...defaultState };
       const parsed = JSON.parse(raw);
-      return { ...defaultState, ...parsed };
+      return { ...defaultState, ...parsed, salarios: parsed.salarios || [] };
     } catch {
       return { ...defaultState };
     }
@@ -57,6 +56,12 @@
       { id: uid(), nome: 'Serviços', tipo: 'despesa' }
     );
     saveState(state);
+  } else {
+    // Garante categoria "Salário"
+    if (!state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita')) {
+      state.categorias.push({ id: uid(), nome: 'Salário', tipo: 'receita' });
+      saveState(state);
+    }
   }
 
   // Tabs
@@ -70,7 +75,7 @@
     });
   }
 
-  // Render Pessoas (apenas utilidades internas)
+  // Pessoas util
   function ensurePessoaByName(nome) {
     const n = (nome || '').trim();
     if (!n) return null;
@@ -124,6 +129,60 @@
     });
   }
 
+  // Salários helpers (selects baseados em contas)
+  function getUniqueTitulares() {
+    const set = new Set(state.contas.map(c => (c.titularNome || '').trim()).filter(Boolean));
+    return Array.from(set);
+  }
+  function renderSalarioNomeOptions() {
+    const sel = $('#sl-nome');
+    if (!sel) return;
+    sel.innerHTML = '';
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Selecione';
+    sel.appendChild(blank);
+    getUniqueTitulares().forEach(nome => {
+      const opt = document.createElement('option');
+      opt.value = nome;
+      opt.textContent = nome;
+      sel.appendChild(opt);
+    });
+  }
+  function renderSalarioBancoOptionsForTitular(titular) {
+    const sel = $('#sl-banco');
+    if (!sel) return;
+    sel.innerHTML = '';
+    const blank = document.createElement('option');
+    blank.value = '';
+    blank.textContent = 'Selecione';
+    sel.appendChild(blank);
+    const bancos = Array.from(
+      new Set(
+        state.contas
+          .filter(c => (c.titularNome || '').trim().toLowerCase() === (titular || '').trim().toLowerCase())
+          .map(c => (c.banco || '').trim())
+          .filter(Boolean)
+      )
+    );
+    bancos.forEach(b => {
+      const opt = document.createElement('option');
+      opt.value = b;
+      opt.textContent = b;
+      sel.appendChild(opt);
+    });
+  }
+  function findContaByTitularAndBanco(nome, banco) {
+    const n = (nome || '').trim().toLowerCase();
+    const b = (banco || '').trim().toLowerCase();
+    if (!n || !b) return null;
+    return state.contas.find(c =>
+      (c.titularNome || '').trim().toLowerCase() === n &&
+      (c.banco || '').trim().toLowerCase() === b
+    ) || null;
+  }
+
+  // Categorias
   function renderCategorias() {
     const tbody = $('#tbl-categorias-body');
     if (!tbody) return;
@@ -157,6 +216,7 @@
     }
   }
 
+  // Transações
   function renderTransacoes() {
     const tbody = $('#tbl-transacoes-body');
     if (!tbody) return;
@@ -205,7 +265,7 @@
     });
   }
 
-  // Bind Contas
+  // CONTAS
   function bindContas() {
     renderContasTable();
     renderContasSelects();
@@ -254,6 +314,12 @@
         saveState(state);
         renderContasTable();
         renderContasSelects();
+
+        // Atualiza selects da aba Salários
+        renderSalarioNomeOptions();
+        const currentNome = ($('#sl-nome') || {}).value || '';
+        renderSalarioBancoOptionsForTitular(currentNome);
+
         form.reset();
       });
     }
@@ -273,6 +339,12 @@
           saveState(state);
           renderContasTable();
           renderContasSelects();
+
+          // Atualiza selects da aba Salários
+          renderSalarioNomeOptions();
+          const currentNome = ($('#sl-nome') || {}).value || '';
+          renderSalarioBancoOptionsForTitular(currentNome);
+
           renderTransacoes();
         } else if (act === 'edit') {
           const c = state.contas.find(x => x.id === id);
@@ -288,7 +360,7 @@
     }
   }
 
-  // Bind Categorias
+  // CATEGORIAS
   function bindCategorias() {
     renderCategorias();
     const form = $('#form-categoria');
@@ -298,22 +370,17 @@
         const idEdit = form.getAttribute('data-edit-id');
         const nome = ($('#cat-nome') || {}).value || '';
         const tipo = ($('#cat-tipo') || {}).value || 'despesa';
-        if (!nome.trim()) {
-          alert('Informe o nome da categoria.');
-          return;
-        }
+        if (!nome.trim()) { alert('Informe o nome da categoria.'); return; }
         if (idEdit) {
           const c = state.categorias.find(x => x.id === idEdit);
-          if (c) {
-            c.nome = nome.trim();
-            c.tipo = tipo;
-          }
+          if (c) { c.nome = nome.trim(); c.tipo = tipo; }
           form.removeAttribute('data-edit-id');
         } else {
           state.categorias.push({ id: uid(), nome: nome.trim(), tipo });
         }
         saveState(state);
         renderCategorias();
+        renderTransacoes();
         form.reset();
       });
     }
@@ -343,7 +410,7 @@
     }
   }
 
-  // Bind Transações
+  // TRANSAÇÕES
   function bindTransacoes() {
     renderContasSelects();
     renderCategorias();
@@ -401,7 +468,143 @@
     }
   }
 
-  // Navegação
+  // SALÁRIOS
+  function ensureCategoriaSalario() {
+    let cat = state.categorias.find(c => c.nome.toLowerCase() === 'salário' && c.tipo === 'receita');
+    if (!cat) {
+      cat = { id: uid(), nome: 'Salário', tipo: 'receita' };
+      state.categorias.push(cat);
+    }
+    return cat;
+  }
+
+  function renderSalarios() {
+    const tbody = $('#tbl-salarios-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.salarios].sort((a,b)=> (a.dataISO||'').localeCompare(b.dataISO||'')).reverse();
+    ordered.forEach(s => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${(s.dataISO||'').slice(0,10)}</td>
+        <td>${s.nome}</td>
+        <td>${s.banco || ''}</td>
+        <td>${typeof s.horas === 'number' ? s.horas : (s.horas || '')}</td>
+        <td style="text-align:right">${fmtMoney(s.valor)}</td>
+        <td>
+          <button class="btn danger" data-act="del" data-id="${s.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  function bindSalarios() {
+    // Popular selects iniciais
+    renderSalarioNomeOptions();
+    renderSalarioBancoOptionsForTitular('');
+
+    // Atualiza bancos quando o titular muda
+    const slNome = $('#sl-nome');
+    if (slNome) {
+      slNome.addEventListener('change', function() {
+        renderSalarioBancoOptionsForTitular(slNome.value || '');
+      });
+    }
+
+    renderSalarios();
+
+    const form = $('#form-salario');
+    if (!form) return;
+
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const nome = ($('#sl-nome') || {}).value || '';
+      const banco = ($('#sl-banco') || {}).value || '';
+      const valor = Number((($('#sl-valor') || {}).value || '0').replace(',', '.'));
+      const horas = Number((($('#sl-horas') || {}).value || '0').replace(',', '.'));
+      const dataISO = ($('#sl-data') || {}).value || todayISO();
+
+      if (!nome.trim()) { alert('Selecione o titular.'); return; }
+      if (!banco.trim()) { alert('Selecione o banco.'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor de salário válido.'); return; }
+
+      // Garante pessoa
+      ensurePessoaByName(nome);
+
+      // Encontra a conta por titular + banco
+      const conta = findContaByTitularAndBanco(nome, banco);
+      if (!conta) {
+        alert('Conta não encontrada para este titular e banco. Crie/edite em "Contas".');
+        return;
+      }
+
+      // Garante categoria "Salário"
+      const catSalario = ensureCategoriaSalario();
+
+      // Registra salário
+      const salario = {
+        id: uid(),
+        dataISO,
+        nome: nome.trim(),
+        banco: banco.trim(),
+        horas: isNaN(horas) ? null : horas,
+        valor: isNaN(valor) ? 0 : valor,
+        contaIdVinculada: conta.id
+      };
+      state.salarios.push(salario);
+
+      // Registra transação de receita
+      state.transacoes.push({
+        id: uid(),
+        dataISO,
+        contaId: conta.id,
+        valor: salario.valor,
+        categoriaId: catSalario.id,
+        descricao: `Salário ${nome.trim()}`,
+        deContaId: null,
+        paraContaId: null
+      });
+
+      recalcSaldos();
+      saveState(state);
+      renderSalarios();
+      renderTransacoes();
+      renderContasTable();
+
+      // Reset básico (mantém titular e banco selecionados)
+      ($('#sl-valor') || {}).value = '';
+      ($('#sl-horas') || {}).value = '';
+      ($('#sl-data') || {}).value = '';
+    });
+
+    const tbody = $('#tbl-salarios-body');
+    if (tbody) {
+      tbody.addEventListener('click', function (e) {
+        const btn = e.target.closest('button[data-act="del"]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const sal = state.salarios.find(s => s.id === id);
+        state.salarios = state.salarios.filter(s => s.id !== id);
+        if (sal) {
+          const idx = state.transacoes.findIndex(t =>
+            t.contaId === sal.contaIdVinculada &&
+            Number(t.valor) === Number(sal.valor) &&
+            (t.dataISO || '').slice(0,10) === (sal.dataISO || '').slice(0,10) &&
+            (t.descricao || '').toLowerCase().includes('salário')
+          );
+          if (idx >= 0) state.transacoes.splice(idx, 1);
+        }
+        recalcSaldos();
+        saveState(state);
+        renderSalarios();
+        renderTransacoes();
+        renderContasTable();
+      });
+    }
+  }
+
+  // NAV
   function bindNav() {
     $all('[data-tab]').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -409,7 +612,6 @@
         showTab(tabId);
       });
     });
-
     const btnSair = $('#btn-sair');
     if (btnSair) btnSair.addEventListener('click', () => { window.location.href = 'login.html'; });
   }
@@ -419,6 +621,7 @@
     bindContas();
     bindCategorias();
     bindTransacoes();
+    bindSalarios();
     const firstPane = document.querySelector('.tab-pane');
     if (firstPane) showTab(firstPane.id);
   }
