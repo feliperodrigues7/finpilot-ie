@@ -46,190 +46,75 @@
       margin-bottom: 16px;
       gap: 12px;
     }
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
+    .brand { display: flex; align-items: center; gap: 10px; }
     .logo {
-      width: 36px;
-      height: 36px;
-      border-radius: 8px;
+      width: 36px; height: 36px; border-radius: 8px;
       background: conic-gradient(from 0deg, var(--primary), var(--success), var(--accent-1), var(--accent-2), var(--primary));
       box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
     }
-    .title {
-      font-weight: 800;
-      font-size: 20px;
-      letter-spacing: 0.2px;
-    }
+    .title { font-weight: 800; font-size: 20px; letter-spacing: 0.2px; }
     .muted { color: var(--muted); font-size: 13px; }
 
     nav.tabs {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      padding: 8px;
+      display: flex; flex-wrap: wrap; gap: 8px; background: #ffffff;
+      border: 1px solid var(--border); border-radius: 12px; padding: 8px;
       box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
     nav.tabs button {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: var(--text);
-      padding: 10px 12px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all .14s ease;
+      appearance: none; border: 1px solid var(--border); background: #f8fafc;
+      color: var(--text); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
     }
-    nav.tabs button:hover {
-      transform: translateY(-1px);
-      border-color: #cbd5e1;
-      background: #f1f5f9;
-    }
+    nav.tabs button:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
     nav.tabs button.active {
       background: linear-gradient(180deg, #e0ecff 0%, #dbeafe 100%);
-      border-color: #bfdbfe;
-      color: #1e40af;
-      box-shadow: 0 6px 18px rgba(37, 99, 235, 0.20);
+      border-color: #bfdbfe; color: #1e40af; box-shadow: 0 6px 18px rgba(37, 99, 235, 0.20);
     }
 
     .panel {
-      margin-top: 16px;
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      margin-top: 16px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06);
     }
 
-    .grid {
-      display: grid;
-      grid-template-columns: 1fr;
-      gap: 14px;
-    }
+    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
     .grid-2 { grid-template-columns: 1fr; }
-    @media (min-width: 980px) {
-      .grid-2 { grid-template-columns: 1fr 1fr; }
-    }
+    @media (min-width: 980px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
 
-    h2 {
-      margin: 0 0 12px 0;
-      font-size: 16px;
-      font-weight: 800;
-      color: #0f172a;
-    }
+    h2 { margin: 0 0 12px 0; font-size: 16px; font-weight: 800; color: #0f172a; }
 
-    .row {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 12px;
-    }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
     .row-3 { grid-template-columns: 1fr 1fr 1fr; }
     .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
     .row-1 { grid-template-columns: 1fr; }
 
-    label {
-      font-size: 13px;
-      color: var(--muted);
-      margin-bottom: 6px;
-      display: inline-block;
-    }
+    label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: inline-block; }
     input, select, textarea {
-      width: 100%;
-      background: #ffffff;
-      border: 1px solid #dbe2ea;
-      color: var(--text);
-      border-radius: 10px;
-      padding: 10px 12px;
-      font-size: 14px;
-      outline: none;
-      transition: border-color .12s ease, box-shadow .12s ease;
+      width: 100%; background: #ffffff; border: 1px solid #dbe2ea; color: var(--text);
+      border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .12s ease, box-shadow .12s ease;
     }
-    input:focus, select:focus, textarea:focus {
-      border-color: #a3c3ff;
-      box-shadow: 0 0 0 3px rgba(37,99,235,0.15);
-    }
+    input:focus, select:focus, textarea:focus { border-color: #a3c3ff; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
     textarea { min-height: 80px; resize: vertical; }
 
-    .actions {
-      display: flex;
-      gap: 10px;
-      margin-top: 10px;
-    }
+    .actions { display: flex; gap: 10px; margin-top: 10px; }
     .btn {
-      appearance: none;
-      border: 1px solid var(--border);
-      background: #f8fafc;
-      color: #0f172a;
-      padding: 10px 14px;
-      border-radius: 10px;
-      cursor: pointer;
-      font-size: 14px;
-      transition: all .14s ease;
+      appearance: none; border: 1px solid var(--border); background: #f8fafc; color: #0f172a;
+      padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
     }
-    .btn:hover {
-      transform: translateY(-1px);
-      border-color: #cbd5e1;
-      background: #f1f5f9;
-    }
-    .btn.primary {
-      background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%);
-      color: #fff;
-      border-color: #60a5fa;
-    }
-    .btn.danger {
-      background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%);
-      color: #fff;
-      border-color: #fda4af;
-    }
+    .btn:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
+    .btn.primary { background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%); color: #fff; border-color: #60a5fa; }
+    .btn.danger { background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%); color: #fff; border-color: #fda4af; }
 
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      border: 1px solid var(--border);
-      border-radius: 12px;
-      overflow: hidden;
-      background: #fff;
-    }
+    table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
     thead th {
-      text-align: left;
-      padding: 10px;
-      font-weight: 700;
-      font-size: 13px;
-      color: #0f172a;
-      background: #f1f5f9;
-      border-bottom: 1px solid var(--border);
+      text-align: left; padding: 10px; font-weight: 700; font-size: 13px; color: #0f172a;
+      background: #f1f5f9; border-bottom: 1px solid var(--border);
     }
-    tbody td {
-      padding: 10px;
-      border-top: 1px solid var(--border);
-      font-size: 14px;
-      color: #0f172a;
-    }
-    tbody tr:hover {
-      background: #f8fafc;
-    }
+    tbody td { padding: 10px; border-top: 1px solid var(--border); font-size: 14px; color: #0f172a; }
+    tbody tr:hover { background: #f8fafc; }
 
     .tab-pane { display: none; }
-    .note {
-      margin: 8px 0 0 0;
-      font-size: 12px;
-      color: var(--muted);
-    }
+    .note { margin: 8px 0 0 0; font-size: 12px; color: var(--muted); }
 
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 12px;
-      font-weight: 700;
-      color: #fff;
-    }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
     .badge.receita { background: var(--success); }
     .badge.despesa { background: var(--danger); }
     .badge.transfer { background: var(--info); }
@@ -251,7 +136,6 @@
       <button data-tab="tab-salarios">Salários</button>
       <button data-tab="tab-categorias">Tipos de Despesas</button>
       <button data-tab="tab-recorrentes">Despesa Fixa</button>
-      <button data-tab="tab-orcamento">Orçamento</button>
       <button data-tab="tab-dividas">Dívidas</button>
       <button data-tab="tab-relatorios">Relatórios</button>
       <button data-tab="tab-config">Configurações</button>
@@ -481,7 +365,7 @@
       </div>
     </section>
 
-    <!-- Despesa Fixa (Recorrentes) -->
+    <!-- Despesa Fixa -->
     <section id="tab-recorrentes" class="panel tab-pane">
       <div class="grid grid-2">
         <div>
@@ -499,11 +383,11 @@
             </div>
             <div class="row">
               <div>
-                <label for="rc-data">Data (opcional)</label>
+                <label for="rc-data">Data de vencimento (opcional)</label>
                 <input id="rc-data" type="date" />
               </div>
               <div>
-                <label for="rc-semana">Semana do mês</label>
+                <label for="rc-semana">Semana do mês que pagaremos</label>
                 <select id="rc-semana">
                   <option value="">Não definido</option>
                   <option value="1">1ª semana</option>
@@ -534,7 +418,7 @@
               <button class="btn" type="reset">Limpar</button>
             </div>
           </form>
-          <p class="note">Você pode informar uma data fixa (ex.: dia 05) ou usar o esquema de 1ª–5ª semana + dia da semana, conforme seu caderno.</p>
+          <p class="note">Informe a data de vencimento e/ou a semana do mês que pagarão, conforme o seu caderno.</p>
         </div>
         <div>
           <h2>Despesas Fixas</h2>
@@ -543,7 +427,7 @@
               <tr>
                 <th>Nome</th>
                 <th>Valor</th>
-                <th>Data</th>
+                <th>Vencimento</th>
                 <th>Semana/Dia</th>
                 <th>Ações</th>
               </tr>
@@ -554,16 +438,68 @@
       </div>
     </section>
 
-    <!-- Orçamento -->
-    <section id="tab-orcamento" class="panel tab-pane">
-      <h2>Orçamento</h2>
-      <p class="muted">Em breve.</p>
-    </section>
-
     <!-- Dívidas -->
     <section id="tab-dividas" class="panel tab-pane">
-      <h2>Dívidas</h2>
-      <p class="muted">Em breve.</p>
+      <div class="grid grid-2">
+        <div>
+          <h2>Nova Dívida</h2>
+          <form id="form-divida">
+            <div class="row">
+              <div>
+                <label for="dv-categoria">Nome da dívida (Tipos de Despesas)</label>
+                <select id="dv-categoria"></select>
+              </div>
+              <div>
+                <label for="dv-valor">Valor</label>
+                <input id="dv-valor" type="number" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="dv-vencimento">Data de vencimento mensal</label>
+                <input id="dv-vencimento" type="date" />
+              </div>
+              <div>
+                <label for="dv-fim">Data de finalização da dívida</label>
+                <input id="dv-fim" type="date" />
+              </div>
+            </div>
+            <div class="row-1">
+              <div>
+                <label for="dv-semana">Semana que será paga</label>
+                <select id="dv-semana">
+                  <option value="">Não definido</option>
+                  <option value="1">1ª semana</option>
+                  <option value="2">2ª semana</option>
+                  <option value="3">3ª semana</option>
+                  <option value="4">4ª semana</option>
+                  <option value="5">5ª semana (quando houver)</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Dívida</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+        </div>
+        <div>
+          <h2>Dívidas</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Valor</th>
+                <th>Vencimento mensal</th>
+                <th>Finalização</th>
+                <th>Semana</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-dividas-body"></tbody>
+          </table>
+        </div>
+      </div>
     </section>
 
     <!-- Relatórios -->
