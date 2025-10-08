@@ -7,19 +7,19 @@
   <title>FinPilot IE</title>
   <style>
     :root {
-      --bg: #f6f8fb;          /* fundo clean */
-      --panel: #ffffff;       /* cartões brancos */
-      --text: #0f172a;        /* slate-900 */
-      --muted: #475569;       /* slate-600 */
-      --border: #e5e7eb;      /* gray-200 */
-      --primary: #2563eb;     /* blue-600 */
-      --primary-2: #1d4ed8;   /* blue-700 */
-      --success: #16a34a;     /* green-600 */
-      --danger: #ef4444;      /* red-500 */
-      --warning: #f59e0b;     /* amber-500 */
-      --info: #06b6d4;        /* cyan-500 */
-      --accent-1: #8b5cf6;    /* violet-500 */
-      --accent-2: #f43f5e;    /* rose-500 */
+      --bg: #f6f8fb;
+      --panel: #ffffff;
+      --text: #0f172a;
+      --muted: #475569;
+      --border: #e5e7eb;
+      --primary: #2563eb;
+      --primary-2: #1d4ed8;
+      --success: #16a34a;
+      --danger: #ef4444;
+      --warning: #f59e0b;
+      --info: #06b6d4;
+      --accent-1: #8b5cf6;
+      --accent-2: #f43f5e;
     }
     * { box-sizing: border-box; }
     html, body {
@@ -221,7 +221,6 @@
       color: var(--muted);
     }
 
-    /* badges coloridos */
     .badge {
       display: inline-block;
       padding: 2px 8px;
@@ -248,6 +247,7 @@
     <nav class="tabs">
       <button class="active" data-tab="tab-contas">Contas</button>
       <button data-tab="tab-transacoes">Transações</button>
+      <button data-tab="tab-salarios">Salários</button>
       <button data-tab="tab-categorias">Categorias</button>
       <button data-tab="tab-recorrentes">Recorrentes</button>
       <button data-tab="tab-orcamento">Orçamento</button>
@@ -381,6 +381,64 @@
       </div>
     </section>
 
+    <!-- Salários -->
+    <section id="tab-salarios" class="panel tab-pane">
+      <div class="grid grid-2">
+        <div>
+          <h2>Novo Salário</h2>
+          <form id="form-salario">
+            <div class="row">
+              <div>
+                <label for="sl-nome">Nome (quem recebeu)</label>
+                <select id="sl-nome"></select>
+              </div>
+              <div>
+                <label for="sl-valor">Valor do salário</label>
+                <input id="sl-valor" type="number" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="sl-horas">Horas trabalhadas</label>
+                <input id="sl-horas" type="number" step="0.01" placeholder="Ex.: 160" />
+              </div>
+              <div>
+                <label for="sl-data">Data</label>
+                <input id="sl-data" type="date" />
+              </div>
+            </div>
+            <div class="row-1">
+              <div>
+                <label for="sl-banco">Banco (onde caiu o salário)</label>
+                <select id="sl-banco"></select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Salário</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+          <p class="note">Selecione o Titular e o Banco de uma conta cadastrada. O valor será somado ao saldo dessa conta e registrado como receita "Salário".</p>
+        </div>
+        <div>
+          <h2>Salários Lançados</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Nome</th>
+                <th>Banco</th>
+                <th>Horas</th>
+                <th style="text-align:right">Valor</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-salarios-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
     <!-- Categorias -->
     <section id="tab-categorias" class="panel tab-pane">
       <div class="grid grid-2">
@@ -425,7 +483,7 @@
     <!-- Recorrentes -->
     <section id="tab-recorrentes" class="panel tab-pane">
       <h2>Recorrentes</h2>
-      <p class="muted">Em breve. Nesta versão local, foque em Contas, Transações e Categorias.</p>
+      <p class="muted">Em breve. Nesta versão local, foque em Contas, Transações, Salários e Categorias.</p>
     </section>
 
     <!-- Orçamento -->
