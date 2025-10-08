@@ -54,7 +54,7 @@
     .modal-backdrop{
       position:fixed;inset:0;background:#00000066;display:none;align-items:center;justify-content:center;padding:16px;z-index:50
     }
-    .modal{background:#fff;border-radius:12px;max-width:560px;width:100%;box-shadow:0 20px 60px #00000033;border:1px solid var(--line)}
+    .modal{background:#fff;border-radius:12px;max-width:600px;width:100%;box-shadow:0 20px 60px #00000033;border:1px solid var(--line)}
     .modal header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
     .modal .body{padding:16px}
     .modal .footer{padding:14px 16px;border-top:1px solid var(--line);display:flex;justify-content:flex-end;gap:8px}
@@ -88,6 +88,23 @@
       <div class="topbar">
         <button class="btn ghost" id="btnSair">Sair</button>
       </div>
+
+      <!-- Contas -->
+      <section id="tab-contas" class="panel hidden">
+        <div class="toolbar">
+          <button class="btn" id="btnNewConta">+ Nova conta</button>
+        </div>
+        <h2>Contas</h2>
+        <p class="muted">Gerencie as contas. Estas informações alimentam os selects de Titular/Banco nas outras abas.</p>
+        <table class="table" id="tblContas">
+          <thead>
+            <tr>
+              <th>Nome</th><th>Titular</th><th>Banco</th><th>Tipo</th><th>Saldo Inicial</th><th>Ações</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </section>
 
       <!-- Gastos -->
       <section id="tab-gastos" class="panel hidden">
@@ -185,8 +202,7 @@
         </table>
       </section>
 
-      <!-- Contas e Dashboard (somente placeholders para manter layout/rota) -->
-      <section id="tab-contas" class="panel hidden"><h2>Contas</h2><p class="muted">Gerencie as contas na próxima iteração (já suportado no JS para vínculos).</p></section>
+      <!-- Dashboard -->
       <section id="tab-dashboard" class="panel"><h2>Dashboard</h2><p class="muted">Resumo em breve.</p></section>
     </main>
   </div>
@@ -196,7 +212,7 @@
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <header>
         <strong id="modalTitle">Modal</strong>
-        <button class="btn ghost" id="modalClose">Fechar</button>
+        <button class="btn ghost" id="modalClose" type="button">Fechar</button>
       </header>
       <div class="body">
         <form id="modalForm"></form>
