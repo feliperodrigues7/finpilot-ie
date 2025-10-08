@@ -1,5 +1,5 @@
 // FinPilot IE - LocalStorage (EUR) - Modo claro
-// Contas, Transações, Tipos (Categorias), Salários e NOVO: Despesa Fixa (Recorrentes)
+// Contas, Transações, Tipos (Categorias), Salários, Despesa Fixa e Dívidas
 (function () {
   'use strict';
 
@@ -17,13 +17,13 @@
 
   const defaultState = {
     pessoas: [],
-    contas: [],   // {id, titularNome, banco, tipoConta, saldoInicial, saldoAtual, pessoaId}
-    categorias: [], // {id, nome, tipo}
-    transacoes: [], // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
-    salarios: [],   // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
-    recorrentes: [],// {id, categoriaId, nome, valor, dataISO?, semanaDoMes?, diaDaSemana?}
-    orcamentos: [],
-    dividas: []
+    contas: [],       // {id, titularNome, banco, tipoConta, saldoInicial, saldoAtual, pessoaId}
+    categorias: [],   // {id, nome, tipo}
+    transacoes: [],   // {id, dataISO, contaId, valor, categoriaId, descricao, deContaId, paraContaId}
+    salarios: [],     // {id, dataISO, nome, banco, horas, valor, contaIdVinculada}
+    recorrentes: [],  // {id, categoriaId, nome, valor, dataISO?, semanaDoMes?, diaDaSemana?}
+    dividas: [],      // {id, categoriaId, nome, valor, vencimentoISO?, fimISO?, semanaDoMes?}
+    orcamentos: []
   };
 
   function loadState() {
@@ -31,7 +31,13 @@
       const raw = localStorage.getItem(LS_KEY);
       if (!raw) return { ...defaultState };
       const parsed = JSON.parse(raw);
-      return { ...defaultState, ...parsed, salarios: parsed.salarios || [], recorrentes: parsed.recorrentes || [] };
+      return {
+        ...defaultState,
+        ...parsed,
+        salarios: parsed.salarios || [],
+        recorrentes: parsed.recorrentes || [],
+        dividas: parsed.dividas || []
+      };
     } catch {
       return { ...defaultState };
     }
@@ -52,9 +58,9 @@
     const catSal = { id: uid(), nome: 'Salário', tipo: 'receita' };
     const catAlu = { id: uid(), nome: 'Aluguel', tipo: 'despesa' };
     const catMer = { id: uid(), nome: 'Mercado', tipo: 'despesa' };
-    const catSrv = { id: uid(), nome: 'Serviços', tipo: 'despesa' };
-    state.categorias.push(catSal, catAlu, catMer, catSrv);
-    // Exemplo de recorrente inicial
+    const catAca = { id: uid(), nome: 'Academia', tipo: 'despesa' };
+    state.categorias.push(catSal, catAlu, catMer, catAca);
+    // Exemplo de Despesa Fixa
     state.recorrentes.push({
       id: uid(),
       categoriaId: catAlu.id,
@@ -63,6 +69,16 @@
       dataISO: '',     // usa semana + dia
       semanaDoMes: 1,  // 1ª semana
       diaDaSemana: 3   // Quarta
+    });
+    // Exemplo de Dívida
+    state.dividas.push({
+      id: uid(),
+      categoriaId: catAca.id,
+      nome: 'Academia - Anuidade',
+      valor: 25,
+      vencimentoISO: '',
+      fimISO: '',
+      semanaDoMes: 2
     });
     saveState(state);
   } else {
@@ -190,7 +206,7 @@
     ) || null;
   }
 
-  // Categorias (Tipos de Despesa/Receita)
+  // Categorias
   function renderCategorias() {
     const tbody = $('#tbl-categorias-body');
     if (!tbody) return;
@@ -208,7 +224,7 @@
       tbody.appendChild(tr);
     });
 
-    // Preenche select de categorias na Transação
+    // Transações
     const selCat = $('#tx-categoria');
     if (selCat) {
       selCat.innerHTML = '';
@@ -224,7 +240,7 @@
       });
     }
 
-    // Preenche select de categorias de DESPESA na Despesa Fixa
+    // Despesa Fixa - somente categorias de despesa
     const selRc = $('#rc-categoria');
     if (selRc) {
       selRc.innerHTML = '';
@@ -232,14 +248,28 @@
       blank.value = '';
       blank.textContent = 'Selecione';
       selRc.appendChild(blank);
-      state.categorias
-        .filter(c => c.tipo === 'despesa')
-        .forEach(cat => {
-          const opt = document.createElement('option');
-          opt.value = cat.id;
-          opt.textContent = cat.nome;
-          selRc.appendChild(opt);
-        });
+      state.categorias.filter(c => c.tipo === 'despesa').forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.nome;
+        selRc.appendChild(opt);
+      });
+    }
+
+    // Dívidas - somente categorias de despesa
+    const selDv = $('#dv-categoria');
+    if (selDv) {
+      selDv.innerHTML = '';
+      const blank = document.createElement('option');
+      blank.value = '';
+      blank.textContent = 'Selecione';
+      selDv.appendChild(blank);
+      state.categorias.filter(c => c.tipo === 'despesa').forEach(cat => {
+        const opt = document.createElement('option');
+        opt.value = cat.id;
+        opt.textContent = cat.nome;
+        selDv.appendChild(opt);
+      });
     }
   }
 
@@ -346,7 +376,7 @@
         renderSalarioNomeOptions();
         const currentNome = ($('#sl-nome') || {}).value || '';
         renderSalarioBancoOptionsForTitular(currentNome);
-        renderCategorias(); // atualiza também as listas que dependem de categorias/contas
+        renderCategorias();
 
         form.reset();
       });
@@ -368,7 +398,7 @@
           renderContasTable();
           renderContasSelects();
 
-          // Atualiza selects vinculados
+          // Atualizações vinculadas
           renderSalarioNomeOptions();
           const currentNome = ($('#sl-nome') || {}).value || '';
           renderSalarioBancoOptionsForTitular(currentNome);
@@ -409,7 +439,8 @@
         saveState(state);
         renderCategorias();
         renderTransacoes();
-        renderRecorrentes(); // atualiza nomes das despesas fixas
+        renderRecorrentes();
+        renderDividas();
         form.reset();
       });
     }
@@ -422,14 +453,16 @@
         const id = btn.getAttribute('data-id');
         const act = btn.getAttribute('data-act');
         if (act === 'del') {
-          if (!confirm('Excluir tipo? Transações permanecerão sem categoria e despesas fixas podem ficar órfãs.')) return;
+          if (!confirm('Excluir tipo? Transações permanecerão sem categoria e itens em Despesa Fixa/Dívidas podem ficar órfãos.')) return;
           state.categorias = state.categorias.filter(c => c.id !== id);
           state.transacoes.forEach(t => { if (t.categoriaId === id) t.categoriaId = null; });
           state.recorrentes.forEach(r => { if (r.categoriaId === id) r.categoriaId = null; });
+          state.dividas.forEach(d => { if (d.categoriaId === id) d.categoriaId = null; });
           saveState(state);
           renderCategorias();
           renderTransacoes();
           renderRecorrentes();
+          renderDividas();
         } else if (act === 'edit') {
           const c = state.categorias.find(x => x.id === id);
           if (!c) return;
@@ -529,18 +562,10 @@
     });
   }
   function bindSalarios() {
-    // Popular selects iniciais
     renderSalarioNomeOptions();
     renderSalarioBancoOptionsForTitular('');
-
-    // Atualiza bancos quando o titular muda
     const slNome = $('#sl-nome');
-    if (slNome) {
-      slNome.addEventListener('change', function() {
-        renderSalarioBancoOptionsForTitular(slNome.value || '');
-      });
-    }
-
+    if (slNome) slNome.addEventListener('change', () => renderSalarioBancoOptionsForTitular(slNome.value || ''));
     renderSalarios();
 
     const form = $('#form-salario');
@@ -558,41 +583,21 @@
       if (!banco.trim()) { alert('Selecione o banco.'); return; }
       if (isNaN(valor) || valor <= 0) { alert('Informe um valor de salário válido.'); return; }
 
-      // Garante pessoa
       ensurePessoaByName(nome);
-
-      // Encontra a conta por titular + banco
       const conta = findContaByTitularAndBanco(nome, banco);
-      if (!conta) {
-        alert('Conta não encontrada para este titular e banco. Crie/edite em "Contas".');
-        return;
-      }
+      if (!conta) { alert('Conta não encontrada para este titular e banco.'); return; }
 
-      // Garante categoria "Salário"
       const catSalario = ensureCategoriaSalario();
 
-      // Registra salário
-      const salario = {
-        id: uid(),
-        dataISO,
-        nome: nome.trim(),
-        banco: banco.trim(),
-        horas: isNaN(horas) ? null : horas,
-        valor: isNaN(valor) ? 0 : valor,
-        contaIdVinculada: conta.id
-      };
-      state.salarios.push(salario);
+      state.salarios.push({
+        id: uid(), dataISO, nome: nome.trim(), banco: banco.trim(),
+        horas: isNaN(horas) ? null : horas, valor: isNaN(valor) ? 0 : valor, contaIdVinculada: conta.id
+      });
 
-      // Registra transação de receita
       state.transacoes.push({
-        id: uid(),
-        dataISO,
-        contaId: conta.id,
-        valor: salario.valor,
-        categoriaId: catSalario.id,
-        descricao: `Salário ${nome.trim()}`,
-        deContaId: null,
-        paraContaId: null
+        id: uid(), dataISO, contaId: conta.id, valor,
+        categoriaId: catSalario.id, descricao: `Salário ${nome.trim()}`,
+        deContaId: null, paraContaId: null
       });
 
       recalcSaldos();
@@ -601,7 +606,6 @@
       renderTransacoes();
       renderContasTable();
 
-      // Reset básico (mantém titular e banco selecionados)
       ($('#sl-valor') || {}).value = '';
       ($('#sl-horas') || {}).value = '';
       ($('#sl-data') || {}).value = '';
@@ -633,11 +637,11 @@
     }
   }
 
-  // DESPESA FIXA (Recorrentes)
+  // DESPESA FIXA
   function humanizeSemanaDia(semana, dia) {
     const semanaTxt = semana ? `${semana}ª` : '';
     const dias = { '1':'Seg', '2':'Ter', '3':'Qua', '4':'Qui', '5':'Sex', '6':'Sáb', '0':'Dom' };
-    const diaTxt = dia !== undefined && dia !== null && String(dia) !== '' ? dias[String(dia)] : '';
+    const diaTxt = (dia !== undefined && dia !== null && String(dia) !== '') ? dias[String(dia)] : '';
     if (semanaTxt && diaTxt) return `${semanaTxt} • ${diaTxt}`;
     if (semanaTxt) return semanaTxt;
     if (diaTxt) return diaTxt;
@@ -654,13 +658,13 @@
     ordered.forEach(r => {
       const cat = state.categorias.find(c => c.id === r.categoriaId);
       const nome = r.nome || (cat ? cat.nome : '(sem nome)');
-      const quando = r.dataISO ? (r.dataISO || '').slice(0,10) : '';
+      const venc = r.dataISO ? (r.dataISO || '').slice(0,10) : '';
       const semanaDia = humanizeSemanaDia(r.semanaDoMes, r.diaDaSemana);
       const tr = document.createElement('tr');
       tr.innerHTML = `
         <td>${nome}</td>
         <td style="text-align:right">${fmtMoney(r.valor)}</td>
-        <td>${quando || '-'}</td>
+        <td>${venc || '-'}</td>
         <td>${semanaDia || '-'}</td>
         <td>
           <button class="btn" data-act="edit" data-id="${r.id}">Editar</button>
@@ -670,10 +674,9 @@
       tbody.appendChild(tr);
     });
 
-    // Preencher select do formulário com categorias de despesa
     const sel = $('#rc-categoria');
     if (sel && sel.children.length <= 1) {
-      renderCategorias(); // garante opções atuais
+      renderCategorias();
     }
   }
   function bindRecorrentes() {
@@ -688,7 +691,7 @@
       const idEdit = form.getAttribute('data-edit-id');
       const categoriaId = ($('#rc-categoria') || {}).value || '';
       const valor = Number((($('#rc-valor') || {}).value || '0').replace(',', '.'));
-      const dataISO = ($('#rc-data') || {}).value || '';
+      const dataISO = ($('#rc-data') || {}).value || ''; // Data de vencimento
       const semana = ($('#rc-semana') || {}).value || '';
       const dia = ($('#rc-dia-semana') || {}).value || '';
 
@@ -697,7 +700,6 @@
 
       const cat = state.categorias.find(c => c.id === categoriaId);
       const nome = cat ? cat.nome : '';
-
       const semanaNum = semana ? Number(semana) : null;
       const diaNum = (dia || dia === 0 || dia === '0') ? Number(dia) : null;
 
@@ -707,8 +709,8 @@
           r.categoriaId = categoriaId;
           r.nome = nome;
           r.valor = valor;
-          r.dataISO = dataISO;
-          r.semanaDoMes = semanaNum || null;
+          r.dataISO = dataISO;               // vencimento
+          r.semanaDoMes = semanaNum || null; // semana que pagaremos
           r.diaDaSemana = (dia !== '' ? diaNum : null);
         }
         form.removeAttribute('data-edit-id');
@@ -755,6 +757,122 @@
     }
   }
 
+  // DÍVIDAS
+  function humanizeSemana(semana) {
+    return semana ? `${semana}ª` : '';
+  }
+  function renderDividas() {
+    const tbody = $('#tbl-dividas-body');
+    if (!tbody) return;
+    tbody.innerHTML = '';
+    const ordered = [...state.dividas].sort((a,b)=>{
+      const an = (a.nome || '').toLowerCase(), bn = (b.nome || '').toLowerCase();
+      return an.localeCompare(bn);
+    });
+    ordered.forEach(d => {
+      const cat = state.categorias.find(c => c.id === d.categoriaId);
+      const nome = d.nome || (cat ? cat.nome : '(sem nome)');
+      const venc = d.vencimentoISO ? (d.vencimentoISO || '').slice(0,10) : '-';
+      const fim = d.fimISO ? (d.fimISO || '').slice(0,10) : '-';
+      const semana = humanizeSemana(d.semanaDoMes);
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${nome}</td>
+        <td style="text-align:right">${fmtMoney(d.valor)}</td>
+        <td>${venc}</td>
+        <td>${fim}</td>
+        <td>${semana || '-'}</td>
+        <td>
+          <button class="btn" data-act="edit" data-id="${d.id}">Editar</button>
+          <button class="btn danger" data-act="del" data-id="${d.id}">Excluir</button>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+
+    // Preencher select com categorias de despesa
+    const sel = $('#dv-categoria');
+    if (sel && sel.children.length <= 1) {
+      renderCategorias();
+    }
+  }
+  function bindDividas() {
+    renderCategorias();
+    renderDividas();
+
+    const form = $('#form-divida');
+    if (!form) return;
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      const idEdit = form.getAttribute('data-edit-id');
+      const categoriaId = ($('#dv-categoria') || {}).value || '';
+      const valor = Number((($('#dv-valor') || {}).value || '0').replace(',', '.'));
+      const vencimentoISO = ($('#dv-vencimento') || {}).value || '';
+      const fimISO = ($('#dv-fim') || {}).value || '';
+      const semana = ($('#dv-semana') || {}).value || '';
+
+      if (!categoriaId) { alert('Selecione o Nome da dívida (Tipo de Despesa).'); return; }
+      if (isNaN(valor) || valor <= 0) { alert('Informe um valor válido.'); return; }
+
+      const cat = state.categorias.find(c => c.id === categoriaId);
+      const nome = cat ? cat.nome : '';
+      const semanaNum = semana ? Number(semana) : null;
+
+      if (idEdit) {
+        const d = state.dividas.find(x => x.id === idEdit);
+        if (d) {
+          d.categoriaId = categoriaId;
+          d.nome = nome;
+          d.valor = valor;
+          d.vencimentoISO = vencimentoISO;
+          d.fimISO = fimISO;
+          d.semanaDoMes = semanaNum || null;
+        }
+        form.removeAttribute('data-edit-id');
+      } else {
+        state.dividas.push({
+          id: uid(),
+          categoriaId,
+          nome,
+          valor,
+          vencimentoISO,
+          fimISO,
+          semanaDoMes: semanaNum || null
+        });
+      }
+
+      saveState(state);
+      renderDividas();
+      form.reset();
+    });
+
+    const tbody = $('#tbl-dividas-body');
+    if (tbody) {
+      tbody.addEventListener('click', function(e) {
+        const btn = e.target.closest('button[data-act]');
+        if (!btn) return;
+        const id = btn.getAttribute('data-id');
+        const act = btn.getAttribute('data-act');
+        if (act === 'del') {
+          if (!confirm('Excluir esta Dívida?')) return;
+          state.dividas = state.dividas.filter(d => d.id !== id);
+          saveState(state);
+          renderDividas();
+        } else if (act === 'edit') {
+          const d = state.dividas.find(x => x.id === id);
+          if (!d) return;
+          ($('#dv-categoria') || {}).value = d.categoriaId || '';
+          ($('#dv-valor') || {}).value = String(d.valor || 0);
+          ($('#dv-vencimento') || {}).value = d.vencimentoISO || '';
+          ($('#dv-fim') || {}).value = d.fimISO || '';
+          ($('#dv-semana') || {}).value = d.semanaDoMes || '';
+          form.setAttribute('data-edit-id', d.id);
+        }
+      });
+    }
+  }
+
   // NAV
   function bindNav() {
     $all('[data-tab]').forEach(btn => {
@@ -774,6 +892,7 @@
     bindTransacoes();
     bindSalarios();
     bindRecorrentes();
+    bindDividas();
     const firstPane = document.querySelector('.tab-pane');
     if (firstPane) showTab(firstPane.id);
   }
