@@ -1,612 +1,723 @@
 <!DOCTYPE html>
-<html lang="pt">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>FinPilot IE</title>
-  <style>
-    :root {
-      --bg: #f6f8fb;
-      --panel: #ffffff;
-      --text: #0f172a;
-      --muted: #475569;
-      --border: #e5e7eb;
-      --primary: #2563eb;
-      --success: #16a34a;
-      --danger: #ef4444;
-      --warning: #f59e0b;
-      --info: #06b6d4;
-      --accent-1: #8b5cf6;
-      --accent-2: #f43f5e;
-    }
-    * { box-sizing: border-box; }
-    html, body {
-      margin: 0; padding: 0; background: var(--bg); color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-      min-height: 100%;
-    }
-    .wrap { max-width: 1100px; margin: 24px auto 56px auto; padding: 0 16px; }
-    header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; gap: 12px; }
-    .brand { display: flex; align-items: center; gap: 10px; }
-    .logo {
-      width: 36px; height: 36px; border-radius: 8px;
-      background: conic-gradient(from 0deg, var(--primary), var(--success), var(--accent-1), var(--accent-2), var(--primary));
-      box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
-    }
-    .title { font-weight: 800; font-size: 20px; letter-spacing: 0.2px; }
-    .muted { color: var(--muted); font-size: 13px; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FinPilot IE - Financeiro Pessoal</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif; }
+    .tab-button.active { background-color: #2563eb; color: #fff; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
 
-    nav.tabs {
-      display: flex; flex-wrap: wrap; gap: 8px; background: #ffffff;
-      border: 1px solid var(--border); border-radius: 12px; padding: 8px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
+    /* Modal Styles */
+    .modal { 
+        display: none; 
+        position: fixed; 
+        z-index: 1000; 
+        left: 0; 
+        top: 0; 
+        width: 100%; 
+        height: 100%; 
+        overflow: auto; 
+        background-color: rgba(0,0,0,0.5); 
     }
-    nav.tabs button {
-      appearance: none; border: 1px solid var(--border); background: #f8fafc;
-      color: var(--text); padding: 10px 12px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
+    .modal.show { display: flex; align-items: center; justify-content: center; }
+    .modal-content { 
+        background-color: #fefefe; 
+        padding: 24px; 
+        border-radius: 12px; 
+        width: 90%; 
+        max-width: 520px; 
+        position: relative;
+        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
     }
-    nav.tabs button:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
-    nav.tabs button.active {
-      background: linear-gradient(180deg, #e0ecff 0%, #dbeafe 100%);
-      border-color: #bfdbfe; color: #1e40af; box-shadow: 0 6px 18px rgba(37, 99, 235, 0.20);
+    .modal-header { 
+        display: flex; 
+        align-items: center; 
+        justify-content: space-between; 
+        margin-bottom: 20px; 
+        padding-bottom: 12px;
+        border-bottom: 1px solid #e5e7eb;
+    }
+    .modal-header h3 { margin: 0; font-size: 1.25rem; font-weight: 600; }
+    .close-button { 
+        color: #9ca3af; 
+        font-size: 28px; 
+        font-weight: bold; 
+        line-height: 1;
+        cursor: pointer;
+        background: none;
+        border: none;
+        padding: 0;
+        width: 32px;
+        height: 32px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 6px;
+        transition: all 0.2s;
+    }
+    .close-button:hover, .close-button:focus { 
+        color: #374151; 
+        background: #f3f4f6;
     }
 
-    .panel {
-      margin-top: 16px; background: var(--panel); border: 1px solid var(--border);
-      border-radius: 14px; padding: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+    .form-row { margin-bottom: 16px; }
+    .form-row label { 
+        display: block; 
+        font-size: 14px; 
+        font-weight: 500; 
+        color: #374151; 
+        margin-bottom: 6px; 
+    }
+    .form-row input, .form-row select { 
+        width: 100%; 
+        padding: 10px 12px; 
+        border: 1px solid #d1d5db; 
+        border-radius: 8px; 
+        font-size: 14px;
+        transition: border-color 0.2s;
+    }
+    .form-row input:focus, .form-row select:focus { 
+        outline: none; 
+        border-color: #2563eb; 
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
     }
 
-    .grid { display: grid; grid-template-columns: 1fr; gap: 14px; }
-    .grid-2 { grid-template-columns: 1fr; }
-    .grid-3 { grid-template-columns: 1fr; }
-    @media (min-width: 980px) { 
-      .grid-2 { grid-template-columns: 1fr 1fr; } 
-      .grid-3 { grid-template-columns: 1fr 1fr 1fr; } 
+    .modal-actions { 
+        display: flex; 
+        gap: 10px; 
+        justify-content: flex-end; 
+        margin-top: 24px; 
+        padding-top: 16px;
+        border-top: 1px solid #e5e7eb;
+    }
+    .btn { 
+        padding: 10px 20px; 
+        border-radius: 8px; 
+        border: none; 
+        cursor: pointer; 
+        font-weight: 500;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+    .btn-primary { background: #2563eb; color: white; }
+    .btn-primary:hover { background: #1d4ed8; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3); }
+    .btn-secondary { background: #f3f4f6; color: #374151; }
+    .btn-secondary:hover { background: #e5e7eb; }
+
+    /* Floating Action Button */
+    .fab-add {
+        background: #2563eb;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 44px;
+        height: 44px;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+    .fab-add:hover { 
+        background: #1d4ed8; 
+        transform: translateY(-2px); 
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.5); 
     }
 
-    h2 { margin: 0 0 12px 0; font-size: 16px; font-weight: 800; color: #0f172a; }
-
-    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
-    .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
-    .row-1 { grid-template-columns: 1fr; }
-
-    label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: inline-block; }
-    input, select, textarea {
-      width: 100%; background: #ffffff; border: 1px solid #dbe2ea; color: var(--text);
-      border-radius: 10px; padding: 10px 12px; font-size: 14px; outline: none; transition: border-color .12s ease, box-shadow .12s ease;
+    .tab-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
     }
-    input:focus, select:focus, textarea:focus { border-color: #a3c3ff; box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
-    textarea { min-height: 80px; resize: vertical; }
 
-    .actions { display: flex; gap: 10px; margin-top: 10px; }
-    .btn {
-      appearance: none; border: 1px solid var(--border); background: #f8fafc; color: #0f172a;
-      padding: 10px 14px; border-radius: 10px; cursor: pointer; font-size: 14px; transition: all .14s ease;
+    /* Account List Styles */
+    .account-item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px;
+        background: #f9fafb;
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        margin-bottom: 12px;
+        transition: all 0.2s;
     }
-    .btn:hover { transform: translateY(-1px); border-color: #cbd5e1; background: #f1f5f9; }
-    .btn.primary { background: linear-gradient(180deg, #60a5fa 0%, #3b82f6 100%); color: #fff; border-color: #60a5fa; }
-    .btn.danger { background: linear-gradient(180deg, #fda4af 0%, #f43f5e 100%); color: #fff; border-color: #fda4af; }
-
-    table { width: 100%; border-collapse: collapse; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: #fff; }
-    thead th {
-      text-align: left; padding: 10px; font-weight: 700; font-size: 13px; color: #0f172a;
-      background: #f1f5f9; border-bottom: 1px solid var(--border);
+    .account-item:hover {
+        background: #f3f4f6;
+        border-color: #d1d5db;
     }
-    tbody td { padding: 10px; border-top: 1px solid var(--border); font-size: 14px; color: #0f172a; }
-    tbody tr:hover { background: #f8fafc; }
-
-    .tab-pane { display: none; }
-    .note { margin: 8px 0 0 0; font-size: 12px; color: var(--muted); }
-
-    .card {
-      background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-      border: 1px solid var(--border);
-      border-radius: 14px;
-      padding: 16px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.05);
+    .account-item-info h4 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #111827;
+        margin: 0 0 4px 0;
     }
-    .card h3 { margin: 0 0 6px 0; font-size: 14px; color: #0f172a; font-weight: 700; }
-    .card .value { font-weight: 800; font-size: 20px; color: #0f172a; }
-    .sub { font-size: 12px; color: var(--muted); }
-    .accent { color: #1e40af; font-weight: 700; }
+    .account-item-info p {
+        font-size: 14px;
+        color: #6b7280;
+        margin: 0;
+    }
+    .account-item-actions {
+        display: flex;
+        gap: 8px;
+    }
+    .btn-sm {
+        padding: 6px 12px;
+        font-size: 13px;
+    }
 
-    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; font-weight: 700; color: #fff; }
-    .badge.receita { background: var(--success); }
-    .badge.despesa { background: var(--danger); }
-    .badge.transfer { background: var(--info); }
-  </style>
+    .toast {
+        visibility: hidden;
+        min-width: 250px;
+        margin-left: -125px;
+        background-color: #333;
+        color: #fff;
+        text-align: center;
+        border-radius: 8px;
+        padding: 16px;
+        position: fixed;
+        z-index: 2000;
+        left: 50%;
+        bottom: 30px;
+        font-size: 15px;
+    }
+    .toast.show {
+        visibility: visible;
+        -webkit-animation: fadein 0.5s, fadeout 0.5s 2.5s;
+        animation: fadein 0.5s, fadeout 0.5s 2.5s;
+    }
+    @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 30px; opacity: 1;} }
+    @keyframes fadeout { from {bottom: 30px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
 </head>
-<body>
-  <div class="wrap">
-    <header>
-      <div class="brand">
-        <div class="logo"></div>
-        <div class="title">FinPilot IE</div>
-      </div>
-      <div class="muted">Pessoal • EUR</div>
-    </header>
-
-    <nav class="tabs">
-      <button class="active" data-tab="tab-dashboard">Dashboard</button>
-      <button data-tab="tab-contas">Contas</button>
-      <button data-tab="tab-gastos">Gastos</button>
-      <button data-tab="tab-transacoes">Transações</button>
-      <button data-tab="tab-salarios">Salários</button>
-      <button data-tab="tab-categorias">Tipos de Despesas</button>
-      <button data-tab="tab-recorrentes">Despesa Fixa</button>
-      <button data-tab="tab-dividas">Dívidas</button>
-      <button data-tab="tab-relatorios">Relatórios</button>
-      <button data-tab="tab-config">Configurações</button>
-      <button id="btn-sair" title="Sair">Sair</button>
-    </nav>
-
-    <!-- Dashboard -->
-    <section id="tab-dashboard" class="panel tab-pane" style="display:block">
-      <h2>Resumo</h2>
-      <div class="grid grid-3" id="dashboard-cards"></div>
-      <div class="card" style="margin-top:14px">
-        <h3>Total Consolidado</h3>
-        <div class="value" id="dashboard-total"></div>
-        <div class="sub">Soma dos saldos atuais de todas as contas</div>
-      </div>
-
-      <h2 style="margin-top:18px">Despesas Fixas por Titular</h2>
-      <div class="grid grid-3" id="dashboard-fixas"></div>
-
-      <h2 style="margin-top:18px">Dívidas por Título e Titular</h2>
-      <div class="grid grid-3" id="dashboard-dividas"></div>
-    </section>
-
-    <!-- Contas -->
-    <section id="tab-contas" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova/Editar Conta</h2>
-          <form id="form-conta">
-            <div class="row">
-              <div>
-                <label for="ct-titular">Titular (digite o nome)</label>
-                <input id="ct-titular" type="text" placeholder="Ex.: João, Maria" />
-              </div>
-              <div>
-                <label for="ct-tipo">Tipo de Conta</label>
-                <input id="ct-tipo" type="text" placeholder="Ex.: Corrente, Poupança" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="ct-banco">Banco</label>
-                <input id="ct-banco" type="text" placeholder="Ex.: Meu Banco" />
-              </div>
-              <div>
-                <label for="ct-saldo-inicial">Saldo Inicial</label>
-                <input id="ct-saldo-inicial" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Conta</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Saldo atual é recalculado com base no saldo inicial + transações.</p>
-        </div>
-        <div>
-          <h2>Minhas Contas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Titular</th>
-                <th>Banco</th>
-                <th>Tipo de Conta</th>
-                <th>Saldo Inicial</th>
-                <th>Saldo Atual</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-contas-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Gastos -->
-    <section id="tab-gastos" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo Gasto</h2>
-          <form id="form-gasto">
-            <div class="row">
-              <div>
-                <label for="gs-valor">Valor do gasto</label>
-                <input id="gs-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-              <div>
-                <label for="gs-data">Data</label>
-                <input id="gs-data" type="date" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="gs-titular">Titular (quem pagou)</label>
-                <select id="gs-titular"></select>
-              </div>
-              <div>
-                <label for="gs-banco">Banco utilizado</label>
-                <select id="gs-banco"></select>
-              </div>
-            </div>
-            <div class="row-1">
-              <div>
-                <label for="gs-desc">Descrição do gasto</label>
-                <input id="gs-desc" type="text" placeholder="Ex.: Mercado, Farmácia, Restaurante..." />
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Gasto</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">O gasto será debitado da conta do titular/banco selecionados e refletirá no saldo atual.</p>
-        </div>
-        <div>
-          <h2>Gastos</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Titular</th>
-                <th>Banco</th>
-                <th>Descrição</th>
-                <th style="text-align:right">Valor</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-gastos-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Transações -->
-    <section id="tab-transacoes" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Transferência entre Contas</h2>
-          <form id="form-transacao">
-            <div class="row">
-              <div>
-                <label for="tx-data">Data</label>
-                <input id="tx-data" type="date" />
-              </div>
-              <div>
-                <label for="tx-valor">Valor</label>
-                <input id="tx-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-
-            <div class="row">
-              <div>
-                <label for="tx-de-conta">Transferência: De</label>
-                <select id="tx-de-conta"></select>
-              </div>
-              <div>
-                <label for="tx-para-conta">Transferência: Para</label>
-                <select id="tx-para-conta"></select>
-              </div>
-            </div>
-
-            <div class="row-1">
-              <div>
-                <label for="tx-descricao">Descrição</label>
-                <input id="tx-descricao" type="text" placeholder="Opcional" />
-              </div>
-            </div>
-
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Registre aqui apenas transferências entre contas.</p>
-        </div>
-        <div>
-          <h2>Transações</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Tipo</th>
-                <th>Transferência De</th>
-                <th>Transferência Para</th>
-                <th style="text-align:right">Valor</th>
-                <th>Descrição</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-transacoes-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Salários -->
-    <section id="tab-salarios" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo Salário</h2>
-          <form id="form-salario">
-            <div class="row">
-              <div>
-                <label for="sl-nome">Nome (quem recebeu)</label>
-                <select id="sl-nome"></select>
-              </div>
-              <div>
-                <label for="sl-valor">Valor do salário</label>
-                <input id="sl-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="sl-horas">Horas trabalhadas</label>
-                <input id="sl-horas" type="number" step="0.01" placeholder="Ex.: 160" />
-              </div>
-              <div>
-                <label for="sl-data">Data</label>
-                <input id="sl-data" type="date" />
-              </div>
-            </div>
-            <div class="row-1">
-              <div>
-                <label for="sl-banco">Banco (onde caiu o salário)</label>
-                <select id="sl-banco"></select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Salário</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Selecione o Titular e o Banco de uma conta cadastrada. O valor será somado ao saldo dessa conta e registrado como receita "Salário".</p>
-        </div>
-        <div>
-          <h2>Salários Lançados</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Nome</th>
-                <th>Banco</th>
-                <th>Horas</th>
-                <th style="text-align:right">Valor</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-salarios-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
-
-    <!-- Tipos de Despesas (Categorias) -->
-    <section id="tab-categorias" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Novo/Editar Tipo de Despesa</h2>
-          <form id="form-categoria">
-            <div class="row">
-              <div>
-                <label for="cat-nome">Nome</label>
-                <input id="cat-nome" type="text" placeholder="Ex.: Aluguel, Mercado, Salário" />
-              </div>
-              <div>
-                <label for="cat-tipo">Tipo</label>
-                <select id="cat-tipo">
-                  <option value="despesa">Despesa</option>
-                  <option value="receita">Receita</option>
+<body class="bg-gray-100">
+    <div class="container mx-auto p-4">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold">FinPilot IE - Financeiro Pessoal</h1>
+            <div class="flex items-center space-x-4">
+                <select id="owner-filter" class="p-2 border rounded">
+                    <option value="">Todas as Pessoas</option>
                 </select>
-              </div>
+                <button id="logout-button" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Sair</button>
             </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Tipo</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
         </div>
-        <div>
-          <h2>Tipos de Despesas e Receitas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Tipo</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-categorias-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
 
-    <!-- Despesa Fixa -->
-    <section id="tab-recorrentes" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova Despesa Fixa</h2>
-          <form id="form-recorrente">
-            <div class="row">
-              <div>
-                <label for="rc-categoria">Nome (selecionar do Tipo de Despesa)</label>
-                <select id="rc-categoria"></select>
-              </div>
-              <div>
-                <label for="rc-valor">Valor</label>
-                <input id="rc-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
+        <div class="bg-white p-6 rounded-lg shadow-md mb-6">
+            <div class="flex border-b border-gray-200">
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600 active" data-tab="dashboard">Dashboard</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="accounts">Contas</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="transactions">Transações</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="categories">Categorias</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="recurring">Recorrentes</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="budgets">Orçamento</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="debts">Dívidas</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="reports">Relatórios</button>
+                <button class="tab-button py-2 px-4 text-gray-600 hover:text-blue-600" data-tab="settings">Configurações</button>
             </div>
-            <div class="row">
-              <div>
-                <label for="rc-data">Data de vencimento (opcional)</label>
-                <input id="rc-data" type="date" />
-              </div>
-              <div>
-                <label for="rc-semana">Semana do mês que pagaremos</label>
-                <select id="rc-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">1ª semana</option>
-                  <option value="2">2ª semana</option>
-                  <option value="3">3ª semana</option>
-                  <option value="4">4ª semana</option>
-                  <option value="5">5ª semana (quando houver)</option>
-                </select>
-              </div>
-            </div>
-            <div class="row">
-              <div>
-                <label for="rc-dia-semana">Dia da semana (opcional)</label>
-                <select id="rc-dia-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">Segunda</option>
-                  <option value="2">Terça</option>
-                  <option value="3">Quarta</option>
-                  <option value="4">Quinta</option>
-                  <option value="5">Sexta</option>
-                  <option value="6">Sábado</option>
-                  <option value="0">Domingo</option>
-                </select>
-              </div>
-              <div>
-                <label for="rc-titular">Titular (quem paga)</label>
-                <select id="rc-titular"></select>
-              </div>
-            </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Despesa Fixa</button>
-              <button class="btn" type="reset">Limpar</button>
-            </div>
-          </form>
-          <p class="note">Informe a data de vencimento e/ou a semana do mês que pagarão, e o titular responsável.</p>
-        </div>
-        <div>
-          <h2>Despesas Fixas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Titular</th>
-                <th>Valor</th>
-                <th>Vencimento</th>
-                <th>Semana/Dia</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-recorrentes-body"></tbody>
-          </table>
-        </div>
-      </div>
-    </section>
 
-    <!-- Dívidas -->
-    <section id="tab-dividas" class="panel tab-pane">
-      <div class="grid grid-2">
-        <div>
-          <h2>Nova Dívida</h2>
-          <form id="form-divida">
-            <div class="row">
-              <div>
-                <label for="dv-categoria">Nome da dívida (Tipos de Despesas)</label>
-                <select id="dv-categoria"></select>
-              </div>
-              <div>
-                <label for="dv-valor">Valor</label>
-                <input id="dv-valor" type="number" step="0.01" placeholder="0.00" />
-              </div>
+            <!-- Dashboard Tab -->
+            <div id="dashboard" class="tab-content active p-4">
+                <h2 class="text-2xl font-semibold mb-4">Dashboard</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Saldo Total</h3>
+                        <p id="total-balance" class="text-3xl font-extrabold text-blue-700">€0.00</p>
+                    </div>
+                    <div class="bg-green-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Receitas Mês</h3>
+                        <p id="monthly-income" class="text-3xl font-extrabold text-green-700">€0.00</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-lg shadow">
+                        <h3 class="font-bold text-lg">Despesas Mês</h3>
+                        <p id="monthly-expenses" class="text-3xl font-extrabold text-red-700">€0.00</p>
+                    </div>
+                </div>
+                <div class="mt-6">
+                    <h3 class="text-xl font-semibold mb-3">Próximas Recorrências</h3>
+                    <div id="upcoming-recurring-list" class="space-y-2">
+                        <p class="text-gray-500">Nenhuma recorrência futura.</p>
+                    </div>
+                </div>
             </div>
-            <div class="row">
-              <div>
-                <label for="dv-vencimento">Data de vencimento mensal</label>
-                <input id="dv-vencimento" type="date" />
-              </div>
-              <div>
-                <label for="dv-fim">Data de finalização da dívida</label>
-                <input id="dv-fim" type="date" />
-              </div>
+
+            <!-- Accounts Tab -->
+            <div id="accounts" class="tab-content p-4">
+                <div class="tab-header">
+                    <h2 class="text-2xl font-semibold">Contas</h2>
+                    <button id="add-account-button" class="fab-add" title="Nova conta">+</button>
+                </div>
+                <div id="accounts-list" class="space-y-3">
+                    <p class="text-gray-500">Nenhuma conta cadastrada.</p>
+                </div>
             </div>
-            <div class="row">
-              <div>
-                <label for="dv-semana">Semana que será paga</label>
-                <select id="dv-semana">
-                  <option value="">Não definido</option>
-                  <option value="1">1ª semana</option>
-                  <option value="2">2ª semana</option>
-                  <option value="3">3ª semana</option>
-                  <option value="4">4ª semana</option>
-                  <option value="5">5ª semana (quando houver)</option>
-                </select>
-              </div>
-              <div>
-                <label for="dv-titular">Titular da dívida</label>
-                <select id="dv-titular"></select>
-              </div>
+
+            <!-- Transactions Tab -->
+            <div id="transactions" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Transações</h2>
+                <div class="flex justify-between items-center mb-4">
+                    <button id="add-transaction-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Adicionar Transação</button>
+                    <div class="flex space-x-2">
+                        <input type="date" id="transaction-start-date" class="p-2 border rounded">
+                        <input type="date" id="transaction-end-date" class="p-2 border rounded">
+                        <input type="text" id="transaction-search" placeholder="Buscar..." class="p-2 border rounded">
+                        <button id="export-transactions-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Exportar CSV</button>
+                        <button id="import-transactions-button" class="bg-purple-500 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded">Importar CSV</button>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Data</th>
+                                <th class="py-2 px-4 border-b">Descrição</th>
+                                <th class="py-2 px-4 border-b">Valor</th>
+                                <th class="py-2 px-4 border-b">Conta</th>
+                                <th class="py-2 px-4 border-b">Categoria</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="transactions-table-body">
+                            <tr><td colspan="7" class="text-center py-4 text-gray-500">Nenhuma transação cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-            <div class="actions">
-              <button class="btn primary" type="submit">Salvar Dívida</button>
-              <button class="btn" type="reset">Limpar</button>
+
+            <!-- Categories Tab -->
+            <div id="categories" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Categorias</h2>
+                <button id="add-category-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Categoria</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Nome</th>
+                                <th class="py-2 px-4 border-b">Tipo</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="categories-table-body">
+                            <tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
             </div>
-          </form>
+
+            <!-- Recurring Tab -->
+            <div id="recurring" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Recorrências</h2>
+                <button id="add-recurring-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Recorrência</button>
+                <button id="run-recurring-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded mb-4 ml-2">Lançar Recorrências do Mês</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Título</th>
+                                <th class="py-2 px-4 border-b">Valor</th>
+                                <th class="py-2 px-4 border-b">Frequência</th>
+                                <th class="py-2 px-4 border-b">Próximo Lançamento</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="recurring-table-body">
+                            <tr><td colspan="6" class="text-center py-4 text-gray-500">Nenhuma recorrência cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Budgets Tab -->
+            <div id="budgets" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Orçamento Mensal</h2>
+                <div class="flex items-center mb-4">
+                    <select id="budget-month-filter" class="p-2 border rounded mr-2"></select>
+                    <button id="add-budget-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded">Definir Orçamento</button>
+                </div>
+                <div id="budgets-list" class="space-y-4">
+                    <p class="text-gray-500">Nenhum orçamento definido para este mês.</p>
+                </div>
+            </div>
+
+            <!-- Debts Tab -->
+            <div id="debts" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Dívidas</h2>
+                <button id="add-debt-button" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded mb-4">Adicionar Dívida</button>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white border border-gray-200">
+                        <thead>
+                            <tr>
+                                <th class="py-2 px-4 border-b">Pessoa</th>
+                                <th class="py-2 px-4 border-b">Nome</th>
+                                <th class="py-2 px-4 border-b">Valor Original</th>
+                                <th class="py-2 px-4 border-b">Valor Atual</th>
+                                <th class="py-2 px-4 border-b">Juros (%)</th>
+                                <th class="py-2 px-4 border-b">Juros Mensal Est.</th>
+                                <th class="py-2 px-4 border-b">Vencimento</th>
+                                <th class="py-2 px-4 border-b">Status</th>
+                                <th class="py-2 px-4 border-b">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="debts-table-body">
+                            <tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma dívida cadastrada.</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Reports Tab -->
+            <div id="reports" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Relatórios</h2>
+                <div class="flex items-center mb-4">
+                    <select id="report-month-filter" class="p-2 border rounded mr-2"></select>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Fluxo de Caixa Mensal</h3>
+                        <canvas id="cash-flow-chart"></canvas>
+                    </div>
+                    <div>
+                        <h3 class="text-xl font-semibold mb-2">Despesas por Categoria</h3>
+                        <canvas id="expenses-by-category-chart"></canvas>
+                    </div>
+                    <div class="md:col-span-2">
+                        <h3 class="text-xl font-semibold mb-2">Saldo das Contas</h3>
+                        <canvas id="account-balance-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Settings Tab -->
+            <div id="settings" class="tab-content p-4">
+                <h2 class="text-2xl font-semibold mb-4">Configurações</h2>
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Gerenciar Pessoas</h3>
+                    <div class="flex mb-2">
+                        <input type="text" id="new-person-name" placeholder="Nome da Pessoa" class="p-2 border rounded flex-grow mr-2">
+                        <button id="add-person-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">Adicionar</button>
+                    </div>
+                    <ul id="people-list" class="list-disc pl-5">
+                        <li class="text-gray-500">Nenhuma pessoa cadastrada.</li>
+                    </ul>
+                </div>
+                <div class="mb-6">
+                    <h3 class="text-xl font-semibold mb-3">Configurações de Renda</h3>
+                    <p class="text-gray-600">Defina as regras de renda para cada pessoa. Estas regras gerarão transações recorrentes automaticamente.</p>
+                </div>
+            </div>
         </div>
-        <div>
-          <h2>Dívidas</h2>
-          <table>
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Titular</th>
-                <th>Valor</th>
-                <th>Vencimento mensal</th>
-                <th>Finalização</th>
-                <th>Semana</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody id="tbl-dividas-body"></tbody>
-          </table>
+    </div>
+
+    <!-- Account Modal -->
+    <div id="account-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="account-modal-title">Nova Conta</h3>
+                <button class="close-button" data-modal="account-modal">&times;</button>
+            </div>
+            <form id="account-form">
+                <input type="hidden" id="account-id">
+                <div class="form-row">
+                    <label for="account-owner-name">Pessoa:</label>
+                    <select id="account-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="account-name">Nome da Conta:</label>
+                    <input type="text" id="account-name" placeholder="Ex: Conta Corrente" required>
+                </div>
+                <div class="form-row">
+                    <label for="account-bank">Banco:</label>
+                    <input type="text" id="account-bank" placeholder="Ex: Millennium">
+                </div>
+                <div class="form-row">
+                    <label for="account-balance">Saldo Inicial (EUR):</label>
+                    <input type="number" id="account-balance" step="0.01" placeholder="0.00" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="account-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
         </div>
-      </div>
-    </section>
+    </div>
 
-    <!-- Relatórios -->
-    <section id="tab-relatorios" class="panel tab-pane">
-      <h2>Relatórios</h2>
-      <p class="muted">Em breve.</p>
-    </section>
+    <!-- Transaction Modal -->
+    <div id="transaction-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="transaction-modal-title">Adicionar Transação</h3>
+                <button class="close-button" data-modal="transaction-modal">&times;</button>
+            </div>
+            <form id="transaction-form">
+                <input type="hidden" id="transaction-id">
+                <div class="form-row">
+                    <label for="transaction-owner-name">Pessoa:</label>
+                    <select id="transaction-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="transaction-date">Data:</label>
+                    <input type="date" id="transaction-date" required>
+                </div>
+                <div class="form-row">
+                    <label for="transaction-description">Descrição:</label>
+                    <input type="text" id="transaction-description" required>
+                </div>
+                <div class="form-row">
+                    <label for="transaction-amount">Valor:</label>
+                    <input type="number" id="transaction-amount" step="0.01" required>
+                </div>
+                <div class="form-row">
+                    <label for="transaction-account">Conta:</label>
+                    <select id="transaction-account" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="transaction-category">Categoria:</label>
+                    <select id="transaction-category" required></select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="transaction-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-    <!-- Configurações -->
-    <section id="tab-config" class="panel tab-pane">
-      <h2>Configurações</h2>
-      <p class="muted">Sem backend nesta versão. Dados no LocalStorage.</p>
-      <div class="actions">
-        <button class="btn danger" id="btn-clear">Apagar todos os dados locais</button>
-      </div>
-    </section>
-  </div>
+    <!-- Category Modal -->
+    <div id="category-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="category-modal-title">Adicionar Categoria</h3>
+                <button class="close-button" data-modal="category-modal">&times;</button>
+            </div>
+            <form id="category-form">
+                <input type="hidden" id="category-id">
+                <div class="form-row">
+                    <label for="category-owner-name">Pessoa:</label>
+                    <select id="category-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="category-name">Nome da Categoria:</label>
+                    <input type="text" id="category-name" required>
+                </div>
+                <div class="form-row">
+                    <label for="category-type">Tipo:</label>
+                    <select id="category-type" required>
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="category-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
 
-  <script src="finance.js"></script>
-  <script>
-    (function() {
-      function $(sel){ return document.querySelector(sel); }
-      const btn = $('#btn-clear');
-      if (btn) {
-        btn.addEventListener('click', function() {
-          if (confirm('Tem certeza que deseja apagar todos os dados locais?')) {
-            localStorage.removeItem('finpilot_ie_v1');
-            window.location.reload();
-          }
-        });
-      }
-    })();
-  </script>
+    <!-- Recurring Rule Modal -->
+    <div id="recurring-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="recurring-modal-title">Adicionar Recorrência</h3>
+                <button class="close-button" data-modal="recurring-modal">&times;</button>
+            </div>
+            <form id="recurring-form">
+                <input type="hidden" id="recurring-id">
+                <div class="form-row">
+                    <label for="recurring-owner-name">Pessoa:</label>
+                    <select id="recurring-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-title">Título:</label>
+                    <input type="text" id="recurring-title" required>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-amount">Valor:</label>
+                    <input type="number" id="recurring-amount" step="0.01" required>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-type">Tipo:</label>
+                    <select id="recurring-type" required>
+                        <option value="expense">Despesa</option>
+                        <option value="income">Receita</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-account">Conta:</label>
+                    <select id="recurring-account" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-category">Categoria:</label>
+                    <select id="recurring-category" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-frequency">Frequência:</label>
+                    <select id="recurring-frequency" required>
+                        <option value="weekly">Semanal</option>
+                        <option value="biweekly">Quinzenal (a cada 14 dias)</option>
+                        <option value="monthly">Mensal</option>
+                    </select>
+                </div>
+                <div id="recurring-schedule-options" class="form-row"></div>
+                <div class="form-row">
+                    <label for="recurring-start-date">Data de Início:</label>
+                    <input type="date" id="recurring-start-date" required>
+                </div>
+                <div class="form-row">
+                    <label for="recurring-end-date">Data de Fim (Opcional):</label>
+                    <input type="date" id="recurring-end-date">
+                </div>
+                <div class="form-row">
+                    <label for="recurring-hourly-rate">Taxa por Hora (Opcional, para Semanal):</label>
+                    <input type="number" id="recurring-hourly-rate" step="0.01">
+                </div>
+                <div class="form-row">
+                    <label for="recurring-hours-per-week">Horas por Semana (Opcional, para Semanal):</label>
+                    <input type="number" id="recurring-hours-per-week" step="0.01">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="recurring-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Budget Modal -->
+    <div id="budget-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="budget-modal-title">Definir Orçamento</h3>
+                <button class="close-button" data-modal="budget-modal">&times;</button>
+            </div>
+            <form id="budget-form">
+                <input type="hidden" id="budget-id">
+                <div class="form-row">
+                    <label for="budget-owner-name">Pessoa:</label>
+                    <select id="budget-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="budget-month">Mês:</label>
+                    <input type="month" id="budget-month" required>
+                </div>
+                <div class="form-row">
+                    <label for="budget-category">Categoria:</label>
+                    <select id="budget-category" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="budget-amount">Valor do Orçamento:</label>
+                    <input type="number" id="budget-amount" step="0.01" required>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="budget-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Debt Modal -->
+    <div id="debt-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="debt-modal-title">Adicionar Dívida</h3>
+                <button class="close-button" data-modal="debt-modal">&times;</button>
+            </div>
+            <form id="debt-form">
+                <input type="hidden" id="debt-id">
+                <div class="form-row">
+                    <label for="debt-owner-name">Pessoa:</label>
+                    <select id="debt-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="debt-name">Nome da Dívida:</label>
+                    <input type="text" id="debt-name" required>
+                </div>
+                <div class="form-row">
+                    <label for="debt-original-amount">Valor Original:</label>
+                    <input type="number" id="debt-original-amount" step="0.01" required>
+                </div>
+                <div class="form-row">
+                    <label for="debt-current-amount">Valor Atual:</label>
+                    <input type="number" id="debt-current-amount" step="0.01" required>
+                </div>
+                <div class="form-row">
+                    <label for="debt-interest-rate">Taxa de Juros Anual (%):</label>
+                    <input type="number" id="debt-interest-rate" step="0.01" min="0">
+                </div>
+                <div class="form-row">
+                    <label for="debt-interest-type">Tipo de Juros:</label>
+                    <select id="debt-interest-type">
+                        <option value="simple">Simples</option>
+                        <option value="compound">Composto</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <label for="debt-due-date">Data de Vencimento (Opcional):</label>
+                    <input type="date" id="debt-due-date">
+                </div>
+                <div class="form-row">
+                    <label for="debt-is-closed">Dívida Fechada:</label>
+                    <input type="checkbox" id="debt-is-closed" class="form-checkbox h-5 w-5 text-blue-600">
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="debt-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Import CSV Modal -->
+    <div id="import-csv-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Importar Transações CSV</h3>
+                <button class="close-button" data-modal="import-csv-modal">&times;</button>
+            </div>
+            <form id="import-csv-form">
+                <div class="form-row">
+                    <label for="csv-file">Arquivo CSV:</label>
+                    <input type="file" id="csv-file" accept=".csv" required>
+                </div>
+                <div class="form-row">
+                    <label for="csv-owner-name">Pessoa (para todas as transações do CSV):</label>
+                    <select id="csv-owner-name" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="csv-account">Conta Padrão (para todas as transações do CSV):</label>
+                    <select id="csv-account" required></select>
+                </div>
+                <div class="form-row">
+                    <label for="csv-category">Categoria Padrão (para todas as transações do CSV):</label>
+                    <select id="csv-category" required></select>
+                </div>
+                <div class="form-row">
+                    <p class="text-gray-700 text-sm font-bold mb-2">Mapeamento de Colunas CSV:</p>
+                    <div id="csv-column-mapping" class="space-y-2"></div>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn btn-secondary" data-modal="import-csv-modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Importar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="toast" class="toast"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script type="module" src="./finance.js"></script>
 </body>
 </html>
