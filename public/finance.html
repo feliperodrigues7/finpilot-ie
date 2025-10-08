@@ -1,305 +1,456 @@
-
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>FinPilot IE</title>
-  <link rel="icon" href="./favicon.ico">
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css" rel="stylesheet" />
-  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet" />
   <style>
-    body { background:#f7f7fb; }
-    .sidebar { width:240px; }
-    .tab-button.active { background:#3b82f6; color:#fff; }
-    .tab-content { display:none; }
-    .tab-content.active { display:block; }
-    .modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.4); }
-    .modal .box { background:#fff; max-width:560px; width:92%; margin:6rem auto; padding:1rem; border-radius:.5rem; }
-    #toast { position:fixed; right:16px; bottom:16px; background:#111827; color:#fff; padding:.75rem 1rem; border-radius:.5rem; opacity:0; pointer-events:none; transition:opacity .2s; }
-    #toast.show { opacity:1; }
-    table { width:100%; border-collapse:collapse; }
-    th, td { border-bottom:1px solid #e5e7eb; text-align:left; }
+    :root {
+      --bg: #0f172a;          /* slate-900 */
+      --bg-soft: #111827;     /* gray-900 */
+      --panel: #111827;       /* gray-900 */
+      --panel-2: #0b1220;
+      --text: #e5e7eb;        /* gray-200 */
+      --muted: #9ca3af;       /* gray-400 */
+      --accent: #22c55e;      /* green-500 */
+      --accent-2: #16a34a;    /* green-600 */
+      --danger: #ef4444;      /* red-500 */
+      --border: #1f2937;      /* gray-800 */
+      --link: #60a5fa;        /* blue-400 */
+    }
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(135deg, var(--bg) 0%, #0b1020 100%);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Ubuntu, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif;
+      min-height: 100%;
+    }
+    a { color: var(--link); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .wrap {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 48px 16px;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+      gap: 12px;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: radial-gradient(circle at 30% 30%, var(--accent), #0ea5e9 70%);
+      box-shadow: 0 0 24px rgba(34, 197, 94, 0.25);
+    }
+    .title {
+      font-weight: 700;
+      font-size: 20px;
+      letter-spacing: 0.2px;
+    }
+
+    nav.tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.02), 0 8px 20px rgba(0,0,0,0.25);
+      backdrop-filter: blur(6px);
+    }
+    nav.tabs button {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #0e162c 0%, #0b1220 100%);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .18s ease;
+    }
+    nav.tabs button:hover {
+      transform: translateY(-1px);
+      border-color: #243046;
+    }
+    nav.tabs button.active {
+      background: linear-gradient(180deg, #132041 0%, #101a33 100%);
+      border-color: #2a3b5d;
+      box-shadow: 0 0 0 1px rgba(96,165,250,0.15), 0 8px 22px rgba(2,6,23,0.5);
+    }
+
+    .panel {
+      margin-top: 16px;
+      background: linear-gradient(180deg, rgba(17,24,39,0.85) 0%, rgba(10,15,27,0.85) 100%);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 16px;
+      box-shadow: 0 10px 28px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.02);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+    @media (min-width: 980px) {
+      .grid-2 { grid-template-columns: 1fr 1fr; }
+    }
+
+    h2 {
+      margin: 0 0 12px 0;
+      font-size: 16px;
+      font-weight: 700;
+      color: #e9eef7;
+    }
+    .muted { color: var(--muted); font-size: 13px; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .row-3 { grid-template-columns: 1fr 1fr 1fr; }
+    .row-4 { grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .row-1 { grid-template-columns: 1fr; }
+
+    label {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      display: inline-block;
+    }
+    input, select, textarea {
+      width: 100%;
+      background: #0a1222;
+      border: 1px solid #1b2740;
+      color: var(--text);
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color .15s ease, box-shadow .15s ease;
+    }
+    input:focus, select:focus, textarea:focus {
+      border-color: #2d467a;
+      box-shadow: 0 0 0 2px rgba(96,165,250,0.15);
+    }
+    textarea { min-height: 80px; resize: vertical; }
+
+    .actions {
+      display: flex;
+      gap: 10px;
+      margin-top: 10px;
+    }
+    .btn {
+      appearance: none;
+      border: 1px solid var(--border);
+      background: linear-gradient(180deg, #0c1a34 0%, #09142a 100%);
+      color: var(--text);
+      padding: 10px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all .15s ease;
+    }
+    .btn:hover {
+      transform: translateY(-1px);
+      border-color: #2a3b5d;
+    }
+    .btn.primary {
+      background: linear-gradient(180deg, #1c6b3a 0%, #155c30 100%);
+      border-color: #1e7c45;
+    }
+    .btn.danger {
+      background: linear-gradient(180deg, #6b1c1c 0%, #5c1515 100%);
+      border-color: #7c1e1e;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0b1221;
+    }
+    thead th {
+      text-align: left;
+      padding: 10px;
+      font-weight: 600;
+      font-size: 13px;
+      color: #cbd5e1;
+      background: #0e172e;
+      border-bottom: 1px solid #1b2740;
+    }
+    tbody td {
+      padding: 10px;
+      border-top: 1px solid #1b2740;
+      font-size: 14px;
+    }
+    tbody tr:hover {
+      background: rgba(96,165,250,0.05);
+    }
+
+    .tab-pane { display: none; }
+    .note {
+      margin: 8px 0 0 0;
+      font-size: 12px;
+      color: var(--muted);
+    }
   </style>
 </head>
-<body class="text-gray-800">
-<div id="toast"></div>
-<div class="min-h-screen flex">
-  <aside class="sidebar bg-white border-r border-gray-200 p-4">
-    <div class="text-2xl font-extrabold mb-4">FinPilot<br/>IE</div>
-    <div class="space-y-2">
-      <button class="tab-button w-full text-left px-3 py-2 rounded active" data-tab="tab-dashboard">Dashboard</button>
-      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-accounts">Contas</button>
-      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-transactions">Transações</button>
-      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-categories">Categorias</button>
-      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-recurring">Recorrentes</button>
-      <button class="tab-button w-full text-left px-3 py-2 rounded" data-tab="tab-reports">Relatórios</button>
-    </div>
-    <div class="mt-6 space-y-2">
-      <button id="export-transactions-button" class="w-full bg-green-600 text-white px-3 py-2 rounded">Exportar CSV</button>
-      <button id="logout-button" class="w-full bg-gray-200 px-3 py-2 rounded">Sair</button>
-    </div>
-  </aside>
-  <main class="flex-1 p-6">
-    <section id="tab-dashboard" class="tab-content active">
-      <h2 class="text-2xl font-bold mb-4">Dashboard</h2>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="bg-white rounded p-4 shadow">
-          <div class="text-sm text-gray-500">Saldo Total</div>
-          <div id="total-balance" class="text-2xl font-bold">€0,00</div>
+<body>
+  <div class="wrap">
+    <header>
+      <div class="brand">
+        <div class="logo"></div>
+        <div class="title">FinPilot IE</div>
+      </div>
+      <div class="muted">Pessoal • EUR</div>
+    </header>
+
+    <nav class="tabs">
+      <button class="active" data-tab="tab-contas">Contas</button>
+      <button data-tab="tab-transacoes">Transações</button>
+      <button data-tab="tab-categorias">Categorias</button>
+      <button data-tab="tab-recorrentes">Recorrentes</button>
+      <button data-tab="tab-orcamento">Orçamento</button>
+      <button data-tab="tab-dividas">Dívidas</button>
+      <button data-tab="tab-relatorios">Relatórios</button>
+      <button data-tab="tab-config">Configurações</button>
+      <button id="btn-sair" title="Sair">Sair</button>
+    </nav>
+
+    <!-- Contas -->
+    <section id="tab-contas" class="panel tab-pane" style="display:block">
+      <div class="grid grid-2">
+        <div>
+          <h2>Nova/Editar Conta</h2>
+          <form id="form-conta">
+            <div class="row">
+              <div>
+                <label for="ct-nome">Nome da Conta</label>
+                <input id="ct-nome" type="text" placeholder="Ex.: Conta Principal" />
+              </div>
+              <div>
+                <label for="ct-banco">Banco</label>
+                <input id="ct-banco" type="text" placeholder="Ex.: Meu Banco" />
+              </div>
+            </div>
+            <div class="row">
+              <div>
+                <label for="ct-pessoa">Titular</label>
+                <select id="ct-pessoa"></select>
+              </div>
+              <div>
+                <label for="ct-saldo-inicial">Saldo Inicial</label>
+                <input id="ct-saldo-inicial" type="number" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Conta</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+          <p class="note">Saldo atual é recalculado com base no saldo inicial + transações.</p>
         </div>
-        <div class="bg-white rounded p-4 shadow">
-          <div class="text-sm text-gray-500">Receitas (mês)</div>
-          <div id="monthly-income" class="text-2xl font-bold">€0,00</div>
+        <div>
+          <h2>Minhas Contas</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Conta</th>
+                <th>Banco</th>
+                <th>Titular</th>
+                <th>Saldo Inicial</th>
+                <th>Saldo Atual</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-contas-body"></tbody>
+          </table>
         </div>
-        <div class="bg-white rounded p-4 shadow">
-          <div class="text-sm text-gray-500">Despesas (mês)</div>
-          <div id="monthly-expenses" class="text-2xl font-bold">€0,00</div>
+      </div>
+    </section>
+
+    <!-- Transações -->
+    <section id="tab-transacoes" class="panel tab-pane">
+      <div class="grid grid-2">
+        <div>
+          <h2>Nova Transação ou Transferência</h2>
+          <form id="form-transacao">
+            <div class="row">
+              <div>
+                <label for="tx-data">Data</label>
+                <input id="tx-data" type="date" />
+              </div>
+              <div>
+                <label for="tx-valor">Valor</label>
+                <input id="tx-valor" type="number" step="0.01" placeholder="0.00" />
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <label for="tx-conta">Conta (para Receita/Despesa)</label>
+                <select id="tx-conta"></select>
+              </div>
+              <div>
+                <label for="tx-categoria">Categoria (Receita/Despesa)</label>
+                <select id="tx-categoria"></select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div>
+                <label for="tx-de-conta">Transferência: De</label>
+                <select id="tx-de-conta"></select>
+              </div>
+              <div>
+                <label for="tx-para-conta">Transferência: Para</label>
+                <select id="tx-para-conta"></select>
+              </div>
+            </div>
+
+            <div class="row-1">
+              <div>
+                <label for="tx-descricao">Descrição</label>
+                <input id="tx-descricao" type="text" placeholder="Ex.: Salário de Outubro, Mercado, Renda, etc." />
+              </div>
+            </div>
+
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+          <p class="note">Preencha EITHER (Conta+Categoria) para receita/despesa OR (De/Para) para transferência.</p>
+        </div>
+        <div>
+          <h2>Transações</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Categoria/Tipo</th>
+                <th>Conta</th>
+                <th style="text-align:right">Valor</th>
+                <th>Descrição</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-transacoes-body"></tbody>
+          </table>
         </div>
       </div>
     </section>
 
-    <section id="tab-accounts" class="tab-content">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold">Contas</h2>
-        <button id="add-account-button" class="bg-blue-600 text-white px-3 py-2 rounded">Adicionar Conta</button>
+    <!-- Categorias -->
+    <section id="tab-categorias" class="panel tab-pane">
+      <div class="grid grid-2">
+        <div>
+          <h2>Nova/Editar Categoria</h2>
+          <form id="form-categoria">
+            <div class="row">
+              <div>
+                <label for="cat-nome">Nome</label>
+                <input id="cat-nome" type="text" placeholder="Ex.: Aluguel, Mercado, Salário" />
+              </div>
+              <div>
+                <label for="cat-tipo">Tipo</label>
+                <select id="cat-tipo">
+                  <option value="despesa">Despesa</option>
+                  <option value="receita">Receita</option>
+                </select>
+              </div>
+            </div>
+            <div class="actions">
+              <button class="btn primary" type="submit">Salvar Categoria</button>
+              <button class="btn" type="reset">Limpar</button>
+            </div>
+          </form>
+        </div>
+        <div>
+          <h2>Categorias</h2>
+          <table>
+            <thead>
+              <tr>
+                <th>Nome</th>
+                <th>Tipo</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="tbl-categorias-body"></tbody>
+          </table>
+        </div>
       </div>
-      <table class="bg-white rounded shadow">
-        <thead><tr>
-          <th class="py-2 px-3">Pessoa</th>
-          <th class="py-2 px-3">Banco</th>
-          <th class="py-2 px-3">Nome</th>
-          <th class="py-2 px-3">Saldo</th>
-          <th class="py-2 px-3">Ações</th>
-        </tr></thead>
-        <tbody id="accounts-table-body"></tbody>
-      </table>
     </section>
 
-    <section id="tab-transactions" class="tab-content">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold">Transações</h2>
-        <button id="add-transaction-button" class="bg-blue-600 text-white px-3 py-2 rounded">Nova Transação</button>
-      </div>
-      <table class="bg-white rounded shadow">
-        <thead><tr>
-          <th class="py-2 px-3">Pessoa</th>
-          <th class="py-2 px-3">Tipo</th>
-          <th class="py-2 px-3">Data</th>
-          <th class="py-2 px-3">Descrição</th>
-          <th class="py-2 px-3">Valor</th>
-          <th class="py-2 px-3">Conta</th>
-          <th class="py-2 px-3">Destino</th>
-          <th class="py-2 px-3">Categoria</th>
-          <th class="py-2 px-3">Ações</th>
-        </tr></thead>
-        <tbody id="transactions-table-body"></tbody>
-      </table>
+    <!-- Recorrentes -->
+    <section id="tab-recorrentes" class="panel tab-pane">
+      <h2>Recorrentes</h2>
+      <p class="muted">Em breve. Nesta versão local, foque em Contas, Transações e Categorias.</p>
     </section>
 
-    <section id="tab-categories" class="tab-content">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold">Categorias</h2>
-        <button id="add-category-button" class="bg-blue-600 text-white px-3 py-2 rounded">Adicionar Categoria</button>
-      </div>
-      <table class="bg-white rounded shadow">
-        <thead><tr>
-          <th class="py-2 px-3">Pessoa</th>
-          <th class="py-2 px-3">Nome</th>
-          <th class="py-2 px-3">Tipo</th>
-          <th class="py-2 px-3">Ações</th>
-        </tr></thead>
-        <tbody id="categories-table-body"></tbody>
-      </table>
+    <!-- Orçamento -->
+    <section id="tab-orcamento" class="panel tab-pane">
+      <h2>Orçamento</h2>
+      <p class="muted">Em breve.</p>
     </section>
 
-    <section id="tab-recurring" class="tab-content">
-      <div class="flex items-center justify-between mb-3">
-        <h2 class="text-xl font-semibold">Recorrentes</h2>
-        <button id="add-recurring-button" class="bg-blue-600 text-white px-3 py-2 rounded">Novo Recorrente</button>
-      </div>
-      <table class="bg-white rounded shadow">
-        <thead><tr>
-          <th class="py-2 px-3">Pessoa</th>
-          <th class="py-2 px-3">Título</th>
-          <th class="py-2 px-3">Valor</th>
-          <th class="py-2 px-3">Tipo</th>
-          <th class="py-2 px-3">Frequência</th>
-          <th class="py-2 px-3">Próxima</th>
-          <th class="py-2 px-3">Conta</th>
-          <th class="py-2 px-3">Categoria</th>
-          <th class="py-2 px-3">Ações</th>
-        </tr></thead>
-        <tbody id="recurring-table-body"></tbody>
-      </table>
+    <!-- Dívidas -->
+    <section id="tab-dividas" class="panel tab-pane">
+      <h2>Dívidas</h2>
+      <p class="muted">Em breve.</p>
     </section>
 
-    <section id="tab-reports" class="tab-content">
-      <h2 class="text-xl font-semibold mb-3">Relatórios</h2>
-      <div class="text-gray-500">Em breve.</div>
+    <!-- Relatórios -->
+    <section id="tab-relatorios" class="panel tab-pane">
+      <h2>Relatórios</h2>
+      <p class="muted">Em breve.</p>
     </section>
-  </main>
-</div>
 
-<!-- Modals -->
-<div id="account-modal" class="modal"><div class="box">
-  <h3 class="text-lg font-semibold mb-3">Conta</h3>
-  <form id="account-form" class="space-y-3">
-    <input type="hidden" id="account-id" />
-    <div>
-      <label class="block text-sm">Pessoa</label>
-      <input id="account-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="account-owner-name-list">
-    </div>
-    <div>
-      <label class="block text-sm">Banco</label>
-      <input id="account-bank" class="border rounded px-2 py-1 w-full" placeholder="Ex.: Revolut" />
-    </div>
-    <div>
-      <label class="block text-sm">Nome da Conta</label>
-      <input id="account-name" class="border rounded px-2 py-1 w-full" placeholder="Carteira, Corrente..." />
-    </div>
-    <div>
-      <label class="block text-sm">Saldo Inicial</label>
-      <input id="account-balance" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
-      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
-    </div>
-  </form>
-  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
-</div></div>
+    <!-- Configurações -->
+    <section id="tab-config" class="panel tab-pane">
+      <h2>Configurações</h2>
+      <p class="muted">Sem backend nesta versão. Dados armazenados no LocalStorage do navegador.</p>
+      <div class="actions">
+        <button class="btn danger" id="btn-clear">Apagar todos os dados locais</button>
+      </div>
+    </section>
+  </div>
 
-<div id="category-modal" class="modal"><div class="box">
-  <h3 class="text-lg font-semibold mb-3">Categoria</h3>
-  <form id="category-form" class="space-y-3">
-    <input type="hidden" id="category-id" />
-    <div>
-      <label class="block text-sm">Pessoa</label>
-      <input id="category-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="category-owner-name-list">
-    </div>
-    <div>
-      <label class="block text-sm">Nome</label>
-      <input id="category-name" class="border rounded px-2 py-1 w-full" />
-    </div>
-    <div>
-      <label class="block text-sm">Tipo</label>
-      <select id="category-type" class="border rounded px-2 py-1 w-full">
-        <option value="expense">Despesa</option>
-        <option value="income">Receita</option>
-      </select>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
-      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
-    </div>
-  </form>
-  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
-</div></div>
-
-<div id="transaction-modal" class="modal"><div class="box">
-  <h3 class="text-lg font-semibold mb-3">Transação</h3>
-  <form id="transaction-form" class="space-y-3">
-    <input type="hidden" id="transaction-id" />
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block text-sm">Pessoa</label>
-        <input id="transaction-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="transaction-owner-name-list">
-      </div>
-      <div>
-        <label class="block text-sm">Tipo</label>
-        <select id="transaction-type" class="border rounded px-2 py-1 w-full">
-          <option value="expense">Despesa</option>
-          <option value="income">Receita</option>
-          <option value="transfer">Transferência</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm">Data</label>
-        <input id="transaction-date" type="date" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Descrição</label>
-        <input id="transaction-description" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Valor</label>
-        <input id="transaction-amount" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Conta</label>
-        <select id="transaction-account" class="border rounded px-2 py-1 w-full"></select>
-      </div>
-      <div>
-        <label class="block text-sm">Conta Destino</label>
-        <select id="transaction-account-dst" class="border rounded px-2 py-1 w-full"></select>
-      </div>
-      <div>
-        <label class="block text-sm">Categoria</label>
-        <select id="transaction-category" class="border rounded px-2 py-1 w-full"></select>
-      </div>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
-      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
-    </div>
-  </form>
-  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
-</div></div>
-
-<div id="recurring-modal" class="modal"><div class="box">
-  <h3 class="text-lg font-semibold mb-3">Recorrente</h3>
-  <form id="recurring-form" class="space-y-3">
-    <input type="hidden" id="recurring-id" />
-    <div class="grid grid-cols-2 gap-3">
-      <div>
-        <label class="block text-sm">Pessoa</label>
-        <input id="recurring-owner-name" class="border rounded px-2 py-1 w-full" placeholder="Nome" list="recurring-owner-name-list">
-      </div>
-      <div>
-        <label class="block text-sm">Título</label>
-        <input id="recurring-title" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Tipo</label>
-        <select id="recurring-type" class="border rounded px-2 py-1 w-full">
-          <option value="expense">Despesa</option>
-          <option value="income">Receita</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm">Valor</label>
-        <input id="recurring-amount" type="number" step="0.01" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Frequência</label>
-        <select id="recurring-frequency" class="border rounded px-2 py-1 w-full">
-          <option value="monthly">Mensal</option>
-          <option value="weekly">Semanal</option>
-          <option value="biweekly">Quinzenal</option>
-        </select>
-      </div>
-      <div>
-        <label class="block text-sm">Próxima Data</label>
-        <input id="recurring-next" type="date" class="border rounded px-2 py-1 w-full" />
-      </div>
-      <div>
-        <label class="block text-sm">Conta</label>
-        <select id="recurring-account" class="border rounded px-2 py-1 w-full"></select>
-      </div>
-      <div>
-        <label class="block text-sm">Categoria</label>
-        <select id="recurring-category" class="border rounded px-2 py-1 w-full"></select>
-      </div>
-    </div>
-    <div class="flex gap-2 justify-end">
-      <button type="button" class="cancel-btn px-3 py-2">Cancelar</button>
-      <button class="bg-blue-600 text-white px-3 py-2 rounded">Salvar</button>
-    </div>
-  </form>
-  <button class="close-button absolute" style="right:16px; top:16px">✕</button>
-</div></div>
-
-<script src="finance.js?v=9"></script>
+  <script src="finance.js"></script>
+  <script>
+    // Util extra: limpar LocalStorage com confirmação
+    (function() {
+      function $(sel){ return document.querySelector(sel); }
+      const btn = $('#btn-clear');
+      if (btn) {
+        btn.addEventListener('click', function() {
+          if (confirm('Tem certeza que deseja apagar todos os dados locais? Essa ação não pode ser desfeita.')) {
+            localStorage.removeItem('finpilot_ie_v1');
+            window.location.reload();
+          }
+        });
+      }
+    })();
+  </script>
 </body>
 </html>
