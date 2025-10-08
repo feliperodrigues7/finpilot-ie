@@ -6,70 +6,70 @@
   <title>FinPilot IE</title>
   <style>
     :root {
-      --bg: #0b1020;
-      --panel: #121937;
-      --panel-2: #0f1530;
-      --text: #eef2ff;
-      --muted: #aab3d9;
-      --accent: #7aa2ff;
-      --accent-2: #88e1ff;
-      --danger: #ff6b6b;
-      --success: #36d399;
-      --warning: #ffd166;
+      /* Tema mais claro */
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --panel-2: #f0f3fb;
+      --text: #0f1532;
+      --muted: #51608a;
+      --accent: #3b66ff;
+      --accent-2: #1eb8ff;
+      --danger: #e24c4c;
+      --success: #2db97c;
+      --warning: #e2a84c;
       --badge-despesa: #ff7a7a;
-      --badge-receita: #4cd3a8;
-      --badge-transfer: #88e1ff;
-      --border: #223064;
+      --badge-receita: #31b88e;
+      --badge-transfer: #34bfff;
+      --border: #d9e0f2;
     }
     * { box-sizing: border-box; }
     body {
-      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
-      background: linear-gradient(180deg, #0b1020, #0c1230 35%, #0a0f26);
+      margin: 0;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(180deg, #f5f7fb, #f7f9ff 35%, #eef2fb);
       color: var(--text);
     }
     header {
       padding: 16px 20px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border);
-      background: rgba(10, 16, 40, 0.6); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10;
+      background: rgba(255,255,255,0.8); backdrop-filter: blur(6px); position: sticky; top: 0; z-index: 10;
     }
-    header .brand {
-      display: flex; gap: 10px; align-items: center; font-weight: 700; letter-spacing: 0.5px;
-    }
-    header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 16px var(--accent); }
+    header .brand { display: flex; gap: 10px; align-items: center; font-weight: 700; letter-spacing: 0.3px; }
+    header .brand .dot { width: 10px; height: 10px; border-radius: 50%; background: linear-gradient(135deg, var(--accent), var(--accent-2)); box-shadow: 0 0 8px var(--accent); }
     header .actions { display: flex; align-items: center; gap: 12px; }
     .btn {
-      background: linear-gradient(135deg, #1a2458, #17214d); border: 1px solid var(--border);
-      color: var(--text); padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform .06s ease, background .2s;
+      background: #ffffff; border: 1px solid var(--border);
+      color: var(--text); padding: 8px 12px; border-radius: 8px; cursor: pointer; transition: transform .06s ease, background .2s, box-shadow .2s;
+      box-shadow: 0 1px 0 rgba(0,0,0,0.02);
     }
-    .btn:hover { transform: translateY(-1px); background: linear-gradient(135deg, #1e2a66, #1a265c); }
-    .btn.danger { background: linear-gradient(135deg, #5a1e2a, #4d1721); border-color: #6a2630; }
-    .btn.danger:hover { background: linear-gradient(135deg, #6a2630, #5a1e2a); }
-    .btn.secondary { background: linear-gradient(135deg, #243055, #1b2548); }
-    .btn.primary { background: linear-gradient(135deg, #2044a0, #19398a); border-color: #2a54c4; }
+    .btn:hover { transform: translateY(-1px); background: #f7f9ff; }
+    .btn.danger { background: #fff5f5; border-color: #f3d0d0; color: #b92b2b; }
+    .btn.danger:hover { background: #ffe9e9; }
+    .btn.secondary { background: #f5f7fb; }
+    .btn.primary { background: linear-gradient(135deg, #3b66ff, #2570ff); border-color: #2a54c4; color: #fff; }
 
     main { display: grid; grid-template-columns: 220px 1fr; gap: 16px; padding: 16px; }
     nav {
-      background: linear-gradient(180deg, #0f1530, #0c1230); border: 1px solid var(--border); border-radius: 12px; padding: 10px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 10px;
       position: sticky; top: 76px; height: calc(100vh - 92px); overflow: auto;
     }
     nav .nav-btn {
       width: 100%; text-align: left; border-radius: 10px; margin: 6px 0; padding: 10px 12px; color: var(--muted);
       background: transparent; border: 1px solid transparent; cursor: pointer;
     }
-    nav .nav-btn.active { color: var(--text); background: linear-gradient(135deg, #18224a, #131c3d); border-color: var(--border); }
+    nav .nav-btn.active { color: var(--text); background: #f5f7ff; border-color: var(--border); }
+
     section.content {
-      background: linear-gradient(180deg, #10173a, #0f1534); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
+      background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 16px;
     }
     .grid-cards {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px;
     }
     .card {
-      border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: linear-gradient(180deg, #111a3f, #101739);
-      box-shadow: inset 0 0 0 1px #0c1230;
+      border: 1px solid var(--border); border-radius: 12px; padding: 14px; background: #ffffff;
     }
     .card h3 { margin: 0 0 8px; font-size: 14px; color: var(--muted); font-weight: 600; }
-    .card h3 .accent { color: var(--accent-2); }
+    .card h3 .accent { color: var(--accent); }
     .card .value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
-    .card .sub { font-size: 12px; color: var(--muted); }
 
     .toolbar { display: flex; gap: 8px; align-items: center; margin-bottom: 12px; }
     .toolbar .spacer { flex: 1; }
@@ -78,47 +78,43 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { border-bottom: 1px solid var(--border); padding: 10px 8px; font-size: 14px; }
     th { text-align: left; color: var(--muted); font-weight: 600; }
-    tr:hover td { background: rgba(255,255,255,0.02); }
+    tr:hover td { background: #f8faff; }
 
-    .form { border: 1px dashed var(--border); border-radius: 10px; padding: 12px; background: linear-gradient(180deg, #0f1532, #0e1430); margin-bottom: 12px; }
+    .form { border: 1px solid var(--border); border-radius: 10px; padding: 12px; background: #ffffff; margin-bottom: 12px; }
     .form .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 10px; }
     .form .form-group { display: flex; flex-direction: column; gap: 6px; }
     label { font-size: 12px; color: var(--muted); }
     input, select {
-      background: #0c1230; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px;
-      outline: none; transition: border-color .2s;
+      background: #ffffff; border: 1px solid var(--border); border-radius: 8px; color: var(--text); padding: 8px 10px;
+      outline: none; transition: border-color .2s, box-shadow .2s;
     }
-    input:focus, select:focus { border-color: var(--accent); }
+    input:focus, select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(59,102,255,0.15); }
 
-    .badges { display: inline-flex; gap: 6px; flex-wrap: wrap; }
     .badge {
       display: inline-block; padding: 3px 8px; font-size: 12px; border-radius: 999px; border: 1px solid var(--border); color: var(--text);
-      background: #0d1332;
+      background: #f5f7fb;
     }
-    .badge.despesa { background: rgba(255, 90, 90, .12); border-color: rgba(255, 90, 90, .3); color: #ffb0b0; }
-    .badge.receita { background: rgba(76, 211, 168, .12); border-color: rgba(76, 211, 168, .3); color: #9be8cd; }
-    .badge.transfer { background: rgba(136, 225, 255, .12); border-color: rgba(136, 225, 255, .3); color: #b6f0ff; }
+    .badge.despesa { background: #fff0f0; border-color: #ffd9d9; color: #b23c3c; }
+    .badge.receita { background: #edfff8; border-color: #cff5e7; color: #1f8f6a; }
+    .badge.transfer { background: #edfbff; border-color: #cfefff; color: #1f7f9f; }
 
+    /* Modal */
     .modal {
       position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
-      background: rgba(0,0,0,0.45); z-index: 50; padding: 16px;
+      background: rgba(15, 21, 50, 0.25); z-index: 50; padding: 16px;
     }
     .modal.show { display: flex; }
     .modal-content {
-      width: 100%; max-width: 720px; background: linear-gradient(180deg, #12193a, #0f1532); border: 1px solid var(--border);
-      border-radius: 12px; box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+      width: 100%; max-width: 760px; background: #ffffff; border: 1px solid var(--border);
+      border-radius: 12px; box-shadow: 0 10px 40px rgba(15,21,50,0.15); color: var(--text);
     }
-    .modal-header {
-      display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border);
-    }
+    .modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; border-bottom: 1px solid var(--border); }
     .modal-header h2 { margin: 0; font-size: 18px; }
     .modal-footer { display: flex; justify-content: flex-end; gap: 8px; padding: 12px 14px; border-top: 1px solid var(--border); }
-    .btn-modal { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: #17214d; color: var(--text); cursor: pointer; }
-    .close-button {
-      background: transparent; color: var(--muted); border: none; font-size: 22px; cursor: pointer; padding: 0 6px;
-    }
+    .btn-modal { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border); background: #f5f7fb; color: var(--text); cursor: pointer; }
+    .close-button { background: transparent; color: var(--muted); border: none; font-size: 22px; cursor: pointer; padding: 0 6px; }
     .help { color: var(--muted); font-size: 12px; }
-    .accent { color: var(--accent-2); }
+    .accent { color: var(--accent); }
   </style>
 </head>
 <body>
@@ -145,6 +141,7 @@
     </nav>
 
     <section class="content">
+      <!-- DASHBOARD -->
       <div id="tab-dashboard" class="tab-pane">
         <h2 class="section-title">Resumo</h2>
         <div class="grid-cards" id="dashboard-cards"></div>
@@ -165,6 +162,7 @@
         <div class="grid-cards" id="dashboard-dividas"></div>
       </div>
 
+      <!-- CONTAS -->
       <div id="tab-contas" class="tab-pane" style="display:none;">
         <div class="toolbar">
           <h2 class="section-title" style="margin:0;">Minhas Contas</h2>
@@ -187,36 +185,13 @@
         </table>
       </div>
 
+      <!-- GASTOS -->
       <div id="tab-gastos" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Gastos</h2>
-        <form id="form-gasto" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="gs-data">Data</label>
-              <input type="date" id="gs-data" />
-            </div>
-            <div class="form-group">
-              <label for="gs-titular">Titular</label>
-              <select id="gs-titular"></select>
-            </div>
-            <div class="form-group">
-              <label for="gs-banco">Banco</label>
-              <select id="gs-banco"></select>
-            </div>
-            <div class="form-group">
-              <label for="gs-desc">Descrição</label>
-              <input type="text" id="gs-desc" placeholder="Ex.: Mercado" />
-            </div>
-            <div class="form-group">
-              <label for="gs-valor">Valor</label>
-              <input type="number" step="0.01" id="gs-valor" placeholder="0,00" />
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Adicionar Gasto</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Gastos</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-gasto-modal" class="btn primary">+ Novo gasto</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -232,36 +207,13 @@
         </table>
       </div>
 
+      <!-- SALÁRIOS -->
       <div id="tab-salarios" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Salários</h2>
-        <form id="form-salario" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="sl-data">Data</label>
-              <input type="date" id="sl-data" />
-            </div>
-            <div class="form-group">
-              <label for="sl-nome">Titular</label>
-              <select id="sl-nome"></select>
-            </div>
-            <div class="form-group">
-              <label for="sl-banco">Banco</label>
-              <select id="sl-banco"></select>
-            </div>
-            <div class="form-group">
-              <label for="sl-horas">Horas</label>
-              <input type="number" step="0.01" id="sl-horas" placeholder="Opcional" />
-            </div>
-            <div class="form-group">
-              <label for="sl-valor">Valor</label>
-              <input type="number" step="0.01" id="sl-valor" placeholder="0,00" />
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Adicionar Salário</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Salários</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-salario-modal" class="btn primary">+ Novo salário</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -277,47 +229,13 @@
         </table>
       </div>
 
+      <!-- TRANSFERÊNCIAS -->
       <div id="tab-transacoes" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Transferências</h2>
-        <form id="form-transacao" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="tx-data">Data</label>
-              <input type="date" id="tx-data" />
-            </div>
-
-            <div class="form-group">
-              <label for="tx-de-titular">De • Titular</label>
-              <select id="tx-de-titular"></select>
-            </div>
-            <div class="form-group">
-              <label for="tx-de-banco">De • Banco</label>
-              <select id="tx-de-banco"></select>
-            </div>
-
-            <div class="form-group">
-              <label for="tx-para-titular">Para • Titular</label>
-              <select id="tx-para-titular"></select>
-            </div>
-            <div class="form-group">
-              <label for="tx-para-banco">Para • Banco</label>
-              <select id="tx-para-banco"></select>
-            </div>
-
-            <div class="form-group">
-              <label for="tx-valor">Valor</label>
-              <input type="number" step="0.01" id="tx-valor" placeholder="0,00" />
-            </div>
-            <div class="form-group">
-              <label for="tx-desc">Descrição</label>
-              <input type="text" id="tx-desc" placeholder="Opcional" />
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Transferir</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Transferências</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-transfer-modal" class="btn primary">+ Nova transferência</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -334,27 +252,13 @@
         </table>
       </div>
 
+      <!-- CATEGORIAS -->
       <div id="tab-categorias" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Categorias</h2>
-        <form id="form-categoria" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="cat-nome">Nome</label>
-              <input type="text" id="cat-nome" placeholder="Ex.: Mercado, Aluguel..." />
-            </div>
-            <div class="form-group">
-              <label for="cat-tipo">Tipo</label>
-              <select id="cat-tipo">
-                <option value="despesa">Despesa</option>
-                <option value="receita">Receita</option>
-              </select>
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Guardar</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Categorias</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-categoria-modal" class="btn primary">+ Nova categoria</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -367,57 +271,13 @@
         </table>
       </div>
 
+      <!-- DESPESAS FIXAS -->
       <div id="tab-recorrentes" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Despesas Fixas</h2>
-        <form id="form-recorrente" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="rc-categoria">Nome (Tipo de Despesa)</label>
-              <select id="rc-categoria"></select>
-              <div class="help">Dica: adicione nomes novos em Categorias (como Despesa).</div>
-            </div>
-            <div class="form-group">
-              <label for="rc-valor">Valor</label>
-              <input type="number" step="0.01" id="rc-valor" placeholder="0,00" />
-            </div>
-            <div class="form-group">
-              <label for="rc-data">Data (fixa)</label>
-              <input type="date" id="rc-data" />
-            </div>
-            <div class="form-group">
-              <label for="rc-semana">Semana do mês</label>
-              <select id="rc-semana">
-                <option value="">—</option>
-                <option value="1">1ª</option>
-                <option value="2">2ª</option>
-                <option value="3">3ª</option>
-                <option value="4">4ª</option>
-                <option value="5">5ª</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="rc-dia-semana">Dia da semana</label>
-              <select id="rc-dia-semana">
-                <option value="">—</option>
-                <option value="1">Seg</option>
-                <option value="2">Ter</option>
-                <option value="3">Qua</option>
-                <option value="4">Qui</option>
-                <option value="5">Sex</option>
-                <option value="6">Sáb</option>
-                <option value="0">Dom</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="rc-titular">Titular (quem paga)</label>
-              <select id="rc-titular"></select>
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Guardar</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Despesas Fixas</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-recorrente-modal" class="btn primary">+ Nova despesa fixa</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -433,47 +293,13 @@
         </table>
       </div>
 
+      <!-- DÍVIDAS -->
       <div id="tab-dividas" class="tab-pane" style="display:none;">
-        <h2 class="section-title">Dívidas</h2>
-        <form id="form-divida" class="form">
-          <div class="grid">
-            <div class="form-group">
-              <label for="dv-categoria">Nome (Tipo de Despesa)</label>
-              <select id="dv-categoria"></select>
-            </div>
-            <div class="form-group">
-              <label for="dv-valor">Valor</label>
-              <input type="number" step="0.01" id="dv-valor" placeholder="0,00" />
-            </div>
-            <div class="form-group">
-              <label for="dv-vencimento">Vencimento</label>
-              <input type="date" id="dv-vencimento" />
-            </div>
-            <div class="form-group">
-              <label for="dv-fim">Fim (opcional)</label>
-              <input type="date" id="dv-fim" />
-            </div>
-            <div class="form-group">
-              <label for="dv-semana">Semana do mês</label>
-              <select id="dv-semana">
-                <option value="">—</option>
-                <option value="1">1ª</option>
-                <option value="2">2ª</option>
-                <option value="3">3ª</option>
-                <option value="4">4ª</option>
-                <option value="5">5ª</option>
-              </select>
-            </div>
-            <div class="form-group">
-              <label for="dv-titular">Titular</label>
-              <select id="dv-titular"></select>
-            </div>
-          </div>
-          <div style="margin-top:8px; display:flex; justify-content:flex-end; gap:8px;">
-            <button type="submit" class="btn">Guardar</button>
-          </div>
-        </form>
-
+        <div class="toolbar">
+          <h2 class="section-title" style="margin:0;">Dívidas</h2>
+          <div class="spacer"></div>
+          <button id="btn-open-divida-modal" class="btn primary">+ Nova dívida</button>
+        </div>
         <table>
           <thead>
             <tr>
@@ -492,7 +318,8 @@
     </section>
   </main>
 
-  <!-- Modal de Conta -->
+  <!-- MODAIS -->
+  <!-- Conta -->
   <div id="account-modal" class="modal">
     <div class="modal-content">
       <div class="modal-header">
@@ -521,6 +348,274 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-modal secondary" data-modal="account-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Gasto -->
+  <div id="gasto-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="gasto-modal-title">Novo Gasto</h2>
+        <button class="close-button" data-modal="gasto-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="gasto-form">
+        <input type="hidden" id="gasto-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="gasto-data">Data</label>
+            <input type="date" id="gasto-data" />
+          </div>
+          <div class="form-group">
+            <label for="gasto-titular">Titular</label>
+            <select id="gasto-titular"></select>
+          </div>
+          <div class="form-group">
+            <label for="gasto-banco">Banco</label>
+            <select id="gasto-banco"></select>
+          </div>
+          <div class="form-group">
+            <label for="gasto-desc">Descrição</label>
+            <input type="text" id="gasto-desc" placeholder="Ex.: Mercado" />
+          </div>
+          <div class="form-group">
+            <label for="gasto-valor">Valor</label>
+            <input type="number" step="0.01" id="gasto-valor" placeholder="0,00" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="gasto-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Salário -->
+  <div id="salario-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="salario-modal-title">Novo Salário</h2>
+        <button class="close-button" data-modal="salario-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="salario-form">
+        <input type="hidden" id="salario-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="salario-data">Data</label>
+            <input type="date" id="salario-data" />
+          </div>
+          <div class="form-group">
+            <label for="salario-titular">Titular</label>
+            <select id="salario-titular"></select>
+          </div>
+          <div class="form-group">
+            <label for="salario-banco">Banco</label>
+            <select id="salario-banco"></select>
+          </div>
+          <div class="form-group">
+            <label for="salario-horas">Horas</label>
+            <input type="number" step="0.01" id="salario-horas" placeholder="Opcional" />
+          </div>
+          <div class="form-group">
+            <label for="salario-valor">Valor</label>
+            <input type="number" step="0.01" id="salario-valor" placeholder="0,00" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="salario-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Transferência -->
+  <div id="transfer-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="transfer-modal-title">Nova Transferência</h2>
+        <button class="close-button" data-modal="transfer-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="transfer-form">
+        <input type="hidden" id="transfer-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="transfer-data">Data</label>
+            <input type="date" id="transfer-data" />
+          </div>
+
+          <div class="form-group">
+            <label for="transfer-de-titular">De • Titular</label>
+            <select id="transfer-de-titular"></select>
+          </div>
+          <div class="form-group">
+            <label for="transfer-de-banco">De • Banco</label>
+            <select id="transfer-de-banco"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="transfer-para-titular">Para • Titular</label>
+            <select id="transfer-para-titular"></select>
+          </div>
+          <div class="form-group">
+            <label for="transfer-para-banco">Para • Banco</label>
+            <select id="transfer-para-banco"></select>
+          </div>
+
+          <div class="form-group">
+            <label for="transfer-valor">Valor</label>
+            <input type="number" step="0.01" id="transfer-valor" placeholder="0,00" />
+          </div>
+          <div class="form-group">
+            <label for="transfer-desc">Descrição</label>
+            <input type="text" id="transfer-desc" placeholder="Opcional" />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="transfer-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Categoria -->
+  <div id="categoria-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="categoria-modal-title">Nova Categoria</h2>
+        <button class="close-button" data-modal="categoria-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="categoria-form">
+        <input type="hidden" id="categoria-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="categoria-nome">Nome</label>
+            <input type="text" id="categoria-nome" placeholder="Ex.: Mercado, Aluguel..." />
+          </div>
+          <div class="form-group">
+            <label for="categoria-tipo">Tipo</label>
+            <select id="categoria-tipo">
+              <option value="despesa">Despesa</option>
+              <option value="receita">Receita</option>
+            </select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="categoria-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Recorrente -->
+  <div id="recorrente-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="recorrente-modal-title">Nova Despesa Fixa</h2>
+        <button class="close-button" data-modal="recorrente-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="recorrente-form">
+        <input type="hidden" id="recorrente-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="recorrente-categoria">Nome (Tipo de Despesa)</label>
+            <select id="recorrente-categoria"></select>
+            <div class="help">Dica: adicione nomes novos em Categorias (como Despesa).</div>
+          </div>
+          <div class="form-group">
+            <label for="recorrente-valor">Valor</label>
+            <input type="number" step="0.01" id="recorrente-valor" placeholder="0,00" />
+          </div>
+          <div class="form-group">
+            <label for="recorrente-data">Data (fixa)</label>
+            <input type="date" id="recorrente-data" />
+          </div>
+          <div class="form-group">
+            <label for="recorrente-semana">Semana do mês</label>
+            <select id="recorrente-semana">
+              <option value="">—</option>
+              <option value="1">1ª</option>
+              <option value="2">2ª</option>
+              <option value="3">3ª</option>
+              <option value="4">4ª</option>
+              <option value="5">5ª</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="recorrente-dia">Dia da semana</label>
+            <select id="recorrente-dia">
+              <option value="">—</option>
+              <option value="1">Seg</option>
+              <option value="2">Ter</option>
+              <option value="3">Qua</option>
+              <option value="4">Qui</option>
+              <option value="5">Sex</option>
+              <option value="6">Sáb</option>
+              <option value="0">Dom</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="recorrente-titular">Titular (quem paga)</label>
+            <select id="recorrente-titular"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="recorrente-modal">Cancelar</button>
+          <button type="submit" class="btn btn-modal">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dívida -->
+  <div id="divida-modal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="divida-modal-title">Nova Dívida</h2>
+        <button class="close-button" data-modal="divida-modal" aria-label="Fechar">&times;</button>
+      </div>
+      <form id="divida-form">
+        <input type="hidden" id="divida-id" />
+        <div class="grid" style="padding:12px;">
+          <div class="form-group">
+            <label for="divida-categoria">Nome (Tipo de Despesa)</label>
+            <select id="divida-categoria"></select>
+          </div>
+          <div class="form-group">
+            <label for="divida-valor">Valor</label>
+            <input type="number" step="0.01" id="divida-valor" placeholder="0,00" />
+          </div>
+          <div class="form-group">
+            <label for="divida-vencimento">Vencimento</label>
+            <input type="date" id="divida-vencimento" />
+          </div>
+          <div class="form-group">
+            <label for="divida-fim">Fim (opcional)</label>
+            <input type="date" id="divida-fim" />
+          </div>
+          <div class="form-group">
+            <label for="divida-semana">Semana do mês</label>
+            <select id="divida-semana">
+              <option value="">—</option>
+              <option value="1">1ª</option>
+              <option value="2">2ª</option>
+              <option value="3">3ª</option>
+              <option value="4">4ª</option>
+              <option value="5">5ª</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="divida-titular">Titular</label>
+            <select id="divida-titular"></select>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-modal secondary" data-modal="divida-modal">Cancelar</button>
           <button type="submit" class="btn btn-modal">Guardar</button>
         </div>
       </form>
