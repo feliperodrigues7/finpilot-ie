@@ -1,4 +1,3 @@
-
 // FinPilot IE - LocalStorage Edition (ASCII-safe)
 (function(){
   'use strict';
