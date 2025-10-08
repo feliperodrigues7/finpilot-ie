@@ -1,5 +1,704 @@
+// FinPilot IE - LocalStorage Edition (safe build, formatted)
+(function () {
+  'use strict';
 
-// FinPilot IE - LocalStorage Edition (safe build complete)
-(function(){'use strict';function $(i){return document.getElementById(i)}function on(e,v,f){if(e)e.addEventListener(v,f)}function fmt(n){return new Intl.NumberFormat('pt-PT',{style:'currency',currency:'EUR'}).format(Number(n||0))}function toast(m){var t=$('toast');if(!t){console.log('[Toast]',m);return}t.textContent=m;t.classList.add('show');setTimeout(function(){t.classList.remove('show')},2500)}function uid(){return Math.random().toString(36).slice(2)+Date.now().toString(36)}var DB_KEYS={people:'fp_people',accounts:'fp_accounts',categories:'fp_categories',transactions:'fp_transactions',recurring:'fp_recurring'};var storage={get:function(k,d){if(d===void 0)d=[];try{var v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}},set:function(k,v){localStorage.setItem(k,JSON.stringify(v))}};var data={getPeople:function(){return storage.get(DB_KEYS.people)},savePerson:function(name){name=(name||'').trim();if(!name)return null;var p=this.getPeople();if(p.indexOf(name)===-1){p.push(name);storage.set(DB_KEYS.people,p)}return name},deletePerson:function(name){var p=this.getPeople().filter(function(x){return x!==name});storage.set(DB_KEYS.people,p)},getAccounts:function(){return storage.get(DB_KEYS.accounts)},saveAccount:function(acc){var l=this.getAccounts();if(!acc.id){acc.id=uid();l.push(acc)}else{var i=l.findIndex(function(a){return a.id===acc.id});if(i>-1)l[i]=acc;else l.push(acc)}storage.set(DB_KEYS.accounts,l);return acc},deleteAccount:function(id){storage.set(DB_KEYS.accounts,this.getAccounts().filter(function(a){return a.id!==id}))},updateAccountBalance:function(id,b){var l=this.getAccounts();var i=l.findIndex(function(a){return a.id===id});if(i>-1){l[i].balance=Number(b||0);storage.set(DB_KEYS.accounts,l);return l[i]}return null},getCategories:function(){return storage.get(DB_KEYS.categories)},saveCategory:function(cat){var l=this.getCategories();if(!cat.id){cat.id=uid();l.push(cat)}else{var i=l.findIndex(function(c){return c.id===cat.id});if(i>-1)l[i]=cat;else l.push(cat)}storage.set(DB_KEYS.categories,l);return cat},deleteCategory:function(id){storage.set(DB_KEYS.categories,this.getCategories().filter(function(c){return c.id!==id}))},getTransactions:function(){return storage.get(DB_KEYS.transactions)},saveTransaction:function(tx){var l=this.getTransactions();if(!tx.id){tx.id=uid();l.push(tx)}else{var i=l.findIndex(function(t){return t.id===tx.id});if(i>-1)l[i]=tx;else l.push(tx)}storage.set(DB_KEYS.transactions,l);return tx},deleteTransaction:function(id){storage.set(DB_KEYS.transactions,this.getTransactions().filter(function(t){return t.id!==id}))},getRecurring:function(){return storage.get(DB_KEYS.recurring)},saveRecurring:function(r){var l=this.getRecurring();if(!r.id){r.id=uid();l.push(r)}else{var i=l.findIndex(function(x){return x.id===r.id});if(i>-1)l[i]=r;else l.push(r)}storage.set(DB_KEYS.recurring,l);return r},deleteRecurring:function(id){storage.set(DB_KEYS.recurring,this.getRecurring().filter(function(r){return r.id!==id}))}};function renderPeople(){var ul=$('people-list');if(!ul)return;ul.innerHTML='';data.getPeople().forEach(function(p){var li=document.createElement('li');li.className='mb-1 flex items-center justify-between';li.innerHTML='<span>'+p+'</span><button data-name="'+p+'" class="del-person bg-red-500 text-white px-2 py-1 rounded text-sm">Excluir</button>';ul.appendChild(li)});ul.querySelectorAll('.del-person').forEach(function(b){on(b,'click',function(){data.deletePerson(b.getAttribute('data-name'));renderPeople();renderPeopleOptions();toast('Pessoa excluída')})})}function renderPeopleOptions(){function dl(id){var input=$(id);if(!input)return;var listId=id+'-list';var d=document.getElementById(listId);if(!d){d=document.createElement('datalist');d.id=listId;document.body.appendChild(d);input.setAttribute('list',listId)}d.innerHTML='';data.getPeople().forEach(function(p){var o=document.createElement('option');o.value=p;d.appendChild(o)})}['account-owner-name','transaction-owner-name','category-owner-name','recurring-owner-name'].forEach(dl)}function renderAccounts(){var tb=$('accounts-table-body');if(!tb)return;tb.innerHTML='';var l=data.getAccounts();if(!l.length){tb.innerHTML='<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhuma conta.</td></tr>';return}l.forEach(function(a){var tr=document.createElement('tr');tr.innerHTML='<td class="py-2 px-3">'+(a.owner||'')+'</td><td class="py-2 px-3">'+(a.bank||'')+'</td><td class="py-2 px-3">'+(a.name||'')+'</td><td class="py-2 px-3">'+fmt(a.balance)+'</td><td class="py-2 px-3"><button class="edit-acc bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="'+a.id+'">Editar</button><button class="del-acc bg-red-500 text-white px-2 py-1 rounded" data-id="'+a.id+'">Excluir</button></td>';tb.appendChild(tr)});tb.querySelectorAll('.edit-acc').forEach(function(b){on(b,'click',function(){openAccountModal(b.getAttribute('data-id'))})});tb.querySelectorAll('.del-acc').forEach(function(b){on(b,'click',function(){data.deleteAccount(b.getAttribute('data-id'));renderAccounts();renderAccountSelects();toast('Conta excluída')})});renderAccountSelects();renderDashboard()}function renderAccountSelects(){var accs=data.getAccounts();var s1=$('transaction-account'),s2=$('transaction-account-dst'),sR=$('recurring-account');[s1,s2,sR].forEach(function(s){if(!s)return;s.innerHTML='<option value="">Selecione</option>';accs.forEach(function(a){var o=document.createElement('option');o.value=a.id;o.textContent=(a.owner?a.owner+' - ':'')+(a.bank?a.bank+' / ':'')+a.name;s.appendChild(o)})})}function renderCategories(){var tb=$('categories-table-body');if(!tb)return;tb.innerHTML='';var l=data.getCategories();if(!l.length){tb.innerHTML='<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria.</td></tr>';return}l.forEach(function(c){var tr=document.createElement('tr');tr.innerHTML='<td class="py-2 px-3">'+(c.owner||'')+'</td><td class="py-2 px-3">'+(c.name||'')+'</td><td class="py-2 px-3">'+(c.type||'')+'</td><td class="py-2 px-3"><button class="edit-cat bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="'+c.id+'">Editar</button><button class="del-cat bg-red-500 text-white px-2 py-1 rounded" data-id="'+c.id+'">Excluir</button></td>';tb.appendChild(tr)});tb.querySelectorAll('.edit-cat').forEach(function(b){on(b,'click',function(){openCategoryModal(b.getAttribute('data-id'))})});tb.querySelectorAll('.del-cat').forEach(function(b){on(b,'click',function(){data.deleteCategory(b.getAttribute('data-id'));renderCategories();toast('Categoria excluída')})});renderCategorySelects()}function renderCategorySelects(){var cats=data.getCategories();var sT=$('transaction-category'),sR=$('recurring-category'),sB=$('budget-category');[sT,sR,sB].forEach(function(s){if(!s)return;s.innerHTML='<option value="">Selecione</option>';cats.forEach(function(c){var o=document.createElement('option');o.value=c.id;o.textContent=(c.owner?c.owner+' - ':'')+c.name+' ('+c.type+')';s.appendChild(o)})})}function renderTransactions(){var tb=$('transactions-table-body');if(!tb)return;tb.innerHTML='';var l=data.getTransactions().slice().sort(function(a,b){return(a.date||'').localeCompare(b.date||'')});if(!l.length){tb.innerHTML='<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma transação.</td></tr>';return}l.forEach(function(t){var a=data.getAccounts().find(function(x){return x.id===t.account_id});var d=data.getAccounts().find(function(x){return x.id===t.account_id_dst});var c=data.getCategories().find(function(x){return x.id===t.category_id});var tr=document.createElement('tr');tr.innerHTML='<td class="py-2 px-3">'+(t.owner||'')+'</td><td class="py-2 px-3">'+t.type+'</td><td class="py-2 px-3">'+(t.date||'')+'</td><td class="py-2 px-3">'+(t.description||'')+'</td><td class="py-2 px-3">'+fmt(t.amount)+'</td><td class="py-2 px-3">'+(a?(a.bank?a.bank+' / ':'')+a.name:'')+'</td><td class="py-2 px-3">'+(d?(d.bank?d.bank+' / ':'')+d.name:'')+'</td><td class="py-2 px-3">'+(c?c.name:'')+'</td><td class="py-2 px-3"><button class="edit-tx bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="'+t.id+'">Editar</button><button class="del-tx bg-red-500 text-white px-2 py-1 rounded" data-id="'+t.id+'">Excluir</button></td>';tb.appendChild(tr)});tb.querySelectorAll('.edit-tx').forEach(function(b){on(b,'click',function(){openTransactionModal(b.getAttribute('data-id'))})});tb.querySelectorAll('.del-tx').forEach(function(b){on(b,'click',function(){deleteTransactionAndAdjust(b.getAttribute('data-id'));renderTransactions();renderAccounts();toast('Transação excluída')})});renderDashboard()}function renderRecurring(){var tb=$('recurring-table-body');if(!tb)return;tb.innerHTML='';var l=data.getRecurring();if(!l.length){tb.innerHTML='<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma recorrência.</td></tr>';return}l.forEach(function(r){var a=data.getAccounts().find(function(x){return x.id===r.account_id});var c=data.getCategories().find(function(x){return x.id===r.category_id});var tr=document.createElement('tr');tr.innerHTML='<td class="py-2 px-3">'+(r.owner||'')+'</td><td class="py-2 px-3">'+(r.title||'')+'</td><td class="py-2 px-3">'+fmt(r.amount)+'</td><td class="py-2 px-3">'+r.type+'</td><td class="py-2 px-3">'+r.frequency+'</td><td class="py-2 px-3">'+(r.next_date||'')+'</td><td class="py-2 px-3">'+(a?(a.bank?a.bank+' / ':'')+a.name:'')+'</td><td class="py-2 px-3">'+(c?c.name:'')+'</td><td class="py-2 px-3"><button class="gen-now bg-blue-600 text-white px-2 py-1 rounded mr-2" data-id="'+r.id+'">Gerar agora</button><button class="edit-rec bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="'+r.id+'">Editar</button><button class="del-rec bg-red-500 text-white px-2 py-1 rounded" data-id="'+r.id+'">Excluir</button></td>';tb.appendChild(tr)});tb.querySelectorAll('.gen-now').forEach(function(b){on(b,'click',function(){generateRecurringNow(b.getAttribute('data-id'));renderTransactions();renderRecurring();renderAccounts()})});tb.querySelectorAll('.edit-rec').forEach(function(b){on(b,'click',function(){openRecurringModal(b.getAttribute('data-id'))})});tb.querySelectorAll('.del-rec').forEach(function(b){on(b,'click',function(){data.deleteRecurring(b.getAttribute('data-id'));renderRecurring();toast('Recorrência excluída')})})}function renderDashboard(){var accs=data.getAccounts(),txs=data.getTransactions();var total=accs.reduce(function(s,a){return s+Number(a.balance||0)},0);var now=new Date();var ym=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0');var month=txs.filter(function(t){return (t.date||'').startsWith(ym)});var inc=month.filter(function(t){return t.type==='income'}).reduce(function(s,t){return s+Number(t.amount||0)},0);var exp=month.filter(function(t){return t.type==='expense'}).reduce(function(s,t){return s+Number(t.amount||0)},0);var tb=$('total-balance'),mi=$('monthly-income'),me=$('monthly-expenses');if(tb)tb.textContent=fmt(total);if(mi)mi.textContent=fmt(inc);if(me)me.textContent=fmt(exp)}function openAccountModal(id){var m=$('account-modal');if(!m)return;m.style.display='block';var f=$('account-form');f.reset();if(id){var a=data.getAccounts().find(function(x){return x.id===id});if(a){$('account-id').value=a.id;$('account-owner-name').value=a.owner||'';$('account-bank').value=a.bank||'';$('account-name').value=a.name||'';$('account-balance').value=a.balance||0}}}function openCategoryModal(id){var m=$('category-modal');if(!m)return;m.style.display='block';var f=$('category-form');f.reset();if(id){var c=data.getCategories().find(function(x){return x.id===id});if(c){$('category-id').value=c.id;$('category-owner-name').value=c.owner||'';$('category-name').value=c.name||'';$('category-type').value=c.type||'expense'}}}function openTransactionModal(id){var m=$('transaction-modal');if(!m)return;m.style.display='block';var f=$('transaction-form');f.reset();if(id){var t=data.getTransactions().find(function(x){return x.id===id});if(t){$('transaction-id').value=t.id;$('transaction-owner-name').value=t.owner||'';$('transaction-type').value=t.type||'expense';$('transaction-date').value=t.date||'';$('transaction-description').value=t.description||'';$('transaction-amount').value=t.amount||0;$('transaction-account').value=t.account_id||'';$('transaction-account-dst').value=t.account_id_dst||'';$('transaction-category').value=t.category_id||''}}}function openRecurringModal(id){var m=$('recurring-modal');if(!m)return;m.style.display='block';var f=$('recurring-form');f.reset();if(id){var r=data.getRecurring().find(function(x){return x.id===id});if(r){$('recurring-id').value=r.id;$('recurring-owner-name').value=r.owner||'';$('recurring-title').value=r.title||'';$('recurring-type').value=r.type||'expense';$('recurring-amount').value=r.amount||0;$('recurring-frequency').value=r.frequency||'monthly';$('recurring-next').value=r.next_date||'';$('recurring-account').value=r.account_id||'';$('recurring-category').value=r.category_id||''}}}function deleteTransactionAndAdjust(id){var tx=data.getTransactions().find(function(t){return t.id===id});if(!tx){data.deleteTransaction(id);return}if(tx.type==='income'){var a=data.getAccounts().find(function(x){return x.id===tx.account_id});if(a)data.updateAccountBalance(a.id,Number(a.balance||0)-Number(tx.amount||0))}else if(tx.type==='expense'){var b=data.getAccounts().find(function(x){return x.id===tx.account_id});if(b)data.updateAccountBalance(b.id,Number(b.balance||0)+Number(tx.amount||0))}else if(tx.type==='transfer'){var o=data.getAccounts().find(function(x){return x.id===tx.account_id});var d=data.getAccounts().find(function(x){return x.id===tx.account_id_dst});if(o)data.updateAccountBalance(o.id,Number(o.balance||0)+Number(tx.amount||0));if(d)data.updateAccountBalance(d.id,Number(d.balance||0)-Number(tx.amount||0))}data.deleteTransaction(id)}function nextDate(f,d){var dt=new Date(d);if(f==='weekly')dt.setDate(dt.getDate()+7);else if(f==='biweekly')dt.setDate(dt.getDate()+14);else dt.setMonth(dt.getMonth()+1);return dt.toISOString().slice(0,10)}function generateRecurringNow(id){var r=data.getRecurring().find(function(x){return x.id===id});if(!r)return;var tx={owner:r.owner,type:r.type,date:r.next_date||new Date().toISOString().slice(0,10),description:r.title,amount:Number(r.amount||0),account_id:r.account_id,account_id_dst:null,category_id:r.category_id};if(r.type==='income'){var a=data.getAccounts().find(function(x){return x.id===r.account_id});if(a)data.updateAccountBalance(a.id,Number(a.balance||0)+Number(tx.amount))}else if(r.type==='expense'){var b=data.getAccounts().find(function(x){return x.id===r.account_id});if(b)data.updateAccountBalance(b.id,Number(b.balance||0)-Number(tx.amount))}data.saveTransaction(tx);r.next_date=nextDate(r.frequency||'monthly',tx.date);data.saveRecurring(r);toast('Transação gerada')}function exportTransactionsCSV(){var txs=data.getTransactions();var h=['id','owner','type','date','description','amount','account_id','account_id_dst','category_id'];var rows=[h.join(',')].concat(txs.map(function(t){return h.map(function(k){return JSON.stringify(t[k]!==void 0?t[k]:'')}).join(',')}));var blob=new Blob([rows.join('
-')],{type:'text/csv;charset=utf-8;'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='transacoes.csv';a.click();URL.revokeObjectURL(u)}function wireTabs(){document.body.addEventListener('click',function(e){var t=e.target;if(!t.classList.contains('tab-button'))return;var b=document.querySelectorAll('.tab-button'),c=document.querySelectorAll('.tab-content');b.forEach(function(x){x.classList.remove('active')});c.forEach(function(x){x.classList.remove('active')});t.classList.add('active');var el=$(t.getAttribute('data-tab'));if(el)el.classList.add('active')})}function wireModals(){document.querySelectorAll('.modal').forEach(function(m){var x=m.querySelector('.close-button');if(x)on(x,'click',function(){m.style.display='none'});on(m,'click',function(e){if(e.target===m)m.style.display='none'});m.querySelectorAll('.cancel-btn').forEach(function(b){on(b,'click',function(){m.style.display='none'})})})}function wireButtons(){on($('add-account-button'),'click',function(){openAccountModal()});on($('add-category-button'),'click',function(){openCategoryModal()});on($('add-transaction-button'),'click',function(){openTransactionModal()});on($('add-recurring-button'),'click',function(){openRecurringModal()});on($('export-transactions-button'),'click',exportTransactionsCSV);on($('logout-button'),'click',function(){toast('Sessão encerrada (modo local)')})}function wireForms(){var f1=$('account-form');if(f1)on(f1,'submit',function(e){e.preventDefault();var id=$('account-id').value||null;var owner=($('account-owner-name').value||'').trim();var bank=($('account-bank').value||'').trim();var name=($('account-name').value||'').trim();var bal=Number($('account-balance').value||0);if(!owner||!name){toast('Preencha Pessoa e Nome da Conta');return}data.savePerson(owner);var acc={id:id,owner:owner,bank:bank,name:name,balance:bal};data.saveAccount(acc);toast(id?'Conta atualizada':'Conta criada');$('account-modal').style.display='none';renderPeople();renderAccounts()});var f2=$('category-form');if(f2)on(f2,'submit',function(e){e.preventDefault();var id=$('category-id').value||null;var owner=($('category-owner-name').value||'').trim();var name=($('category-name').value||'').trim();var type=$('category-type').value;if(!owner||!name){toast('Preencha Pessoa e Nome');return}data.savePerson(owner);var cat={id:id,owner:owner,name:name,type:type};data.saveCategory(cat);toast(id?'Categoria atualizada':'Categoria criada');$('category-modal').style.display='none';renderPeople();renderCategories()});var f3=$('transaction-form');if(f3)on(f3,'submit',function(e){e.preventDefault();var id=$('transaction-id').value||null;var owner=($('transaction-owner-name').value||'').trim();var type=$('transaction-type').value;var date=$('transaction-date').value;var description=($('transaction-description').value||'').trim();var amount=Number($('transaction-amount').value||0);var account_id=$('transaction-account').value||null;var account_id_dst=$('transaction-account-dst').value||null;var category_id=$('transaction-category').value||null;if(!owner||!date||!description||!amount||!account_id){toast('Preencha Pessoa, Data, Descrição, Valor e Conta');return}data.savePerson(owner);if(!id){if(type==='income'){var a=data.getAccounts().find(function(x){return x.id===account_id});if(a)data.updateAccountBalance(a.id,Number(a.balance||0)+amount)}else if(type==='expense'){var b=data.getAccounts().find(function(x){return x.id===account_id});if(b)data.updateAccountBalance(b.id,Number(b.balance||0)-amount)}else if(type==='transfer'){if(!account_id_dst||account_id_dst===account_id){toast('Selecione uma conta destino diferente');return}var o=data.getAccounts().find(function(x){return x.id===account_id});var d=data.getAccounts().find(function(x){return x.id===account_id_dst});if(!o||!d){toast('Contas inválidas');return}data.updateAccountBalance(o.id,Number(o.balance||0)-amount);data.updateAccountBalance(d.id,Number(d.balance||0)+amount)}}var tx={id:id,owner:owner,type:type,date:date,description:description,amount:amount,account_id:account_id,account_id_dst:type==='transfer'?account_id_dst:null,category_id:category_id};data.saveTransaction(tx);toast(id?'Transação atualizada':'Transação criada');$('transaction-modal').style.display='none';renderPeople();renderTransactions();renderAccounts()});var f4=$('recurring-form');if(f4)on(f4,'submit',function(e){e.preventDefault();var id=$('recurring-id').value||null;var owner=($('recurring-owner-name').value||'').trim();var title=($('recurring-title').value||'').trim();var type=$('recurring-type').value;var amount=Number($('recurring-amount').value||0);var frequency=$('recurring-frequency').value;var next_date=$('recurring-next').value;var account_id=$('recurring-account').value||null;var category_id=$('recurring-category').value||null;if(!owner||!title||!amount||!next_date||!account_id){toast('Preencha Pessoa, Título, Valor, Próxima Data e Conta');return}data.savePerson(owner);var r={id:id,owner:owner,title:title,type:type,amount:amount,frequency:frequency,next_date:next_date,account_id:account_id,category_id:category_id};data.saveRecurring(r);toast(id?'Recorrência atualizada':'Recorrência criada');$('recurring-modal').style.display='none';renderPeople();renderRecurring()})}function init(){try{wireTabs();wireModals();wireButtons();wireForms();renderPeople();renderPeopleOptions();renderAccounts();renderCategories();renderTransactions();renderRecurring();renderDashboard();console.log('FinPilot IE up')}catch(e){console.error('Erro ao iniciar app:',e);toast('Erro ao iniciar app')}}function wireTabs(){document.body.addEventListener('click',function(e){var t=e.target;if(!t.classList.contains('tab-button'))return;var b=document.querySelectorAll('.tab-button'),c=document.querySelectorAll('.tab-content');b.forEach(function(x){x.classList.remove('active')});c.forEach(function(x){x.classList.remove('active')});t.classList.add('active');var el=$(t.getAttribute('data-tab'));if(el)el.classList.add('active')})}function wireModals(){document.querySelectorAll('.modal').forEach(function(m){var x=m.querySelector('.close-button');if(x)on(x,'click',function(){m.style.display='none'});on(m,'click',function(e){if(e.target===m)m.style.display='none'});m.querySelectorAll('.cancel-btn').forEach(function(b){on(b,'click',function(){m.style.display='none'})})})}function wireButtons(){on($('add-account-button'),'click',function(){openAccountModal()});on($('add-category-button'),'click',function(){openCategoryModal()});on($('add-transaction-button'),'click',function(){openTransactionModal()});on($('add-recurring-button'),'click',function(){openRecurringModal()});on($('export-transactions-button'),'click',exportTransactionsCSV);on($('logout-button'),'click',function(){toast('Sessão encerrada (modo local)')})}function wireForms(){}if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init)}else{init()}function openAccountModal(){}function openCategoryModal(){}function openTransactionModal(){}function openRecurringModal(){}function renderAccountSelects(){}function renderCategorySelects(){}function renderPeopleOptions(){}function renderPeople(){}function renderAccounts(){}function renderCategories(){}function renderTransactions(){}function renderRecurring(){}function renderDashboard(){}function deleteTransactionAndAdjust(){}function generateRecurringNow(){}function exportTransactionsCSV(){var txs=JSON.parse(localStorage.getItem(DB_KEYS.transactions)||'[]');var h=['id','owner','type','date','description','amount','account_id','account_id_dst','category_id'];var rows=[h.join(',')].concat(txs.map(function(t){return h.map(function(k){return JSON.stringify(t[k]!==void 0?t[k]:'')}).join(',')}));var blob=new Blob([rows.join('
-')],{type:'text/csv;charset=utf-8;'});var u=URL.createObjectURL(blob);var a=document.createElement('a');a.href=u;a.download='transacoes.csv';a.click();URL.revokeObjectURL(u)}})();
+  // Utils
+  function $(id) { return document.getElementById(id); }
+  function on(el, ev, fn) { if (el) el.addEventListener(ev, fn); }
+  function fmt(n) {
+    return new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' })
+      .format(Number(n || 0));
+  }
+  function toast(msg) {
+    const t = $('toast');
+    if (!t) { console.log('[Toast]', msg); return; }
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 2500);
+  }
+  function uid() { return Math.random().toString(36).slice(2) + Date.now().toString(36); }
+
+  // LocalStorage keys
+  const DB_KEYS = {
+    people: 'fp_people',
+    accounts: 'fp_accounts',
+    categories: 'fp_categories',
+    transactions: 'fp_transactions',
+    recurring: 'fp_recurring',
+  };
+
+  // Storage wrapper
+  const storage = {
+    get(key, def = []) {
+      try {
+        const v = localStorage.getItem(key);
+        return v ? JSON.parse(v) : def;
+      } catch (e) {
+        return def;
+      }
+    },
+    set(key, val) {
+      localStorage.setItem(key, JSON.stringify(val));
+    },
+  };
+
+  // Data API
+  const data = {
+    // People
+    getPeople() { return storage.get(DB_KEYS.people); },
+    savePerson(name) {
+      name = (name || '').trim();
+      if (!name) return null;
+      const p = this.getPeople();
+      if (!p.includes(name)) {
+        p.push(name);
+        storage.set(DB_KEYS.people, p);
+      }
+      return name;
+    },
+    deletePerson(name) {
+      storage.set(DB_KEYS.people, this.getPeople().filter(x => x !== name));
+    },
+
+    // Accounts
+    getAccounts() { return storage.get(DB_KEYS.accounts); },
+    saveAccount(acc) {
+      const list = this.getAccounts();
+      if (!acc.id) {
+        acc.id = uid();
+        list.push(acc);
+      } else {
+        const i = list.findIndex(a => a.id === acc.id);
+        if (i > -1) list[i] = acc; else list.push(acc);
+      }
+      storage.set(DB_KEYS.accounts, list);
+      return acc;
+    },
+    deleteAccount(id) {
+      storage.set(DB_KEYS.accounts, this.getAccounts().filter(a => a.id !== id));
+    },
+    updateAccountBalance(id, balance) {
+      const list = this.getAccounts();
+      const i = list.findIndex(a => a.id === id);
+      if (i > -1) {
+        list[i].balance = Number(balance || 0);
+        storage.set(DB_KEYS.accounts, list);
+        return list[i];
+      }
+      return null;
+    },
+
+    // Categories
+    getCategories() { return storage.get(DB_KEYS.categories); },
+    saveCategory(cat) {
+      const list = this.getCategories();
+      if (!cat.id) {
+        cat.id = uid();
+        list.push(cat);
+      } else {
+        const i = list.findIndex(c => c.id === cat.id);
+        if (i > -1) list[i] = cat; else list.push(cat);
+      }
+      storage.set(DB_KEYS.categories, list);
+      return cat;
+    },
+    deleteCategory(id) {
+      storage.set(DB_KEYS.categories, this.getCategories().filter(c => c.id !== id));
+    },
+
+    // Transactions
+    getTransactions() { return storage.get(DB_KEYS.transactions); },
+    saveTransaction(tx) {
+      const list = this.getTransactions();
+      if (!tx.id) {
+        tx.id = uid();
+        list.push(tx);
+      } else {
+        const i = list.findIndex(t => t.id === tx.id);
+        if (i > -1) list[i] = tx; else list.push(tx);
+      }
+      storage.set(DB_KEYS.transactions, list);
+      return tx;
+    },
+    deleteTransaction(id) {
+      storage.set(DB_KEYS.transactions, this.getTransactions().filter(t => t.id !== id));
+    },
+
+    // Recurring
+    getRecurring() { return storage.get(DB_KEYS.recurring); },
+    saveRecurring(r) {
+      const list = this.getRecurring();
+      if (!r.id) {
+        r.id = uid();
+        list.push(r);
+      } else {
+        const i = list.findIndex(x => x.id === r.id);
+        if (i > -1) list[i] = r; else list.push(r);
+      }
+      storage.set(DB_KEYS.recurring, list);
+      return r;
+    },
+    deleteRecurring(id) {
+      storage.set(DB_KEYS.recurring, this.getRecurring().filter(r => r.id !== id));
+    },
+  };
+
+  // Renderers
+  function renderPeople() {
+    const ul = $('people-list');
+    if (!ul) return;
+    ul.innerHTML = '';
+    data.getPeople().forEach(p => {
+      const li = document.createElement('li');
+      li.className = 'mb-1 flex items-center justify-between';
+      li.innerHTML =
+        `<span>${p}</span>
+         <button data-name="${p}" class="del-person bg-red-500 text-white px-2 py-1 rounded text-sm">Excluir</button>`;
+      ul.appendChild(li);
+    });
+    ul.querySelectorAll('.del-person').forEach(b => {
+      on(b, 'click', () => {
+        data.deletePerson(b.getAttribute('data-name'));
+        renderPeople();
+        renderPeopleOptions();
+        toast('Pessoa excluída');
+      });
+    });
+  }
+
+  function renderPeopleOptions() {
+    function ensureDatalist(inputId) {
+      const input = $(inputId);
+      if (!input) return;
+      const listId = inputId + '-list';
+      let d = document.getElementById(listId);
+      if (!d) {
+        d = document.createElement('datalist');
+        d.id = listId;
+        document.body.appendChild(d);
+        input.setAttribute('list', listId);
+      }
+      d.innerHTML = '';
+      data.getPeople().forEach(p => {
+        const o = document.createElement('option');
+        o.value = p;
+        d.appendChild(o);
+      });
+    }
+    ['account-owner-name', 'transaction-owner-name', 'category-owner-name', 'recurring-owner-name']
+      .forEach(ensureDatalist);
+  }
+
+  function renderAccounts() {
+    const tb = $('accounts-table-body');
+    if (!tb) return;
+    tb.innerHTML = '';
+    const list = data.getAccounts();
+    if (!list.length) {
+      tb.innerHTML = `<tr><td colspan="5" class="text-center py-4 text-gray-500">Nenhuma conta.</td></tr>`;
+      return;
+    }
+    list.forEach(a => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="py-2 px-3">${a.owner || ''}</td>
+         <td class="py-2 px-3">${a.bank || ''}</td>
+         <td class="py-2 px-3">${a.name || ''}</td>
+         <td class="py-2 px-3">${fmt(a.balance)}</td>
+         <td class="py-2 px-3">
+           <button class="edit-acc bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${a.id}">Editar</button>
+           <button class="del-acc bg-red-500 text-white px-2 py-1 rounded" data-id="${a.id}">Excluir</button>
+         </td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('.edit-acc').forEach(b => on(b, 'click', () => openAccountModal(b.getAttribute('data-id'))));
+    tb.querySelectorAll('.del-acc').forEach(b => on(b, 'click', () => {
+      data.deleteAccount(b.getAttribute('data-id'));
+      renderAccounts();
+      renderAccountSelects();
+      toast('Conta excluída');
+    }));
+    renderAccountSelects();
+    renderDashboard();
+  }
+
+  function renderAccountSelects() {
+    const accs = data.getAccounts();
+    const s1 = $('transaction-account');
+    const s2 = $('transaction-account-dst');
+    const sR = $('recurring-account');
+    [s1, s2, sR].forEach(s => {
+      if (!s) return;
+      s.innerHTML = '<option value="">Selecione</option>';
+      accs.forEach(a => {
+        const o = document.createElement('option');
+        o.value = a.id;
+        o.textContent = (a.owner ? a.owner + ' - ' : '') + (a.bank ? a.bank + ' / ' : '') + a.name;
+        s.appendChild(o);
+      });
+    });
+  }
+
+  function renderCategories() {
+    const tb = $('categories-table-body');
+    if (!tb) return;
+    tb.innerHTML = '';
+    const list = data.getCategories();
+    if (!list.length) {
+      tb.innerHTML = `<tr><td colspan="4" class="text-center py-4 text-gray-500">Nenhuma categoria.</td></tr>`;
+      return;
+    }
+    list.forEach(c => {
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="py-2 px-3">${c.owner || ''}</td>
+         <td class="py-2 px-3">${c.name || ''}</td>
+         <td class="py-2 px-3">${c.type || ''}</td>
+         <td class="py-2 px-3">
+           <button class="edit-cat bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${c.id}">Editar</button>
+           <button class="del-cat bg-red-500 text-white px-2 py-1 rounded" data-id="${c.id}">Excluir</button>
+         </td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('.edit-cat').forEach(b => on(b, 'click', () => openCategoryModal(b.getAttribute('data-id'))));
+    tb.querySelectorAll('.del-cat').forEach(b => on(b, 'click', () => {
+      data.deleteCategory(b.getAttribute('data-id'));
+      renderCategories();
+      toast('Categoria excluída');
+    }));
+    renderCategorySelects();
+  }
+
+  function renderCategorySelects() {
+    const cats = data.getCategories();
+    const sT = $('transaction-category');
+    const sR = $('recurring-category');
+    const sB = $('budget-category');
+    [sT, sR, sB].forEach(s => {
+      if (!s) return;
+      s.innerHTML = '<option value="">Selecione</option>';
+      cats.forEach(c => {
+        const o = document.createElement('option');
+        o.value = c.id;
+        o.textContent = (c.owner ? c.owner + ' - ' : '') + c.name + ' (' + c.type + ')';
+        s.appendChild(o);
+      });
+    });
+  }
+
+  function renderTransactions() {
+    const tb = $('transactions-table-body');
+    if (!tb) return;
+    tb.innerHTML = '';
+    const list = data.getTransactions().slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!list.length) {
+      tb.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma transação.</td></tr>`;
+      return;
+    }
+    list.forEach(t => {
+      const a = data.getAccounts().find(x => x.id === t.account_id);
+      const d = data.getAccounts().find(x => x.id === t.account_id_dst);
+      const c = data.getCategories().find(x => x.id === t.category_id);
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="py-2 px-3">${t.owner || ''}</td>
+         <td class="py-2 px-3">${t.type}</td>
+         <td class="py-2 px-3">${t.date || ''}</td>
+         <td class="py-2 px-3">${t.description || ''}</td>
+         <td class="py-2 px-3">${fmt(t.amount)}</td>
+         <td class="py-2 px-3">${a ? (a.bank ? a.bank + ' / ' : '') + a.name : ''}</td>
+         <td class="py-2 px-3">${d ? (d.bank ? d.bank + ' / ' : '') + d.name : ''}</td>
+         <td class="py-2 px-3">${c ? c.name : ''}</td>
+         <td class="py-2 px-3">
+           <button class="edit-tx bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${t.id}">Editar</button>
+           <button class="del-tx bg-red-500 text-white px-2 py-1 rounded" data-id="${t.id}">Excluir</button>
+         </td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('.edit-tx').forEach(b => on(b, 'click', () => openTransactionModal(b.getAttribute('data-id'))));
+    tb.querySelectorAll('.del-tx').forEach(b => on(b, 'click', () => {
+      deleteTransactionAndAdjust(b.getAttribute('data-id'));
+      renderTransactions();
+      renderAccounts();
+      toast('Transação excluída');
+    }));
+    renderDashboard();
+  }
+
+  function renderRecurring() {
+    const tb = $('recurring-table-body');
+    if (!tb) return;
+    tb.innerHTML = '';
+    const list = data.getRecurring();
+    if (!list.length) {
+      tb.innerHTML = `<tr><td colspan="9" class="text-center py-4 text-gray-500">Nenhuma recorrência.</td></tr>`;
+      return;
+    }
+    list.forEach(r => {
+      const a = data.getAccounts().find(x => x.id === r.account_id);
+      const c = data.getCategories().find(x => x.id === r.category_id);
+      const tr = document.createElement('tr');
+      tr.innerHTML =
+        `<td class="py-2 px-3">${r.owner || ''}</td>
+         <td class="py-2 px-3">${r.title || ''}</td>
+         <td class="py-2 px-3">${fmt(r.amount)}</td>
+         <td class="py-2 px-3">${r.type}</td>
+         <td class="py-2 px-3">${r.frequency}</td>
+         <td class="py-2 px-3">${r.next_date || ''}</td>
+         <td class="py-2 px-3">${a ? (a.bank ? a.bank + ' / ' : '') + a.name : ''}</td>
+         <td class="py-2 px-3">${c ? c.name : ''}</td>
+         <td class="py-2 px-3">
+           <button class="gen-now bg-blue-600 text-white px-2 py-1 rounded mr-2" data-id="${r.id}">Gerar agora</button>
+           <button class="edit-rec bg-yellow-500 text-white px-2 py-1 rounded mr-2" data-id="${r.id}">Editar</button>
+           <button class="del-rec bg-red-500 text-white px-2 py-1 rounded" data-id="${r.id}">Excluir</button>
+         </td>`;
+      tb.appendChild(tr);
+    });
+    tb.querySelectorAll('.gen-now').forEach(b => on(b, 'click', () => {
+      generateRecurringNow(b.getAttribute('data-id'));
+      renderTransactions();
+      renderRecurring();
+      renderAccounts();
+    }));
+    tb.querySelectorAll('.edit-rec').forEach(b => on(b, 'click', () => openRecurringModal(b.getAttribute('data-id'))));
+    tb.querySelectorAll('.del-rec').forEach(b => on(b, 'click', () => {
+      data.deleteRecurring(b.getAttribute('data-id'));
+      renderRecurring();
+      toast('Recorrência excluída');
+    }));
+  }
+
+  // Dashboard
+  function renderDashboard() {
+    const accs = data.getAccounts();
+    const txs = data.getTransactions();
+    const total = accs.reduce((s, a) => s + Number(a.balance || 0), 0);
+    const now = new Date();
+    const ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+    const month = txs.filter(t => (t.date || '').startsWith(ym));
+    const inc = month.filter(t => t.type === 'income')
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+    const exp = month.filter(t => t.type === 'expense')
+      .reduce((s, t) => s + Number(t.amount || 0), 0);
+
+    const tb = $('total-balance');
+    const mi = $('monthly-income');
+    const me = $('monthly-expenses');
+    if (tb) tb.textContent = fmt(total);
+    if (mi) mi.textContent = fmt(inc);
+    if (me) me.textContent = fmt(exp);
+  }
+
+  // Modals open/fill
+  function openAccountModal(id) {
+    const m = $('account-modal'); if (!m) return;
+    m.style.display = 'block';
+    const f = $('account-form'); f.reset();
+    if (id) {
+      const a = data.getAccounts().find(x => x.id === id);
+      if (a) {
+        $('account-id').value = a.id;
+        $('account-owner-name').value = a.owner || '';
+        $('account-bank').value = a.bank || '';
+        $('account-name').value = a.name || '';
+        $('account-balance').value = a.balance || 0;
+      }
+    }
+  }
+  function openCategoryModal(id) {
+    const m = $('category-modal'); if (!m) return;
+    m.style.display = 'block';
+    const f = $('category-form'); f.reset();
+    if (id) {
+      const c = data.getCategories().find(x => x.id === id);
+      if (c) {
+        $('category-id').value = c.id;
+        $('category-owner-name').value = c.owner || '';
+        $('category-name').value = c.name || '';
+        $('category-type').value = c.type || 'expense';
+      }
+    }
+  }
+  function openTransactionModal(id) {
+    const m = $('transaction-modal'); if (!m) return;
+    m.style.display = 'block';
+    const f = $('transaction-form'); f.reset();
+    if (id) {
+      const t = data.getTransactions().find(x => x.id === id);
+      if (t) {
+        $('transaction-id').value = t.id;
+        $('transaction-owner-name').value = t.owner || '';
+        $('transaction-type').value = t.type || 'expense';
+        $('transaction-date').value = t.date || '';
+        $('transaction-description').value = t.description || '';
+        $('transaction-amount').value = t.amount || 0;
+        $('transaction-account').value = t.account_id || '';
+        $('transaction-account-dst').value = t.account_id_dst || '';
+        $('transaction-category').value = t.category_id || '';
+      }
+    }
+  }
+  function openRecurringModal(id) {
+    const m = $('recurring-modal'); if (!m) return;
+    m.style.display = 'block';
+    const f = $('recurring-form'); f.reset();
+    if (id) {
+      const r = data.getRecurring().find(x => x.id === id);
+      if (r) {
+        $('recurring-id').value = r.id;
+        $('recurring-owner-name').value = r.owner || '';
+        $('recurring-title').value = r.title || '';
+        $('recurring-type').value = r.type || 'expense';
+        $('recurring-amount').value = r.amount || 0;
+        $('recurring-frequency').value = r.frequency || 'monthly';
+        $('recurring-next').value = r.next_date || '';
+        $('recurring-account').value = r.account_id || '';
+        $('recurring-category').value = r.category_id || '';
+      }
+    }
+  }
+
+  // Tx helpers
+  function deleteTransactionAndAdjust(id) {
+    const tx = data.getTransactions().find(t => t.id === id);
+    if (!tx) { data.deleteTransaction(id); return; }
+
+    if (tx.type === 'income') {
+      const a = data.getAccounts().find(x => x.id === tx.account_id);
+      if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) - Number(tx.amount || 0));
+    } else if (tx.type === 'expense') {
+      const b = data.getAccounts().find(x => x.id === tx.account_id);
+      if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) + Number(tx.amount || 0));
+    } else if (tx.type === 'transfer') {
+      const o = data.getAccounts().find(x => x.id === tx.account_id);
+      const d = data.getAccounts().find(x => x.id === tx.account_id_dst);
+      if (o) data.updateAccountBalance(o.id, Number(o.balance || 0) + Number(tx.amount || 0));
+      if (d) data.updateAccountBalance(d.id, Number(d.balance || 0) - Number(tx.amount || 0));
+    }
+    data.deleteTransaction(id);
+  }
+
+  function nextDate(freq, dateStr) {
+    const dt = new Date(dateStr);
+    if (freq === 'weekly') dt.setDate(dt.getDate() + 7);
+    else if (freq === 'biweekly') dt.setDate(dt.getDate() + 14);
+    else dt.setMonth(dt.getMonth() + 1);
+    return dt.toISOString().slice(0, 10);
+  }
+
+  function generateRecurringNow(id) {
+    const r = data.getRecurring().find(x => x.id === id);
+    if (!r) return;
+    const tx = {
+      owner: r.owner,
+      type: r.type,
+      date: r.next_date || new Date().toISOString().slice(0, 10),
+      description: r.title,
+      amount: Number(r.amount || 0),
+      account_id: r.account_id,
+      account_id_dst: null,
+      category_id: r.category_id,
+    };
+    if (r.type === 'income') {
+      const a = data.getAccounts().find(x => x.id === r.account_id);
+      if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) + Number(tx.amount));
+    } else if (r.type === 'expense') {
+      const b = data.getAccounts().find(x => x.id === r.account_id);
+      if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) - Number(tx.amount));
+    }
+    data.saveTransaction(tx);
+    r.next_date = nextDate(r.frequency || 'monthly', tx.date);
+    data.saveRecurring(r);
+    toast('Transação gerada');
+  }
+
+  // Export
+  function exportTransactionsCSV() {
+    const txs = data.getTransactions();
+    const headers = ['id','owner','type','date','description','amount','account_id','account_id_dst','category_id'];
+    const rows = [headers.join(',')].concat(
+      txs.map(t => headers.map(k => JSON.stringify(t[k] !== undefined ? t[k] : '')).join(','))
+    );
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'transacoes.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  // Wiring
+  function wireTabs() {
+    document.body.addEventListener('click', e => {
+      const t = e.target;
+      if (!t.classList || !t.classList.contains('tab-button')) return;
+      const btns = document.querySelectorAll('.tab-button');
+      const tabs = document.querySelectorAll('.tab-content');
+      btns.forEach(x => x.classList.remove('active'));
+      tabs.forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      const el = $(t.getAttribute('data-tab'));
+      if (el) el.classList.add('active');
+    });
+  }
+
+  function wireModals() {
+    document.querySelectorAll('.modal').forEach(m => {
+      const x = m.querySelector('.close-button');
+      if (x) on(x, 'click', () => { m.style.display = 'none'; });
+      on(m, 'click', (e) => { if (e.target === m) m.style.display = 'none'; });
+      m.querySelectorAll('.cancel-btn').forEach(b => on(b, 'click', () => { m.style.display = 'none'; }));
+    });
+  }
+
+  function wireButtons() {
+    on($('add-account-button'), 'click', () => openAccountModal());
+    on($('add-category-button'), 'click', () => openCategoryModal());
+    on($('add-transaction-button'), 'click', () => openTransactionModal());
+    on($('add-recurring-button'), 'click', () => openRecurringModal());
+    on($('export-transactions-button'), 'click', exportTransactionsCSV);
+    on($('logout-button'), 'click', () => toast('Sessão encerrada (modo local)'));
+  }
+
+  function wireForms() {
+    // Account
+    const f1 = $('account-form');
+    if (f1) on(f1, 'submit', (e) => {
+      e.preventDefault();
+      const id = $('account-id').value || null;
+      const owner = ($('account-owner-name').value || '').trim();
+      const bank = ($('account-bank').value || '').trim();
+      const name = ($('account-name').value || '').trim();
+      const bal = Number($('account-balance').value || 0);
+      if (!owner || !name) { toast('Preencha Pessoa e Nome da Conta'); return; }
+      data.savePerson(owner);
+      const acc = { id, owner, bank, name, balance: bal };
+      data.saveAccount(acc);
+      toast(id ? 'Conta atualizada' : 'Conta criada');
+      $('account-modal').style.display = 'none';
+      renderPeople(); renderAccounts();
+    });
+
+    // Category
+    const f2 = $('category-form');
+    if (f2) on(f2, 'submit', (e) => {
+      e.preventDefault();
+      const id = $('category-id').value || null;
+      const owner = ($('category-owner-name').value || '').trim();
+      const name = ($('category-name').value || '').trim();
+      const type = $('category-type').value;
+      if (!owner || !name) { toast('Preencha Pessoa e Nome'); return; }
+      data.savePerson(owner);
+      const cat = { id, owner, name, type };
+      data.saveCategory(cat);
+      toast(id ? 'Categoria atualizada' : 'Categoria criada');
+      $('category-modal').style.display = 'none';
+      renderPeople(); renderCategories();
+    });
+
+    // Transaction
+    const f3 = $('transaction-form');
+    if (f3) on(f3, 'submit', (e) => {
+      e.preventDefault();
+      const id = $('transaction-id').value || null;
+      const owner = ($('transaction-owner-name').value || '').trim();
+      const type = $('transaction-type').value;
+      const date = $('transaction-date').value;
+      const description = ($('transaction-description').value || '').trim();
+      const amount = Number($('transaction-amount').value || 0);
+      const account_id = $('transaction-account').value || null;
+      const account_id_dst = $('transaction-account-dst').value || null;
+      const category_id = $('transaction-category').value || null;
+
+      if (!owner || !date || !description || !amount || !account_id) {
+        toast('Preencha Pessoa, Data, Descrição, Valor e Conta');
+        return;
+      }
+      data.savePerson(owner);
+
+      if (!id) {
+        if (type === 'income') {
+          const a = data.getAccounts().find(x => x.id === account_id);
+          if (a) data.updateAccountBalance(a.id, Number(a.balance || 0) + amount);
+        } else if (type === 'expense') {
+          const b = data.getAccounts().find(x => x.id === account_id);
+          if (b) data.updateAccountBalance(b.id, Number(b.balance || 0) - amount);
+        } else if (type === 'transfer') {
+          if (!account_id_dst || account_id_dst === account_id) {
+            toast('Selecione uma conta destino diferente'); return;
+          }
+          const o = data.getAccounts().find(x => x.id === account_id);
+          const d = data.getAccounts().find(x => x.id === account_id_dst);
+          if (!o || !d) { toast('Contas inválidas'); return; }
+          data.updateAccountBalance(o.id, Number(o.balance || 0) - amount);
+          data.updateAccountBalance(d.id, Number(d.balance || 0) + amount);
+        }
+      }
+
+      const tx = {
+        id, owner, type, date, description, amount,
+        account_id,
+        account_id_dst: type === 'transfer' ? account_id_dst : null,
+        category_id
+      };
+      data.saveTransaction(tx);
+      toast(id ? 'Transação atualizada' : 'Transação criada');
+      $('transaction-modal').style.display = 'none';
+      renderPeople(); renderTransactions(); renderAccounts();
+    });
+
+    // Recurring
+    const f4 = $('recurring-form');
+    if (f4) on(f4, 'submit', (e) => {
+      e.preventDefault();
+      const id = $('recurring-id').value || null;
+      const owner = ($('recurring-owner-name').value || '').trim();
+      const title = ($('recurring-title').value || '').trim();
+      const type = $('recurring-type').value;
+      const amount = Number($('recurring-amount').value || 0);
+      const frequency = $('recurring-frequency').value;
+      const next_date = $('recurring-next').value;
+      const account_id = $('recurring-account').value || null;
+      const category_id = $('recurring-category').value || null;
+
+      if (!owner || !title || !amount || !next_date || !account_id) {
+        toast('Preencha Pessoa, Título, Valor, Próxima Data e Conta');
+        return;
+      }
+      data.savePerson(owner);
+      const r = { id, owner, title, type, amount, frequency, next_date, account_id, category_id };
+      data.saveRecurring(r);
+      toast(id ? 'Recorrência atualizada' : 'Recorrência criada');
+      $('recurring-modal').style.display = 'none';
+      renderPeople(); renderRecurring();
+    });
+  }
+
+  // Init
+  function init() {
+    try {
+      wireTabs();
+      wireModals();
+      wireButtons();
+      wireForms();
+      renderPeople();
+      renderPeopleOptions();
+      renderAccounts();
+      renderCategories();
+      renderTransactions();
+      renderRecurring();
+      renderDashboard();
+      console.log('FinPilot IE up');
+    } catch (e) {
+      console.error('Erro ao iniciar app:', e);
+      toast('Erro ao iniciar app');
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+})();
