@@ -39,6 +39,46 @@
   function contaById(id){ return state.contas.find(c=> c.id===id); }
   function getEmailByTitular(t){ const c = state.contas.find(x => (x.titular||'') === (t||'')); return (c && c.email) ? String(c.email).trim() : ''; }
 
+  // Guard de autenticação: valida sessão no servidor (getUser)
+  (async function guardAuth(){
+    try {
+      const u = window.SUPABASE_URL;
+      const k = window.SUPABASE_ANON_KEY;
+      if (!window.supabase || !u || !k) {
+        console.log('[Guard] Supabase não disponível — modo local.');
+        return; // opera em modo local
+      }
+      const supa = window.supabase.createClient(u, k, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
+
+      const { data: { session } } = await supa.auth.getSession();
+      if (!session) {
+        console.log('[Guard] Sem sessão local — continua (modo local ou fará login).');
+        return;
+      }
+
+      const { data: userData, error: userErr } = await supa.auth.getUser();
+      if (userErr || !userData?.user) {
+        console.log('[Guard] Sessão inválida no servidor — limpando e enviando para login.');
+        try { await supa.auth.signOut({ scope: 'global' }); } catch {}
+        try {
+          Object.keys(localStorage).forEach(k2 => {
+            if (k2.startsWith('sb-') && k2.endsWith('-auth-token')) localStorage.removeItem(k2);
+            if (k2.startsWith('supabase.')) localStorage.removeItem(k2);
+          });
+          sessionStorage.clear();
+        } catch {}
+        location.href = 'login.html?logout=1';
+        return;
+      }
+
+      console.log('[Guard] Sessão válida no servidor — segue no finance.');
+    } catch (e) {
+      console.warn('[Guard] erro:', e?.message || e);
+    }
+  })();
+
   // === Supabase Adapter (com logs e exposição em window) ===
   const SB = (() => {
     try{
@@ -786,7 +826,39 @@
     dividasWired=true;
   }
 
-  function wireSair(){ const btn=qs('#btnSair'); if(btn){ btn.addEventListener('click', ()=>{ if(!confirm('Sair e limpar sessão local?')) return; location.href='login.html'; }); } }
+  // Sair: signOut global + limpeza + redireciona com logout=1
+  function wireSair(){
+    const btn = qs('#btnSair');
+    if(!btn) return;
+
+    btn.addEventListener('click', async () => {
+      if (!confirm('Sair e limpar sessão?')) return;
+
+      try {
+        if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+          const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+          });
+          await supa.auth.signOut({ scope: 'global' });
+          console.log('[Sair] signOut OK (global)');
+        } else {
+          console.warn('[Sair] Supabase client não disponível.');
+        }
+      } catch (e) {
+        console.warn('[Sair] Erro no signOut:', e?.message || e);
+      } finally {
+        try {
+          Object.keys(localStorage).forEach(k => {
+            if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+            if (k.startsWith('supabase.')) localStorage.removeItem(k);
+          });
+          sessionStorage.clear();
+          console.log('[Sair] Storage limpo.');
+        } catch {}
+        location.href = 'login.html?logout=1';
+      }
+    });
+  }
 
   // === Init ===
   async function init(){
