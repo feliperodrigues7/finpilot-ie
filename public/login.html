@@ -80,16 +80,32 @@
     loginButton.addEventListener('click', handleLogin);
     [emailInput, passwordInput].forEach(el => el.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); }));
 
-    // Checar sessão ao carregar — mas respeita flag logout=1
+    // Checar sessão ao carregar — mas respeita flag logout=1 e limpa storage
     const params = new URLSearchParams(location.search);
     const cameFromLogout = params.get('logout') === '1';
 
     (async () => {
       if (!supa) return;
+
       if (cameFromLogout) {
-        console.log('[Login] Veio de logout, não redireciona automaticamente.');
+        // Limpa qualquer token local remanescente antes de checar sessão
+        try {
+          const keys = Object.keys(localStorage);
+          keys.forEach(k => {
+            if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+            if (k.startsWith('supabase.')) localStorage.removeItem(k);
+          });
+          sessionStorage.clear();
+          console.log('[Login] Storage limpo após logout.');
+        } catch(e) {
+          console.warn('[Login] Limpeza pós-logout falhou:', e);
+        }
+        // Não checa sessão nesta navegação de logout — fica na tela de login
+        console.log('[Login] Veio de logout: permanece na tela de login.');
         return;
       }
+
+      // Fluxo normal: checa sessão
       const { data: { session }, error } = await supa.auth.getSession();
       if (error) {
         console.warn('[Login] Erro ao checar sessão:', error.message);
