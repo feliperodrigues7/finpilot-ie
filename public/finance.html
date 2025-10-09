@@ -237,23 +237,37 @@
         }
       });
 
-      // Sair: desloga do Supabase e redireciona com flag logout=1
-      if(btnSair){
-        btnSair.addEventListener('click', async ()=>{
-          try {
-            if(window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY){
-              const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
-                auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
-              });
-              const { error } = await supa.auth.signOut();
-              if(error) console.warn('[Sair] Erro ao deslogar:', error.message);
-            }
-          } catch(e) {
-            console.warn('[Sair] Exceção:', e);
-          } finally {
-            location.href = 'login.html?logout=1';
+      // Sair: signOut completo + limpeza de storage + redireciona com flag logout=1
+      async function hardSignOut() {
+        try {
+          if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
+            const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+              auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+            });
+            const { error } = await supa.auth.signOut({ scope: 'global' });
+            if (error) console.warn('[Sair] signOut erro:', error.message);
           }
-        });
+        } catch (e) {
+          console.warn('[Sair] exceção no signOut:', e);
+        } finally {
+          try {
+            // Limpa chaves conhecidas do Supabase no localStorage
+            const keys = Object.keys(localStorage);
+            keys.forEach(k => {
+              if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+              if (k.startsWith('supabase.')) localStorage.removeItem(k);
+            });
+            sessionStorage.clear();
+            console.log('[Sair] Storage limpo.');
+          } catch (e) {
+            console.warn('[Sair] limpeza local falhou:', e);
+          }
+          location.href = 'login.html?logout=1';
+        }
+      }
+
+      if (btnSair) {
+        btnSair.addEventListener('click', hardSignOut);
       }
 
       // Expor helpers para o finance.js usar o modal, se quiser
