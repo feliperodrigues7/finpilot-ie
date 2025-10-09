@@ -46,6 +46,8 @@
   </style>
 </head>
 <body>
+  <script>console.log('finance v2012');</script>
+
   <div class="app">
     <aside class="sidebar">
       <div class="brand"><span class="brand-dot"></span> FinPilot IE</div>
@@ -186,7 +188,6 @@
       const modalForm = qs('#modalForm');
       const btnSair = qs('#btnSair');
 
-      // Navegação por hash
       function showTab(tabName){
         panels.forEach(p => p.classList.add('hidden'));
         tabs.forEach(a => a.classList.remove('active'));
@@ -202,7 +203,6 @@
       window.addEventListener('hashchange', handleHash);
       handleHash();
 
-      // Modal genérico
       function openModal(title, formHTML){
         qs('#modalTitle').textContent = title || 'Modal';
         modalForm.innerHTML = formHTML || '';
@@ -218,26 +218,7 @@
       if(modalCancel) modalCancel.addEventListener('click', closeModal);
       if(backdrop) backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
 
-      // Botões "+" abrem modal simples (placeholder) — depois integramos com finance.js
-      const buttonMap = [
-        { id: '#btnNewSalario', title: 'Novo salário' },
-        { id: '#btnNewFixa', title: 'Nova despesa fixa' },
-        { id: '#btnNewDivida', title: 'Nova dívida' },
-        { id: '#btnNewGasto', title: 'Novo gasto' },
-        { id: '#btnNewTransfer', title: 'Nova transferência' },
-        { id: '#btnNewCategoria', title: 'Nova categoria' },
-        { id: '#btnNewConta', title: 'Nova conta' }
-      ];
-      buttonMap.forEach(({id,title})=>{
-        const btn = qs(id);
-        if(btn){
-          btn.addEventListener('click', ()=>{
-            openModal(title, '<p class="muted">Formulário será carregado pelo finance.js.</p>');
-          });
-        }
-      });
-
-      // Sair: signOut completo + limpeza de storage + redireciona com flag logout=1
+      // Sair: signOut global + limpeza de storage + redireciona com flag logout=1
       async function hardSignOut() {
         try {
           if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
@@ -246,12 +227,14 @@
             });
             const { error } = await supa.auth.signOut({ scope: 'global' });
             if (error) console.warn('[Sair] signOut erro:', error.message);
+            else console.log('[Sair] signOut OK (global)');
+          } else {
+            console.warn('[Sair] Supabase client não disponível no finance.html');
           }
         } catch (e) {
           console.warn('[Sair] exceção no signOut:', e);
         } finally {
           try {
-            // Limpa chaves conhecidas do Supabase no localStorage
             const keys = Object.keys(localStorage);
             keys.forEach(k => {
               if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
@@ -266,16 +249,14 @@
         }
       }
 
-      if (btnSair) {
-        btnSair.addEventListener('click', hardSignOut);
-      }
+      if (btnSair) btnSair.addEventListener('click', hardSignOut);
 
       // Expor helpers para o finance.js usar o modal, se quiser
       window.UI = { openModal, closeModal, showTab };
     })();
   </script>
 
-  <!-- Seu JS principal -->
-  <script src="./finance.js"></script>
+  <!-- Seu JS principal (com cache-busting para evitar pegar versão antiga) -->
+  <script src="./finance.js?v=2012"></script>
 </body>
 </html>
