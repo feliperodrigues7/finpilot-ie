@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FinPilot IE - Login</title>
-    <link rel="icon" href="./favicon.ico" />
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <style>
         body {
@@ -49,7 +48,7 @@
 
         const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
             auth: {
-                persistSession: true, // Manter sessão ativa
+                persistSession: true,
                 autoRefreshToken: true,
                 detectSessionInUrl: true
             }
@@ -62,7 +61,7 @@
 
         async function handleLogin() {
             errorMessage.textContent = '';
-            const email = emailInput.value;
+            const email = emailInput.value.trim();
             const password = passwordInput.value;
 
             if (!email || !password) {
@@ -71,11 +70,11 @@
             }
 
             try {
-                const { error } = await supa.auth.signInWithPassword({ email, password });
+                const { data, error } = await supa.auth.signInWithPassword({ email, password });
                 if (error) {
                     errorMessage.textContent = `Erro ao fazer login: ${error.message}`;
                 } else {
-                    window.location.href = './finance.html'; // Redireciona para a página financeira
+                    window.location.href = './finance.html';
                 }
             } catch (err) {
                 errorMessage.textContent = `Erro inesperado: ${err.message}`;
@@ -88,12 +87,16 @@
                 handleLogin();
             }
         });
+        emailInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                handleLogin();
+            }
+        });
 
-        // Checar sessão ao carregar a página
         async function checkSession() {
             const { data: { session } } = await supa.auth.getSession();
             if (session) {
-                window.location.href = './finance.html'; // Já logado, redireciona
+                window.location.href = './finance.html';
             }
         }
         checkSession();
