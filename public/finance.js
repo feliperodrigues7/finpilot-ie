@@ -1,17 +1,14 @@
 (function () {
-  // === Helpers ===
   const qs = (s, el = document) => el.querySelector(s);
   const qsa = (s, el = document) => Array.from(el.querySelectorAll(s));
   const fmtEUR = (n) => (Number(n) || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
 
-  const toISO = (ddmmaa) => {
-    if (!ddmmaa) return '';
-    if (/^\d{4}-\d{2}-\d{2}$/.test(ddmmaa)) return ddmmaa;
-    const m = ddmmaa.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-    if (!m) return ddmmaa;
-    return `${m[3]}-${m[2]}-${m[1]}`;
+  const toISO = (v) => {
+    if (!v) return '';
+    if (/^\d{4}-\d{2}-\d{2}$/.test(v)) return v;
+    const m = v.match?.(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    return m ? `${m[3]}-${m[2]}-${m[1]}` : v;
   };
-
   const fmtDate = (iso) => {
     if (!iso) return '';
     const d = /^\d{4}-\d{2}-\d{2}$/.test(iso) ? new Date(iso+'T12:00:00') : new Date(iso);
@@ -30,30 +27,7 @@
   function load(){
     try{
       const raw = localStorage.getItem(STORAGE_KEY);
-      if(!raw){
-        state.contas=[
-          {id:uid(),titular:'Giseli',banco:'AIB',tipo:'Corrente',email:'giseli@example.com'},
-          {id:uid(),titular:'FR',banco:'Revolut',tipo:'Poupança',email:'fr@example.com'}
-        ];
-        state.salarios=[
-          {id:uid(),data:todayISO(),titular:'Giseli',banco:'AIB',horas:40,valor:500},
-          {id:uid(),data:todayISO(),titular:'FR',banco:'Revolut',horas:40,valor:450}
-        ];
-        state.gastos=[{id:uid(),data:todayISO(),titular:'FR',banco:'AIB',descricao:'Supermercado',valor:35.9,status:'paga'}];
-        state.fixas=[{id:uid(),nome:'Internet',titular:'FR',valor:40,data:'',semana:'1',status:'aberta',obs:''}];
-        state.dividas=[{id:uid(),nome:'Cartão',titular:'FR',valor:120,vencimento:'',semana:'1',status:'aberta',obs:''}];
-        state.transferencias=[];
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-      } else {
-        const parsed=JSON.parse(raw);
-        Object.assign(state, parsed);
-        ['gastos','fixas','salarios','dividas','transferencias'].forEach(k=>{
-          (state[k]||[]).forEach(r=>{
-            if('data' in r && r.data) r.data=toISO(r.data);
-            if('vencimento' in r && r.vencimento) r.vencimento=toISO(r.vencimento);
-          });
-        });
-      }
+      if(raw){ Object.assign(state, JSON.parse(raw)); }
     } catch(e){ console.error(e); }
   }
 
@@ -67,44 +41,47 @@
 
   // === Supabase Adapter ===
   const SB = (() => {
-    try {
-      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase) return null;
+    try{
+      if(!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase) return null;
       const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
 
-      async function listContas() {
-        const { data, error } = await client.from('contas').select('*').order('created_at', { ascending: false });
-        if (error) throw error;
-        return data || [];
-      }
-      async function insertConta(rec) {
-        const { data, error } = await client.from('contas').insert(rec).select('*').single();
-        if (error) throw error;
-        return data;
-      }
-      async function updateConta(id, patch) {
-        const { data, error } = await client.from('contas').update(patch).eq('id', id).select('*').single();
-        if (error) throw error;
-        return data;
-      }
-      async function deleteConta(id) {
-        const { error } = await client.from('contas').delete().eq('id', id);
-        if (error) throw error;
-        return true;
-      }
+      // contas
+      async function listContas(){ const {data, error} = await client.from('contas').select('*').order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
+      async function insertConta(rec){ const {data, error} = await client.from('contas').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function updateConta(id, patch){ const {data, error} = await client.from('contas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
+      async function deleteConta(id){ const {error} = await client.from('contas').delete().eq('id', id); if(error) throw error; return true; }
 
-      return { client, contas: { list: listContas, insert: insertConta, update: updateConta, remove: deleteConta } };
-    } catch (e) {
-      console.warn('Supabase init falhou:', e);
-      return null;
-    }
+      // gastos
+      async function listGastos(){ const {data, error} = await client.from('gastos').select('*').order('data', {ascending:false}).order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
+      async function insertGasto(rec){ const {data, error} = await client.from('gastos').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function updateGasto(id, patch){ const {data, error} = await client.from('gastos').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
+      async function deleteGasto(id){ const {error} = await client.from('gastos').delete().eq('id', id); if(error) throw error; return true; }
+
+      // salarios
+      async function listSalarios(){ const {data, error} = await client.from('salarios').select('*').order('data', {ascending:false}).order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
+      async function insertSalario(rec){ const {data, error} = await client.from('salarios').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function updateSalario(id, patch){ const {data, error} = await client.from('salarios').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
+      async function deleteSalario(id){ const {error} = await client.from('salarios').delete().eq('id', id); if(error) throw error; return true; }
+
+      return {
+        client,
+        contas: { list:listContas, insert:insertConta, update:updateConta, remove:deleteConta },
+        gastos: { list:listGastos, insert:insertGasto, update:updateGasto, remove:deleteGasto },
+        salarios: { list:listSalarios, insert:insertSalario, update:updateSalario, remove:deleteSalario }
+      };
+    }catch(e){ console.warn('Supabase init falhou:', e); return null; }
   })();
 
-  // === Dashboard e navegação (igual ao seu) ===
+  // === Dashboard ===
   function computeBalances(){
     const map=new Map();
     const add=(titular,banco,delta)=>{ const key=`${titular}||${banco}`; map.set(key, (map.get(key)||0) + Number(delta||0)); };
     state.salarios.forEach(s=> add(s.titular, s.banco, +s.valor));
-    state.gastos.filter(g=> (g.status||'')==='paga').forEach(g=> add(g.titular, g.banco, -g.valor));
+    state.gastos.filter(g=> (g.status||'')==='paga').forEach(g=>{
+      const conta = contaById(g.conta_id);
+      const banco = g.banco || (conta? conta.banco : '—');
+      add(g.titular, banco, -g.valor);
+    });
     state.fixas.filter(f=> (f.status||'')==='paga').forEach(f=>{ const conta=state.contas.find(c=> c.titular===f.titular) || { banco:'—' }; add(f.titular, conta.banco, -f.valor); });
     state.dividas.filter(d=> (d.status||'')==='paga').forEach(d=>{ const conta=state.contas.find(c=> c.titular===d.titular) || { banco:'—' }; add(d.titular, conta.banco, -d.valor); });
     state.transferencias.forEach(t=>{
@@ -130,12 +107,12 @@
       Object.entries(sections).forEach(([k,el])=> el && el.classList.toggle('hidden', k!==tab));
       if(tab==='dashboard') renderDashboard();
       if(tab==='contas'){ wireContas(); renderContas(); }
-      if(tab==='gastos') renderGastos();
-      if(tab==='salarios') renderSalarios();
-      if(tab==='transferencias') renderTransfers();
-      if(tab==='categorias') renderCategorias();
-      if(tab==='fixas') renderFixas();
-      if(tab==='dividas') renderDividas();
+      if(tab==='gastos'){ wireGastos(); renderGastos(); }
+      if(tab==='salarios'){ wireSalarios(); renderSalarios(); }
+      if(tab==='transferencias'){ wireTransfers(); renderTransfers(); }
+      if(tab==='categorias'){ wireCategorias(); renderCategorias(); }
+      if(tab==='fixas'){ wireFixas(); renderFixas(); }
+      if(tab==='dividas'){ wireDividas(); renderDividas(); }
     }
     nav.addEventListener('click', (e)=>{
       const a=e.target.closest('a[data-tab]'); if(!a) return;
@@ -144,7 +121,7 @@
     const hash=location.hash.replace('#',''); const allowed=['dashboard','salarios','fixas','dividas','gastos','transferencias','categorias','contas']; const initial = allowed.includes(hash)?hash:'dashboard'; activate(initial);
   }
 
-  // === Modal util ===
+  // === Modal ===
   const modal = {
     open(opts){
       this.opts = opts;
@@ -158,10 +135,7 @@
         modal.close();
       };
       form.append(...opts.fields.map(renderField));
-      const bd=qs('#backdrop');
-      bd.style.display='flex';
-      bd.style.alignItems='center';
-      bd.style.justifyContent='center';
+      const bd=qs('#backdrop'); bd.style.display='flex'; bd.style.alignItems='center'; bd.style.justifyContent='center';
     },
     close(){ qs('#backdrop').style.display='none'; this.opts=null; }
   };
@@ -178,7 +152,7 @@
   }
   function wireModalButtons(){ qs('#modalClose').addEventListener('click', ()=> modal.close()); qs('#modalCancel').addEventListener('click', ()=> modal.close()); qs('#backdrop').addEventListener('click', (e)=>{ if(e.target.id==='backdrop') modal.close(); }); }
 
-  // === Contas (migrado para Supabase) ===
+  // === Contas ===
   function renderContas(){
     const tbody=qs('#tblContas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -251,20 +225,27 @@
     contasWired=true;
   }
 
-  // === Demais abas permanecem locais por enquanto ===
+  // === Gastos ===
   function renderGastos(){
     const tbody=qs('#tblGastos tbody'); if(!tbody) return;
     tbody.innerHTML='';
     state.gastos.forEach(g=>{
+      const conta = contaById(g.conta_id);
+      const banco = g.banco || (conta? conta.banco : '');
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${fmtDate(g.data||'')}</td><td>${g.titular||''}</td><td>${g.banco||''}</td><td>${g.descricao||''}</td><td>${fmtEUR(g.valor)}</td>
+      tr.innerHTML=`<td>${fmtDate(g.data||'')}</td><td>${g.titular||''}</td><td>${banco}</td><td>${g.descricao||''}</td><td>${fmtEUR(g.valor)}</td>
         <td><span class="pill">${g.status||'aberta'}</span></td>
-        <td class="actions"><button class="btn ghost" data-act="edit-gasto" data-id="${g.id}">Editar</button>
-        <button class="btn danger" data-act="del-gasto" data-id="${g.id}">Excluir</button></td>`;
+        <td class="actions">
+          <button class="btn ghost" data-act="edit-gasto" data-id="${g.id}">Editar</button>
+          <button class="btn danger" data-act="del-gasto" data-id="${g.id}">Excluir</button>
+        </td>`;
       tbody.appendChild(tr);
     });
   }
+
+  let gastosWired=false;
   function wireGastos(){
+    if(gastosWired) return;
     const btn=qs('#btnNewGasto'); if(btn){
       btn.addEventListener('click', ()=>{
         const people=pessoasFromContas(); const contas=contasOptions();
@@ -273,31 +254,44 @@
           fields:[
             { label:'Data', name:'data', type:'date', required:true, value:todayISO() },
             { label:'Titular', name:'titular', type:'select', options: people.length?people:['Giseli','FR'] },
-            { label:'Banco (conta)', name:'banco_id', type:'select', options: contas },
+            { label:'Conta', name:'conta_id', type:'select', options: contas },
             { label:'Descrição', name:'descricao', type:'textarea', rows:3 },
             { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true },
             { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:'aberta' }
           ],
-          onSubmit:(data)=>{
-            const conta = contaById(data.banco_id);
-            state.gastos.unshift({
-              id:uid(), data:toISO(data.data), titular:data.titular,
-              banco: conta? `${conta.banco}`:'', descricao:data.descricao||'',
-              valor:Number(data.valor||0), conta_id:data.banco_id||null, status:data.status||'aberta'
-            });
-            persist(); renderGastos();
+          onSubmit: async (data)=>{
+            const rec = {
+              data: toISO(data.data),
+              titular: data.titular,
+              conta_id: data.conta_id || null,
+              descricao: data.descricao || '',
+              valor: Number(data.valor||0),
+              status: data.status || 'aberta'
+            };
+            if (SB){
+              try{
+                const saved = await SB.gastos.insert(rec);
+                state.gastos.unshift(saved);
+              }catch(e){ alert('Erro ao salvar gasto no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.gastos.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderGastos(); renderDashboard();
           }
         });
       });
     }
     const table=qs('#tblGastos'); if(table){
-      table.addEventListener('click',(e)=>{
+      table.addEventListener('click', async (e)=>{
         const btn=e.target.closest('button[data-act]'); if(!btn) return;
         const id=btn.dataset.id; const act=btn.dataset.act;
         if(act==='del-gasto'){
-          if(!confirm('Tem certeza que deseja excluir este gasto?')) return;
+          if(!confirm('Excluir este gasto?')) return;
+          if(SB){ try{ await SB.gastos.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
           state.gastos = state.gastos.filter(g=> g.id!==id);
-          persist(); renderGastos();
+          if(!SB) persist();
+          renderGastos(); renderDashboard();
         } else if(act==='edit-gasto'){
           const g=state.gastos.find(x=> x.id===id); if(!g) return;
           const people=pessoasFromContas(); const contas=contasOptions();
@@ -306,28 +300,199 @@
             fields:[
               { label:'Data', name:'data', type:'date', required:true, value:g.data },
               { label:'Titular', name:'titular', type:'select', options: people.length?people:['Giseli','FR'], value:g.titular },
-              { label:'Banco (conta)', name:'banco_id', type:'select', options: contas, value:g.conta_id||'' },
-              { label:'Descrição', name:'descricao', type:'textarea', rows:3, value:g.descricao },
+              { label:'Conta', name:'conta_id', type:'select', options: contas, value:g.conta_id||'' },
+              { label:'Descrição', name:'descricao', type:'textarea', rows:3, value:g.descricao||'' },
               { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true, value:g.valor },
               { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:g.status||'aberta' }
             ],
-            onSubmit:(data)=>{
-              const conta=contaById(data.banco_id);
-              Object.assign(g, {
-                data:toISO(data.data), titular:data.titular,
-                banco: conta? `${conta.banco}`:'', descricao:data.descricao||'',
-                valor:Number(data.valor||0), conta_id:data.banco_id||null, status:data.status||'aberta'
-              });
-              persist(); renderGastos();
+            onSubmit: async (data)=>{
+              const patch = {
+                data: toISO(data.data),
+                titular: data.titular,
+                conta_id: data.conta_id || null,
+                descricao: data.descricao || '',
+                valor: Number(data.valor||0),
+                status: data.status || 'aberta'
+              };
+              if(SB){
+                try{
+                  const updated = await SB.gastos.update(g.id, patch);
+                  Object.assign(g, updated);
+                }catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message||e)); return; }
+              } else {
+                Object.assign(g, patch); persist();
+              }
+              renderGastos(); renderDashboard();
             }
           });
         }
       });
     }
+    gastosWired=true;
   }
 
-  const SEMANAS=['1','2','3','4','5'];
+  // === Salários ===
+  function renderSalarios(){
+    const tbody=qs('#tblSalarios tbody'); if(!tbody) return;
+    tbody.innerHTML='';
+    state.salarios.forEach(s=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${fmtDate(s.data)}</td><td>${s.titular}</td><td>${s.banco}</td><td>${s.horas??''}</td><td>${fmtEUR(s.valor)}</td>
+        <td class="actions">
+          <button class="btn danger" data-act="del-salario" data-id="${s.id}">Excluir</button>
+        </td>`;
+      tbody.appendChild(tr);
+    });
+  }
 
+  let salariosWired=false;
+  function wireSalarios(){
+    if(salariosWired) return;
+    const btn=qs('#btnNewSalario'); if(btn){
+      btn.addEventListener('click', ()=>{
+        const people=pessoasFromContas(); const bancos=Array.from(new Set(state.contas.map(c=> c.banco))).map(b=> String(b));
+        modal.open({
+          title:'Novo salário',
+          fields:[
+            { label:'Data', name:'data', type:'date', required:true, value:todayISO() },
+            { label:'Titular', name:'titular', type:'select', options: people.length?people:['Giseli','FR'] },
+            { label:'Banco', name:'banco', type:'select', options: bancos.length?bancos:['AIB','Revolut'] },
+            { label:'Horas', name:'horas', type:'number', step:'1' },
+            { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true }
+          ],
+          onSubmit: async (data)=>{
+            const rec = {
+              data: toISO(data.data),
+              titular: data.titular,
+              banco: data.banco,
+              horas: data.horas ? Number(data.horas) : null,
+              valor: Number(data.valor||0)
+            };
+            if (SB){
+              try{
+                const saved = await SB.salarios.insert(rec);
+                state.salarios.unshift(saved);
+              }catch(e){ alert('Erro ao salvar salário no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.salarios.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderSalarios(); renderDashboard();
+          }
+        });
+      });
+    }
+    const table=qs('#tblSalarios'); if(table){
+      table.addEventListener('click', async (e)=>{
+        const btn=e.target.closest('button[data-act]'); if(!btn) return;
+        if(btn.dataset.act==='del-salario'){
+          if(!confirm('Tem certeza que deseja excluir este salário?')) return;
+          const id=btn.dataset.id;
+          if(SB){ try{ await SB.salarios.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
+          state.salarios = state.salarios.filter(s=> s.id!==id);
+          if(!SB) persist();
+          renderSalarios(); renderDashboard();
+        }
+      });
+    }
+    salariosWired=true;
+  }
+
+  // === Categorias ===
+  function renderCategorias(){
+    const tbody=qs('#tblCategorias tbody'); if(!tbody) return;
+    tbody.innerHTML='';
+    state.categorias.forEach(c=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${c.nome}</td><td>${c.tipo}</td>
+        <td class="actions"><button class="btn danger" data-act="del-categoria" data-id="${c.id}">Excluir</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  let categoriasWired=false;
+  function wireCategorias(){
+    if(categoriasWired) return;
+    const btn=qs('#btnNewCategoria'); if(btn){
+      btn.addEventListener('click', ()=>{
+        modal.open({
+          title:'Nova categoria',
+          fields:[
+            { label:'Nome', name:'nome', type:'text', required:true },
+            { label:'Tipo', name:'tipo', type:'select', options:['entrada','saida'], value:'saida' }
+          ],
+          onSubmit:(data)=>{
+            state.categorias.unshift({ id:uid(), nome:data.nome, tipo:data.tipo });
+            persist(); renderCategorias();
+          }
+        });
+      });
+    }
+    const table=qs('#tblCategorias'); if(table){
+      table.addEventListener('click',(e)=>{
+        const btn=e.target.closest('button[data-act]'); if(!btn) return;
+        if(btn.dataset.act==='del-categoria'){
+          if(!confirm('Excluir esta categoria?')) return;
+          const id=btn.dataset.id;
+          state.categorias = state.categorias.filter(c=> c.id!==id);
+          persist(); renderCategorias();
+        }
+      });
+    }
+    categoriasWired=true;
+  }
+
+  // === Transferências ===
+  function renderTransfers(){
+    const tbody=qs('#tblTransfers tbody'); if(!tbody) return;
+    tbody.innerHTML='';
+    state.transferencias.forEach(t=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${fmtDate(t.data)}</td><td><span class="pill">${t.tipo}</span></td><td>${t.de_label||''}</td><td>${t.para_label||''}</td><td>${fmtEUR(t.valor)}</td><td>${t.descricao||''}</td>
+        <td class="actions"><button class="btn danger" data-act="del-transfer" data-id="${t.id}">Excluir</button></td>`;
+      tbody.appendChild(tr);
+    });
+  }
+  let transfersWired=false;
+  function wireTransfers(){
+    if(transfersWired) return;
+    const btn=qs('#btnNewTransfer'); if(btn){
+      btn.addEventListener('click', ()=>{
+        const contas=contasOptions();
+        modal.open({
+          title:'Nova transferência',
+          fields:[
+            { label:'Data', name:'data', type:'date', required:true, value:todayISO() },
+            { label:'Tipo', name:'tipo', type:'select', options:['Transferência','Despesa','Receita'], value:'Transferência' },
+            { label:'De (conta)', name:'de_id', type:'select', options: contas },
+            { label:'Para (conta)', name:'para_id', type:'select', options: contas },
+            { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true },
+            { label:'Descrição', name:'descricao', type:'textarea', rows:3 }
+          ],
+          onSubmit:(data)=>{
+            const cDe=contaById(data.de_id);
+            const cPara=contaById(data.para_id);
+            state.transferencias.unshift({ id:uid(), data:toISO(data.data), tipo:data.tipo, de_id:data.de_id||null, para_id:data.para_id||null, de_label: cDe? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})`:'-', para_label: cPara? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})`:'-', valor:Number(data.valor||0), descricao:data.descricao||'' });
+            persist(); renderTransfers();
+          }
+        });
+      });
+    }
+    const table=qs('#tblTransfers'); if(table){
+      table.addEventListener('click',(e)=>{
+        const btn=e.target.closest('button[data-act]'); if(!btn) return;
+        if(btn.dataset.act==='del-transfer'){
+          if(!confirm('Tem certeza que deseja excluir esta transferência?')) return;
+          const id=btn.dataset.id;
+          state.transferencias = state.transferencias.filter(t=> t.id!==id);
+          persist(); renderTransfers();
+        }
+      });
+    }
+    transfersWired=true;
+  }
+
+  // === Fixas ===
+  const SEMANAS=['1','2','3','4','5'];
   function renderFixas(){
     const tbody=qs('#tblFixas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -341,7 +506,9 @@
       tbody.appendChild(tr);
     });
   }
+  let fixasWired=false;
   function wireFixas(){
+    if(fixasWired) return;
     const btn=qs('#btnNewFixa'); if(btn){
       const people=pessoasFromContas();
       btn.addEventListener('click', ()=>{
@@ -397,8 +564,10 @@
         }
       });
     }
+    fixasWired=true;
   }
 
+  // === Dívidas ===
   function renderDividas(){
     const tbody=qs('#tblDividas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -411,7 +580,9 @@
       tbody.appendChild(tr);
     });
   }
+  let dividasWired=false;
   function wireDividas(){
+    if(dividasWired) return;
     const btn=qs('#btnNewDivida'); if(btn){
       const people=pessoasFromContas();
       btn.addEventListener('click', ()=>{
@@ -463,208 +634,25 @@
         }
       });
     }
-  }
-
-  function renderSalarios(){
-    const tbody=qs('#tblSalarios tbody'); if(!tbody) return;
-    tbody.innerHTML='';
-    state.salarios.forEach(s=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${fmtDate(s.data)}</td><td>${s.titular}</td><td>${s.banco}</td><td>${s.horas??''}</td><td>${fmtEUR(s.valor)}</td>
-        <td class="actions"><button class="btn danger" data-act="del-salario" data-id="${s.id}">Excluir</button></td>`;
-      tbody.appendChild(tr);
-    });
-  }
-  function wireSalarios(){
-    const btn=qs('#btnNewSalario'); if(btn){
-      btn.addEventListener('click', ()=>{
-        const people=pessoasFromContas(); const bancos=Array.from(new Set(state.contas.map(c=> c.banco))).map(b=> String(b));
-        modal.open({
-          title:'Novo salário',
-          fields:[
-            { label:'Data', name:'data', type:'date', required:true, value:todayISO() },
-            { label:'Titular', name:'titular', type:'select', options: people.length?people:['Giseli','FR'] },
-            { label:'Banco', name:'banco', type:'select', options: bancos.length?bancos:['AIB','Revolut'] },
-            { label:'Horas', name:'horas', type:'number', step:'1' },
-            { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true }
-          ],
-          onSubmit:(data)=>{
-            state.salarios.unshift({ id:uid(), data:toISO(data.data), titular:data.titular, banco:data.banco, horas: data.horas?Number(data.horas):undefined, valor:Number(data.valor||0) });
-            persist(); renderSalarios();
-          }
-        });
-      });
-    }
-    const table=qs('#tblSalarios'); if(table){
-      table.addEventListener('click',(e)=>{
-        const btn=e.target.closest('button[data-act]'); if(!btn) return;
-        if(btn.dataset.act==='del-salario'){
-          if(!confirm('Tem certeza que deseja excluir este salário?')) return;
-          const id=btn.dataset.id;
-          state.salarios = state.salarios.filter(s=> s.id!==id);
-          persist(); renderSalarios();
-        }
-      });
-    }
-  }
-
-  function renderCategorias(){
-    const tbody=qs('#tblCategorias tbody'); if(!tbody) return;
-    tbody.innerHTML='';
-    state.categorias.forEach(c=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${c.nome}</td><td>${c.tipo}</td>
-        <td class="actions"><button class="btn danger" data-act="del-categoria" data-id="${c.id}">Excluir</button></td>`;
-      tbody.appendChild(tr);
-    });
-  }
-  function wireCategorias(){
-    const btn=qs('#btnNewCategoria'); if(btn){
-      btn.addEventListener('click', ()=>{
-        modal.open({
-          title:'Nova categoria',
-          fields:[
-            { label:'Nome', name:'nome', type:'text', required:true },
-            { label:'Tipo', name:'tipo', type:'select', options:['entrada','saida'], value:'saida' }
-          ],
-          onSubmit:(data)=>{
-            state.categorias.unshift({ id:uid(), nome:data.nome, tipo:data.tipo });
-            persist(); renderCategorias();
-          }
-        });
-      });
-    }
-    const table=qs('#tblCategorias'); if(table){
-      table.addEventListener('click',(e)=>{
-        const btn=e.target.closest('button[data-act]'); if(!btn) return;
-        if(btn.dataset.act==='del-categoria'){
-          if(!confirm('Excluir esta categoria?')) return;
-          const id=btn.dataset.id;
-          state.categorias = state.categorias.filter(c=> c.id!==id);
-          persist(); renderCategorias();
-        }
-      });
-    }
-  }
-
-  function renderTransfers(){
-    const tbody=qs('#tblTransfers tbody'); if(!tbody) return;
-    tbody.innerHTML='';
-    state.transferencias.forEach(t=>{
-      const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${fmtDate(t.data)}</td><td><span class="pill">${t.tipo}</span></td><td>${t.de_label||''}</td><td>${t.para_label||''}</td><td>${fmtEUR(t.valor)}</td><td>${t.descricao||''}</td>
-        <td class="actions"><button class="btn danger" data-act="del-transfer" data-id="${t.id}">Excluir</button></td>`;
-      tbody.appendChild(tr);
-    });
-  }
-  function wireTransfers(){
-    const btn=qs('#btnNewTransfer'); if(btn){
-      btn.addEventListener('click', ()=>{
-        const contas=contasOptions();
-        modal.open({
-          title:'Nova transferência',
-          fields:[
-            { label:'Data', name:'data', type:'date', required:true, value:todayISO() },
-            { label:'Tipo', name:'tipo', type:'select', options:['Transferência','Despesa','Receita'], value:'Transferência' },
-            { label:'De (conta)', name:'de_id', type:'select', options: contas },
-            { label:'Para (conta)', name:'para_id', type:'select', options: contas },
-            { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true },
-            { label:'Descrição', name:'descricao', type:'textarea', rows:3 }
-          ],
-          onSubmit:(data)=>{
-            const cDe=contaById(data.de_id);
-            const cPara=contaById(data.para_id);
-            state.transferencias.unshift({ id:uid(), data:toISO(data.data), tipo:data.tipo, de_id:data.de_id||null, para_id:data.para_id||null, de_label: cDe? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})`:'-', para_label: cPara? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})`:'-', valor:Number(data.valor||0), descricao:data.descricao||'' });
-            persist(); renderTransfers();
-          }
-        });
-      });
-    }
-    const table=qs('#tblTransfers'); if(table){
-      table.addEventListener('click',(e)=>{
-        const btn=e.target.closest('button[data-act]'); if(!btn) return;
-        if(btn.dataset.act==='del-transfer'){
-          if(!confirm('Tem certeza que deseja excluir esta transferência?')) return;
-          const id=btn.dataset.id;
-          state.transferencias = state.transferencias.filter(t=> t.id!==id);
-          persist(); renderTransfers();
-        }
-      });
-    }
-  }
-
-  // ==== Lembrete semanal (segunda-feira) ====
-  function startOfWeek(d){ const date = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = date.getDay(); const diff = (day === 0 ? -6 : 1 - day); date.setDate(date.getDate() + diff); return date; }
-  function wednesdayOfWeek(d){ const mon = startOfWeek(d); const wed = new Date(mon); wed.setDate(mon.getDate()+2); return wed; }
-  function weekOfMonthByWednesday(d){ const wed = wednesdayOfWeek(d); return Math.ceil(wed.getDate()/7); } // 1–5
-
-  function formatLines(items){
-    return items.map(it=>{
-      const base = `- ${it.tipo}: ${it.nome} (${it.titular}) | ${fmtEUR(it.valor)}`;
-      const extra = [ it.semana?`Semana ${it.semana}`:'', it.data?`Data ${fmtDate(it.data)}`:'', it.vencimento?`Venc. ${fmtDate(it.vencimento)}`:'', it.obs?`Obs: ${it.obs}`:'' ].filter(Boolean).join(' | ');
-      return extra? `${base} | ${extra}` : base;
-    }).join('\n');
-  }
-
-  function collectWeeklyByEmail(refDate){
-    const week = String(weekOfMonthByWednesday(refDate)); const byEmail = new Map();
-    state.fixas.forEach(f=>{ if(String(f.semana||'')===week){ const email = getEmailByTitular(f.titular); if(!email) return; const arr = byEmail.get(email)||[]; arr.push({tipo:'Despesa Fixa', nome:f.nome, titular:f.titular, valor:Number(f.valor||0), semana:f.semana||'', data:f.data||'', obs:f.obs||''}); byEmail.set(email, arr); } });
-    const mon = startOfWeek(refDate); const sun = new Date(mon); sun.setDate(mon.getDate()+6);
-    state.dividas.forEach(d=>{
-      const ema = getEmailByTitular(d.titular); if(!ema) return;
-      const matchesWeek = String(d.semana||'')===week;
-      let withinWeek = false;
-      if(d.vencimento){ const v = new Date(toISO(d.vencimento)+'T12:00:00'); withinWeek = (v>=mon && v<=sun); }
-      if (matchesWeek || withinWeek) {
-        const arr=byEmail.get(ema)||[];
-        arr.push({tipo:'Dívida', nome:d.nome, titular:d.titular, valor:Number(d.valor||0), semana:d.semana||'', vencimento:d.vencimento||'', obs:d.obs||''});
-        byEmail.set(ema, arr);
-      }
-    });
-    return byEmail;
-  }
-
-  function buildWeeklyEmailSubject(refDate){
-    const wed = wednesdayOfWeek(refDate); const w = weekOfMonthByWednesday(refDate); const month = String(wed.getMonth()+1).padStart(2,'0');
-    return `FinPilot IE - Semana ${w} (${String(wed.getDate()).padStart(2,'0')}/${month})`;
-  }
-  function buildWeeklyEmailBody(items, refDate){
-    const header = `Resumo da semana do mês (pagas na quarta-feira).`; const lines = formatLines(items);
-    const y = refDate.getFullYear(); const m = String(refDate.getMonth()+1).padStart(2,'0'); const d = String(refDate.getDate()).padStart(2,'0');
-    return `${header}\n\n${lines}\n\nGerado em ${fmtDate(`${y}-${m}-${d}`)}\nFinPilot IE`;
-  }
-  function sendWeeklyEmailsIfMonday(){
-    const now = new Date(); const isMonday = now.getDay()===1; if(!isMonday) return;
-    const stamp = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`; const last = localStorage.getItem('finpilot_last_weekly_mail'); if(last===stamp) return;
-    const map = collectWeeklyByEmail(now); if(map.size===0){ localStorage.setItem('finpilot_last_weekly_mail', stamp); return; }
-    map.forEach((items,email)=>{ const subject = encodeURIComponent(buildWeeklyEmailSubject(now)); const body = encodeURIComponent(buildWeeklyEmailBody(items, now)); const href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`; setTimeout(()=>{ window.location.href = href; }, 50); });
-    localStorage.setItem('finpilot_last_weekly_mail', stamp);
+    dividasWired=true;
   }
 
   function wireSair(){ const btn=qs('#btnSair'); if(btn){ btn.addEventListener('click', ()=>{ if(!confirm('Sair e limpar sessão local?')) return; location.href='login.html'; }); } }
 
-  // === Init assíncrono: carrega Contas do Supabase e segue ===
+  // === Init ===
   async function init(){
-    load(); // fallback local
-    if (SB) {
-      try {
-        const contas = await SB.contas.list();
-        if (Array.isArray(contas)) state.contas = contas;
-      } catch (e) {
-        console.warn('Falha ao carregar contas do Supabase, usando LocalStorage.', e.message || e);
-      }
+    load();
+
+    if(SB){
+      try{ state.contas = await SB.contas.list(); }catch(e){ console.warn('Falha contas SB, usando local', e.message||e); }
+      try{ state.gastos = await SB.gastos.list(); }catch(e){ console.warn('Falha gastos SB, usando local', e.message||e); }
+      try{ state.salarios = await SB.salarios.list(); }catch(e){ console.warn('Falha salarios SB, usando local', e.message||e); }
     }
+
     initNav();
     wireModalButtons();
     wireSair();
-    wireGastos();
-    wireSalarios();
-    wireTransfers();
-    wireCategorias();
-    wireFixas();
-    wireDividas();
     renderDashboard();
-    sendWeeklyEmailsIfMonday();
   }
   document.addEventListener('DOMContentLoaded', ()=> { init(); });
 })();
