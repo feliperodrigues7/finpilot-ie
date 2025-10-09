@@ -50,7 +50,7 @@
     <aside class="sidebar">
       <div class="brand"><span class="brand-dot"></span> FinPilot IE</div>
       <nav class="nav" id="nav">
-        <a href="#dashboard" data-tab="dashboard">Dashboard</a>
+        <a href="#dashboard" data-tab="dashboard" class="active">Dashboard</a>
         <a href="#salarios" data-tab="salarios">Salários</a>
         <a href="#fixas" data-tab="fixas">Despesas Fixas</a>
         <a href="#dividas" data-tab="dividas">Dívidas</a>
@@ -62,7 +62,7 @@
     </aside>
 
     <main class="content">
-      <div class="topbar"><button class="btn ghost" id="btnSair">Sair</button></div>
+      <div class="topbar"><button class="btn ghost" id="btnSair" type="button">Sair</button></div>
 
       <section id="tab-dashboard" class="panel">
         <h2>Dashboard</h2>
@@ -74,7 +74,7 @@
       </section>
 
       <section id="tab-salarios" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewSalario">+ Novo salário</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewSalario" type="button">+ Novo salário</button></div>
         <h2>Salários</h2>
         <table class="table" id="tblSalarios">
           <thead><tr>
@@ -85,7 +85,7 @@
       </section>
 
       <section id="tab-fixas" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewFixa">+ Nova despesa fixa</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewFixa" type="button">+ Nova despesa fixa</button></div>
         <h2>Despesas Fixas</h2>
         <table class="table" id="tblFixas">
           <thead><tr>
@@ -96,7 +96,7 @@
       </section>
 
       <section id="tab-dividas" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewDivida">+ Nova dívida</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewDivida" type="button">+ Nova dívida</button></div>
         <h2>Dívidas</h2>
         <table class="table" id="tblDividas">
           <thead><tr>
@@ -107,7 +107,7 @@
       </section>
 
       <section id="tab-gastos" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewGasto">+ Novo gasto</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewGasto" type="button">+ Novo gasto</button></div>
         <h2>Gastos</h2>
         <table class="table" id="tblGastos">
           <thead><tr>
@@ -118,7 +118,7 @@
       </section>
 
       <section id="tab-transferencias" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewTransfer">+ Nova transferência</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewTransfer" type="button">+ Nova transferência</button></div>
         <h2>Transferências</h2>
         <table class="table" id="tblTransfers">
           <thead><tr>
@@ -129,7 +129,7 @@
       </section>
 
       <section id="tab-categorias" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewCategoria">+ Nova categoria</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewCategoria" type="button">+ Nova categoria</button></div>
         <h2>Categorias</h2>
         <table class="table" id="tblCategorias">
           <thead><tr>
@@ -140,7 +140,7 @@
       </section>
 
       <section id="tab-contas" class="panel hidden">
-        <div class="toolbar"><button class="btn" id="btnNewConta">+ Nova conta</button></div>
+        <div class="toolbar"><button class="btn" id="btnNewConta" type="button">+ Nova conta</button></div>
         <h2>Contas</h2>
         <table class="table" id="tblContas">
           <thead><tr>
@@ -152,7 +152,7 @@
     </main>
   </div>
 
-  <div id="backdrop">
+  <div id="backdrop" class="hidden">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <header>
         <strong id="modalTitle">Modal</strong>
@@ -173,6 +173,89 @@
     window.SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZmZqbXRrbHJ5eGp3bXZzcWZhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk4MDMzNDcsImV4cCI6MjA3NTM3OTM0N30.IP4DVQqeN37xJ4QyGBUQJDT7xSxpTfpcDzbG7ZDbAnI";
   </script>
 
+  <!-- Fallback mínimo p/ navegação e modal; não conflita com finance.js -->
+  <script>
+    (function(){
+      const qs = s => document.querySelector(s);
+      const qsa = s => Array.from(document.querySelectorAll(s));
+      const tabs = qsa('nav#nav a');
+      const panels = qsa('main .panel');
+      const backdrop = qs('#backdrop');
+      const modalClose = qs('#modalClose');
+      const modalCancel = qs('#modalCancel');
+      const modalForm = qs('#modalForm');
+      const btnSair = qs('#btnSair');
+
+      // Navegação por hash
+      function showTab(tabName){
+        panels.forEach(p => p.classList.add('hidden'));
+        tabs.forEach(a => a.classList.remove('active'));
+        const panel = qs('#tab-' + tabName);
+        const link = qs('nav#nav a[data-tab="'+tabName+'"]');
+        if(panel) panel.classList.remove('hidden');
+        if(link) link.classList.add('active');
+      }
+      function handleHash(){
+        const hash = (location.hash || '#dashboard').replace('#','');
+        showTab(hash);
+      }
+      window.addEventListener('hashchange', handleHash);
+      handleHash();
+
+      // Modal genérico
+      function openModal(title, formHTML){
+        qs('#modalTitle').textContent = title || 'Modal';
+        modalForm.innerHTML = formHTML || '';
+        backdrop.classList.remove('hidden');
+        backdrop.style.display = 'flex';
+      }
+      function closeModal(){
+        backdrop.style.display = 'none';
+        backdrop.classList.add('hidden');
+        modalForm.innerHTML = '';
+      }
+      if(modalClose) modalClose.addEventListener('click', closeModal);
+      if(modalCancel) modalCancel.addEventListener('click', closeModal);
+      if(backdrop) backdrop.addEventListener('click', (e)=>{ if(e.target === backdrop) closeModal(); });
+
+      // Botões "+" abrem modal simples (placeholder) — depois integramos com finance.js
+      const buttonMap = [
+        { id: '#btnNewSalario', title: 'Novo salário' },
+        { id: '#btnNewFixa', title: 'Nova despesa fixa' },
+        { id: '#btnNewDivida', title: 'Nova dívida' },
+        { id: '#btnNewGasto', title: 'Novo gasto' },
+        { id: '#btnNewTransfer', title: 'Nova transferência' },
+        { id: '#btnNewCategoria', title: 'Nova categoria' },
+        { id: '#btnNewConta', title: 'Nova conta' }
+      ];
+      buttonMap.forEach(({id,title})=>{
+        const btn = qs(id);
+        if(btn){
+          btn.addEventListener('click', ()=>{
+            openModal(title, '<p class="muted">Formulário será carregado pelo finance.js.</p>');
+          });
+        }
+      });
+
+      // Sair: se Supabase existir, desloga; senão volta ao login
+      if(btnSair){
+        btnSair.addEventListener('click', async ()=>{
+          try {
+            if(window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY){
+              const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:true }});
+              await supa.auth.signOut();
+            }
+          } catch(_) {}
+          location.href = 'login.html';
+        });
+      }
+
+      // Expor helpers para o finance.js usar o modal, se quiser
+      window.UI = { openModal, closeModal, showTab };
+    })();
+  </script>
+
+  <!-- Seu JS principal (envie em seguida para eu ajustar) -->
   <script src="./finance.js"></script>
 </body>
 </html>
