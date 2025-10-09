@@ -237,16 +237,22 @@
         }
       });
 
-      // Sair: se Supabase existir, desloga; senão volta ao login
+      // Sair: desloga do Supabase e redireciona com flag logout=1
       if(btnSair){
         btnSair.addEventListener('click', async ()=>{
           try {
             if(window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY){
-              const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, { auth:{ persistSession:true }});
-              await supa.auth.signOut();
+              const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+                auth:{ persistSession:true, autoRefreshToken:true, detectSessionInUrl:true }
+              });
+              const { error } = await supa.auth.signOut();
+              if(error) console.warn('[Sair] Erro ao deslogar:', error.message);
             }
-          } catch(_) {}
-          location.href = 'login.html';
+          } catch(e) {
+            console.warn('[Sair] Exceção:', e);
+          } finally {
+            location.href = 'login.html?logout=1';
+          }
         });
       }
 
@@ -255,7 +261,7 @@
     })();
   </script>
 
-  <!-- Seu JS principal (envie em seguida para eu ajustar) -->
+  <!-- Seu JS principal -->
   <script src="./finance.js"></script>
 </body>
 </html>
