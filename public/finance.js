@@ -1,4 +1,5 @@
 (function () {
+  // === Helpers ===
   const qs = (s, el = document) => el.querySelector(s);
   const qsa = (s, el = document) => Array.from(el.querySelectorAll(s));
   const fmtEUR = (n) => (Number(n) || 0).toLocaleString("pt-PT", { style: "currency", currency: "EUR" });
@@ -22,16 +23,9 @@
   };
 
   const STORAGE_KEY = "finpilot_ie_v3";
-
   const state = { contas: [], gastos: [], salarios: [], transferencias: [], categorias: [], fixas: [], dividas: [] };
-
   function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
-  function todayISO(){
-    const d=new Date();
-    const m=String(d.getMonth()+1).padStart(2,'0');
-    const day=String(d.getDate()).padStart(2,'0');
-    return `${d.getFullYear()}-${m}-${day}`;
-  }
+  function todayISO(){ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
   function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderDashboard(); }
   function load(){
     try{
@@ -69,85 +63,68 @@
   }
   function contasOptions(){ return state.contas.map(c=>({ value:c.id, label:`${c.titular} - ${c.tipo} (${c.banco})` })); }
   function contaById(id){ return state.contas.find(c=> c.id===id); }
-  function getEmailByTitular(t){
-    const c = state.contas.find(x => (x.titular||'') === (t||''));
-    return (c && c.email) ? String(c.email).trim() : '';
-  }
+  function getEmailByTitular(t){ const c = state.contas.find(x => (x.titular||'') === (t||'')); return (c && c.email) ? String(c.email).trim() : ''; }
 
+  // === Supabase Adapter ===
+  const SB = (() => {
+    try {
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase) return null;
+      const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+
+      async function listContas() {
+        const { data, error } = await client.from('contas').select('*').order('created_at', { ascending: false });
+        if (error) throw error;
+        return data || [];
+      }
+      async function insertConta(rec) {
+        const { data, error } = await client.from('contas').insert(rec).select('*').single();
+        if (error) throw error;
+        return data;
+      }
+      async function updateConta(id, patch) {
+        const { data, error } = await client.from('contas').update(patch).eq('id', id).select('*').single();
+        if (error) throw error;
+        return data;
+      }
+      async function deleteConta(id) {
+        const { error } = await client.from('contas').delete().eq('id', id);
+        if (error) throw error;
+        return true;
+      }
+
+      return { client, contas: { list: listContas, insert: insertConta, update: updateConta, remove: deleteConta } };
+    } catch (e) {
+      console.warn('Supabase init falhou:', e);
+      return null;
+    }
+  })();
+
+  // === Dashboard e navegação (igual ao seu) ===
   function computeBalances(){
     const map=new Map();
-    const add=(titular,banco,delta)=>{
-      const key=`${titular}||${banco}`;
-      map.set(key, (map.get(key)||0) + Number(delta||0));
-    };
+    const add=(titular,banco,delta)=>{ const key=`${titular}||${banco}`; map.set(key, (map.get(key)||0) + Number(delta||0)); };
     state.salarios.forEach(s=> add(s.titular, s.banco, +s.valor));
     state.gastos.filter(g=> (g.status||'')==='paga').forEach(g=> add(g.titular, g.banco, -g.valor));
-    state.fixas.filter(f=> (f.status||'')==='paga').forEach(f=>{
-      const conta=state.contas.find(c=> c.titular===f.titular) || { banco:'—' };
-      add(f.titular, conta.banco, -f.valor);
-    });
-    state.dividas.filter(d=> (d.status||'')==='paga').forEach(d=>{
-      const conta=state.contas.find(c=> c.titular===d.titular) || { banco:'—' };
-      add(d.titular, conta.banco, -d.valor);
-    });
+    state.fixas.filter(f=> (f.status||'')==='paga').forEach(f=>{ const conta=state.contas.find(c=> c.titular===f.titular) || { banco:'—' }; add(f.titular, conta.banco, -f.valor); });
+    state.dividas.filter(d=> (d.status||'')==='paga').forEach(d=>{ const conta=state.contas.find(c=> c.titular===d.titular) || { banco:'—' }; add(d.titular, conta.banco, -d.valor); });
     state.transferencias.forEach(t=>{
-      const tipo=(t.tipo||'').toLowerCase();
-      const v=Number(t.valor||0);
-      if(tipo==='transferência' || tipo==='transferencia'){
-        const cDe=contaById(t.de_id);
-        const cPara=contaById(t.para_id);
-        if(cDe) add(cDe.titular,cDe.banco,-v);
-        if(cPara) add(cPara.titular,cPara.banco,+v);
-      } else if(tipo==='despesa'){
-        const cDe=contaById(t.de_id);
-        if(cDe) add(cDe.titular,cDe.banco,-v);
-      } else if(tipo==='receita'){
-        const cPara=contaById(t.para_id);
-        if(cPara) add(cPara.titular,cPara.banco,+v);
-      }
+      const tipo=(t.tipo||'').toLowerCase(); const v=Number(t.valor||0);
+      if(tipo==='transferência' || tipo==='transferencia'){ const cDe=contaById(t.de_id); const cPara=contaById(t.para_id); if(cDe) add(cDe.titular,cDe.banco,-v); if(cPara) add(cPara.titular,cPara.banco,+v); }
+      else if(tipo==='despesa'){ const cDe=contaById(t.de_id); if(cDe) add(cDe.titular,cDe.banco,-v); }
+      else if(tipo==='receita'){ const cPara=contaById(t.para_id); if(cPara) add(cPara.titular,cPara.banco,+v); }
     });
-    return Array.from(map.entries()).map(([key,val])=>{
-      const [titular,banco]=key.split('||');
-      return {titular,banco,saldo:val};
-    }).sort((a,b)=> a.titular.localeCompare(b.titular)||a.banco.localeCompare(b.banco));
+    return Array.from(map.entries()).map(([key,val])=>{ const [titular,banco]=key.split('||'); return {titular,banco,saldo:val}; }).sort((a,b)=> a.titular.localeCompare(b.titular)||a.banco.localeCompare(b.banco));
   }
 
   function renderDashboard(){
     const rows=computeBalances();
-    const tbody=qs('#tblDash tbody');
-    if(tbody){
-      tbody.innerHTML='';
-      rows.forEach(r=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${r.titular}</td><td>${r.banco}</td><td><strong>${fmtEUR(r.saldo)}</strong></td>`;
-        tbody.appendChild(tr);
-      });
-    }
-    const cards=qs('#dashCards');
-    if(cards){
-      cards.innerHTML='';
-      rows.forEach(r=>{
-        const positive=(r.saldo||0)>=0;
-        const div=document.createElement('div');
-        div.className='card';
-        div.innerHTML=`<div class="title">${r.titular} • ${r.banco}</div><div class="value" style="color:${positive?'var(--ok)':'var(--danger)'}">${fmtEUR(r.saldo)}</div><div class="delta muted">${positive?'Saldo positivo':'Saldo negativo'}</div>`;
-        cards.appendChild(div);
-      });
-    }
+    const tbody=qs('#tblDash tbody'); if(tbody){ tbody.innerHTML=''; rows.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.titular}</td><td>${r.banco}</td><td><strong>${fmtEUR(r.saldo)}</strong></td>`; tbody.appendChild(tr); }); }
+    const cards=qs('#dashCards'); if(cards){ cards.innerHTML=''; rows.forEach(r=>{ const positive=(r.saldo||0)>=0; const div=document.createElement('div'); div.className='card'; div.innerHTML=`<div class="title">${r.titular} • ${r.banco}</div><div class="value" style="color:${positive?'var(--ok)':'var(--danger)'}">${fmtEUR(r.saldo)}</div><div class="delta muted">${positive?'Saldo positivo':'Saldo negativo'}</div>`; cards.appendChild(div); }); }
   }
 
   function initNav(){
     const nav = qs('#nav');
-    const sections = {
-      dashboard: qs('#tab-dashboard'),
-      salarios: qs('#tab-salarios'),
-      fixas: qs('#tab-fixas'),
-      dividas: qs('#tab-dividas'),
-      gastos: qs('#tab-gastos'),
-      transferencias: qs('#tab-transferencias'),
-      categorias: qs('#tab-categorias'),
-      contas: qs('#tab-contas')
-    };
+    const sections = { dashboard: qs('#tab-dashboard'), salarios: qs('#tab-salarios'), fixas: qs('#tab-fixas'), dividas: qs('#tab-dividas'), gastos: qs('#tab-gastos'), transferencias: qs('#tab-transferencias'), categorias: qs('#tab-categorias'), contas: qs('#tab-contas') };
     function activate(tab){
       qsa('.nav a').forEach(a=> a.classList.toggle('active', a.dataset.tab===tab));
       Object.entries(sections).forEach(([k,el])=> el && el.classList.toggle('hidden', k!==tab));
@@ -161,18 +138,13 @@
       if(tab==='dividas') renderDividas();
     }
     nav.addEventListener('click', (e)=>{
-      const a=e.target.closest('a[data-tab]');
-      if(!a) return;
-      e.preventDefault();
-      activate(a.dataset.tab);
-      history.replaceState(null,'',`#${a.dataset.tab}`);
+      const a=e.target.closest('a[data-tab]'); if(!a) return;
+      e.preventDefault(); activate(a.dataset.tab); history.replaceState(null,'',`#${a.dataset.tab}`);
     });
-    const hash=location.hash.replace('#','');
-    const allowed=['dashboard','salarios','fixas','dividas','gastos','transferencias','categorias','contas'];
-    const initial = allowed.includes(hash)?hash:'dashboard';
-    activate(initial);
+    const hash=location.hash.replace('#',''); const allowed=['dashboard','salarios','fixas','dividas','gastos','transferencias','categorias','contas']; const initial = allowed.includes(hash)?hash:'dashboard'; activate(initial);
   }
 
+  // === Modal util ===
   const modal = {
     open(opts){
       this.opts = opts;
@@ -191,60 +163,22 @@
       bd.style.alignItems='center';
       bd.style.justifyContent='center';
     },
-    close(){
-      const bd=qs('#backdrop');
-      bd.style.display='none';
-      this.opts=null;
-    }
+    close(){ qs('#backdrop').style.display='none'; this.opts=null; }
   };
 
   function renderField(f){
-    const wrap=document.createElement('div');
-    const id=f.id||`f_${uid()}`;
-    const label=document.createElement('label');
-    label.htmlFor=id;
-    label.textContent=f.label||'';
+    const wrap=document.createElement('div'); const id=f.id||`f_${uid()}`;
+    const label=document.createElement('label'); label.htmlFor=id; label.textContent=f.label||'';
     let input;
-    if(f.type==='textarea'){
-      input=document.createElement('textarea');
-      if(f.rows) input.rows=f.rows;
-    } else if(f.type==='select'){
-      input=document.createElement('select');
-      (f.options||[]).forEach(opt=>{
-        const o=document.createElement('option');
-        if(typeof opt==='string'){
-          o.value=opt; o.textContent=opt;
-        } else {
-          o.value=opt.value; o.textContent=opt.label;
-        }
-        if(f.value!=null && String(f.value)===String(o.value)) o.selected=true;
-        input.appendChild(o);
-      });
-    } else {
-      input=document.createElement('input');
-      input.type=f.type||'text';
-      if(f.step) input.step=f.step;
-      if(f.type==='date' && f.value){ input.value = toISO(f.value); }
-    }
-    input.id=id;
-    input.name=f.name||id;
-    if(f.placeholder) input.placeholder=f.placeholder;
-    if(f.value!=null && input.type!=='date') input.value=f.value;
-    if(f.required) input.required=true;
-    const col=document.createElement('div');
-    col.append(label,input);
-    wrap.append(col);
-    return wrap;
+    if(f.type==='textarea'){ input=document.createElement('textarea'); if(f.rows) input.rows=f.rows; }
+    else if(f.type==='select'){ input=document.createElement('select'); (f.options||[]).forEach(opt=>{ const o=document.createElement('option'); if(typeof opt==='string'){ o.value=opt; o.textContent=opt; } else { o.value=opt.value; o.textContent=opt.label; } if(f.value!=null && String(f.value)===String(o.value)) o.selected=true; input.appendChild(o); }); }
+    else { input=document.createElement('input'); input.type=f.type||'text'; if(f.step) input.step=f.step; if(f.type==='date' && f.value){ input.value = toISO(f.value); } }
+    input.id=id; input.name=f.name||id; if(f.placeholder) input.placeholder=f.placeholder; if(f.value!=null && input.type!=='date') input.value=f.value; if(f.required) input.required=true;
+    const col=document.createElement('div'); col.append(label,input); wrap.append(col); return wrap;
   }
+  function wireModalButtons(){ qs('#modalClose').addEventListener('click', ()=> modal.close()); qs('#modalCancel').addEventListener('click', ()=> modal.close()); qs('#backdrop').addEventListener('click', (e)=>{ if(e.target.id==='backdrop') modal.close(); }); }
 
-  function wireModalButtons(){
-    qs('#modalClose').addEventListener('click', ()=> modal.close());
-    qs('#modalCancel').addEventListener('click', ()=> modal.close());
-    qs('#backdrop').addEventListener('click', (e)=>{
-      if(e.target.id==='backdrop') modal.close();
-    });
-  }
-
+  // === Contas (migrado para Supabase) ===
   function renderContas(){
     const tbody=qs('#tblContas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -256,12 +190,11 @@
       tbody.appendChild(tr);
     });
   }
+
   let contasWired=false;
   function wireContas(){
     if(contasWired) return;
-    const newBtn=qs('#btnNewConta');
-    const table=qs('#tblContas');
-    if(!newBtn||!table) return;
+    const newBtn=qs('#btnNewConta'); const table=qs('#tblContas'); if(!newBtn||!table) return;
 
     newBtn.addEventListener('click', ()=>{
       modal.open({
@@ -272,21 +205,26 @@
           { label:'Banco', name:'banco', type:'text', required:true, placeholder:'Ex.: AIB' },
           { label:'Tipo', name:'tipo', type:'select', options:['Corrente','Poupança','Cartão','Outro'], value:'Corrente' }
         ],
-        onSubmit:(data)=>{
-          state.contas.unshift({ id:uid(), titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo });
-          persist(); renderContas();
+        onSubmit: async (data)=>{
+          const rec = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
+          if (SB) {
+            try { const saved = await SB.contas.insert(rec); state.contas.unshift(saved); }
+            catch(e){ alert('Erro ao salvar no Supabase: ' + (e.message || e)); return; }
+          } else {
+            state.contas.unshift({ id:uid(), ...rec }); persist();
+          }
+          renderContas(); renderDashboard();
         }
       });
     });
 
-    table.addEventListener('click',(e)=>{
+    table.addEventListener('click', async (e)=>{
       const btn=e.target.closest('button[data-act]'); if(!btn) return;
-      const id=btn.dataset.id;
-      const act=btn.dataset.act;
+      const id=btn.dataset.id; const act=btn.dataset.act;
       if(act==='del-conta'){
         if(!confirm('Tem certeza que deseja excluir esta conta?')) return;
-        state.contas = state.contas.filter(c=> c.id!==id);
-        persist(); renderContas();
+        if (SB) { try { await SB.contas.remove(id); } catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message || e)); return; } }
+        state.contas = state.contas.filter(c=> c.id!==id); if(!SB) persist(); renderContas(); renderDashboard();
       } else if(act==='edit-conta'){
         const c=state.contas.find(x=> x.id===id); if(!c) return;
         modal.open({
@@ -297,9 +235,15 @@
             { label:'Banco', name:'banco', type:'text', required:true, value:c.banco },
             { label:'Tipo', name:'tipo', type:'select', options:['Corrente','Poupança','Cartão','Outro'], value:c.tipo }
           ],
-          onSubmit:(data)=>{
-            Object.assign(c, { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo });
-            persist(); renderContas();
+          onSubmit: async (data)=>{
+            const patch = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
+            if (SB) {
+              try { const updated = await SB.contas.update(c.id, patch); Object.assign(c, updated); }
+              catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message || e)); return; }
+            } else {
+              Object.assign(c, patch); persist();
+            }
+            renderContas(); renderDashboard();
           }
         });
       }
@@ -307,6 +251,7 @@
     contasWired=true;
   }
 
+  // === Demais abas permanecem locais por enquanto ===
   function renderGastos(){
     const tbody=qs('#tblGastos tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -322,8 +267,7 @@
   function wireGastos(){
     const btn=qs('#btnNewGasto'); if(btn){
       btn.addEventListener('click', ()=>{
-        const people=pessoasFromContas();
-        const contas=contasOptions();
+        const people=pessoasFromContas(); const contas=contasOptions();
         modal.open({
           title:'Novo gasto',
           fields:[
@@ -446,11 +390,7 @@
               { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:f.status||'aberta' }
             ],
             onSubmit:(data)=>{
-              Object.assign(f,{
-                nome:data.nome, titular:data.titular, valor:Number(data.valor||0),
-                data:data.data? toISO(data.data):'', semana:data.semana||'',
-                status:data.status||'aberta', obs:data.obs||''
-              });
+              Object.assign(f,{ nome:data.nome, titular:data.titular, valor:Number(data.valor||0), data:data.data? toISO(data.data):'', semana:data.semana||'', status:data.status||'aberta', obs:data.obs||'' });
               persist(); renderFixas();
             }
           });
@@ -487,12 +427,7 @@
             { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:'aberta' }
           ],
           onSubmit:(data)=>{
-            state.dividas.unshift({
-              id:uid(), nome:data.nome, titular:data.titular||'',
-              valor:Number(data.valor||0), semana:data.semana||'',
-              vencimento:data.vencimento? toISO(data.vencimento):'', status:data.status||'aberta',
-              obs:data.obs||''
-            });
+            state.dividas.unshift({ id:uid(), nome:data.nome, titular:data.titular||'', valor:Number(data.valor||0), semana:data.semana||'', vencimento:data.vencimento? toISO(data.vencimento):'', status:data.status||'aberta', obs:data.obs||'' });
             persist(); renderDividas();
           }
         });
@@ -521,11 +456,7 @@
               { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:d.status||'aberta' }
             ],
             onSubmit:(data)=>{
-              Object.assign(d,{
-                nome:data.nome, titular:data.titular||'', valor:Number(data.valor||0),
-                semana:data.semana||'', vencimento:data.vencimento? toISO(data.vencimento):'',
-                status:data.status||'aberta', obs:data.obs||''
-              });
+              Object.assign(d,{ nome:data.nome, titular:data.titular||'', valor:Number(data.valor||0), semana:data.semana||'', vencimento:data.vencimento? toISO(data.vencimento):'', status:data.status||'aberta', obs:data.obs||'' });
               persist(); renderDividas();
             }
           });
@@ -547,8 +478,7 @@
   function wireSalarios(){
     const btn=qs('#btnNewSalario'); if(btn){
       btn.addEventListener('click', ()=>{
-        const people=pessoasFromContas();
-        const bancos=Array.from(new Set(state.contas.map(c=> c.banco))).map(b=> String(b));
+        const people=pessoasFromContas(); const bancos=Array.from(new Set(state.contas.map(c=> c.banco))).map(b=> String(b));
         modal.open({
           title:'Novo salário',
           fields:[
@@ -559,10 +489,7 @@
             { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true }
           ],
           onSubmit:(data)=>{
-            state.salarios.unshift({
-              id:uid(), data:toISO(data.data), titular:data.titular,
-              banco:data.banco, horas: data.horas?Number(data.horas):undefined, valor:Number(data.valor||0)
-            });
+            state.salarios.unshift({ id:uid(), data:toISO(data.data), titular:data.titular, banco:data.banco, horas: data.horas?Number(data.horas):undefined, valor:Number(data.valor||0) });
             persist(); renderSalarios();
           }
         });
@@ -647,13 +574,7 @@
           onSubmit:(data)=>{
             const cDe=contaById(data.de_id);
             const cPara=contaById(data.para_id);
-            state.transferencias.unshift({
-              id:uid(), data:toISO(data.data), tipo:data.tipo,
-              de_id:data.de_id||null, para_id:data.para_id||null,
-              de_label: cDe? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})`:'-',
-              para_label: cPara? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})`:'-',
-              valor:Number(data.valor||0), descricao:data.descricao||''
-            });
+            state.transferencias.unshift({ id:uid(), data:toISO(data.data), tipo:data.tipo, de_id:data.de_id||null, para_id:data.para_id||null, de_label: cDe? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})`:'-', para_label: cPara? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})`:'-', valor:Number(data.valor||0), descricao:data.descricao||'' });
             persist(); renderTransfers();
           }
         });
@@ -673,104 +594,66 @@
   }
 
   // ==== Lembrete semanal (segunda-feira) ====
-  function startOfWeek(d){ // Monday as start
-    const date = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-    const day = date.getDay(); // 0 Sun,1 Mon,...
-    const diff = (day === 0 ? -6 : 1 - day); // move to Monday
-    date.setDate(date.getDate() + diff);
-    return date;
-  }
+  function startOfWeek(d){ const date = new Date(d.getFullYear(), d.getMonth(), d.getDate()); const day = date.getDay(); const diff = (day === 0 ? -6 : 1 - day); date.setDate(date.getDate() + diff); return date; }
   function wednesdayOfWeek(d){ const mon = startOfWeek(d); const wed = new Date(mon); wed.setDate(mon.getDate()+2); return wed; }
   function weekOfMonthByWednesday(d){ const wed = wednesdayOfWeek(d); return Math.ceil(wed.getDate()/7); } // 1–5
 
   function formatLines(items){
     return items.map(it=>{
       const base = `- ${it.tipo}: ${it.nome} (${it.titular}) | ${fmtEUR(it.valor)}`;
-      const extra = [
-        it.semana?`Semana ${it.semana}`:'',
-        it.data?`Data ${fmtDate(it.data)}`:'',
-        it.vencimento?`Venc. ${fmtDate(it.vencimento)}`:'',
-        it.obs?`Obs: ${it.obs}`:''
-      ].filter(Boolean).join(' | ');
+      const extra = [ it.semana?`Semana ${it.semana}`:'', it.data?`Data ${fmtDate(it.data)}`:'', it.vencimento?`Venc. ${fmtDate(it.vencimento)}`:'', it.obs?`Obs: ${it.obs}`:'' ].filter(Boolean).join(' | ');
       return extra? `${base} | ${extra}` : base;
     }).join('\n');
   }
 
   function collectWeeklyByEmail(refDate){
-    const week = String(weekOfMonthByWednesday(refDate));
-    const byEmail = new Map();
-
-    // Fixas por semana
-    state.fixas.forEach(f=>{
-      if(String(f.semana||'')===week){
-        const email = getEmailByTitular(f.titular);
-        if(!email) return;
-        const arr = byEmail.get(email)||[];
-        arr.push({tipo:'Despesa Fixa', nome:f.nome, titular:f.titular, valor:Number(f.valor||0), semana:f.semana||'', data:f.data||'', obs:f.obs||''});
-        byEmail.set(email, arr);
-      }
-    });
-
-    // Dívidas por semana OU vencimento dentro da semana
-    const mon = startOfWeek(refDate);
-    const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+    const week = String(weekOfMonthByWednesday(refDate)); const byEmail = new Map();
+    state.fixas.forEach(f=>{ if(String(f.semana||'')===week){ const email = getEmailByTitular(f.titular); if(!email) return; const arr = byEmail.get(email)||[]; arr.push({tipo:'Despesa Fixa', nome:f.nome, titular:f.titular, valor:Number(f.valor||0), semana:f.semana||'', data:f.data||'', obs:f.obs||''}); byEmail.set(email, arr); } });
+    const mon = startOfWeek(refDate); const sun = new Date(mon); sun.setDate(mon.getDate()+6);
     state.dividas.forEach(d=>{
       const ema = getEmailByTitular(d.titular); if(!ema) return;
       const matchesWeek = String(d.semana||'')===week;
       let withinWeek = false;
-      if(d.vencimento){
-        const v = new Date(toISO(d.vencimento)+'T12:00:00');
-        withinWeek = (v>=mon && v<=sun);
-      }
+      if(d.vencimento){ const v = new Date(toISO(d.vencimento)+'T12:00:00'); withinWeek = (v>=mon && v<=sun); }
       if (matchesWeek || withinWeek) {
         const arr=byEmail.get(ema)||[];
         arr.push({tipo:'Dívida', nome:d.nome, titular:d.titular, valor:Number(d.valor||0), semana:d.semana||'', vencimento:d.vencimento||'', obs:d.obs||''});
         byEmail.set(ema, arr);
       }
     });
-
     return byEmail;
   }
 
   function buildWeeklyEmailSubject(refDate){
-    const wed = wednesdayOfWeek(refDate);
-    const w = weekOfMonthByWednesday(refDate);
-    const month = String(wed.getMonth()+1).padStart(2,'0');
+    const wed = wednesdayOfWeek(refDate); const w = weekOfMonthByWednesday(refDate); const month = String(wed.getMonth()+1).padStart(2,'0');
     return `FinPilot IE - Semana ${w} (${String(wed.getDate()).padStart(2,'0')}/${month})`;
   }
   function buildWeeklyEmailBody(items, refDate){
-    const header = `Resumo da semana do mês (pagas na quarta-feira).`;
-    const lines = formatLines(items);
-    const y = refDate.getFullYear();
-    const m = String(refDate.getMonth()+1).padStart(2,'0');
-    const d = String(refDate.getDate()).padStart(2,'0');
+    const header = `Resumo da semana do mês (pagas na quarta-feira).`; const lines = formatLines(items);
+    const y = refDate.getFullYear(); const m = String(refDate.getMonth()+1).padStart(2,'0'); const d = String(refDate.getDate()).padStart(2,'0');
     return `${header}\n\n${lines}\n\nGerado em ${fmtDate(`${y}-${m}-${d}`)}\nFinPilot IE`;
   }
   function sendWeeklyEmailsIfMonday(){
-    const now = new Date();
-    const isMonday = now.getDay()===1;
-    if(!isMonday) return;
-    const stamp = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`;
-    const last = localStorage.getItem('finpilot_last_weekly_mail');
-    if(last===stamp) return;
-    const map = collectWeeklyByEmail(now);
-    if(map.size===0){
-      localStorage.setItem('finpilot_last_weekly_mail', stamp);
-      return;
-    }
-    map.forEach((items,email)=>{
-      const subject = encodeURIComponent(buildWeeklyEmailSubject(now));
-      const body = encodeURIComponent(buildWeeklyEmailBody(items, now));
-      const href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`;
-      setTimeout(()=>{ window.location.href = href; }, 50);
-    });
+    const now = new Date(); const isMonday = now.getDay()===1; if(!isMonday) return;
+    const stamp = `${now.getFullYear()}-${now.getMonth()+1}-${now.getDate()}`; const last = localStorage.getItem('finpilot_last_weekly_mail'); if(last===stamp) return;
+    const map = collectWeeklyByEmail(now); if(map.size===0){ localStorage.setItem('finpilot_last_weekly_mail', stamp); return; }
+    map.forEach((items,email)=>{ const subject = encodeURIComponent(buildWeeklyEmailSubject(now)); const body = encodeURIComponent(buildWeeklyEmailBody(items, now)); const href = `mailto:${encodeURIComponent(email)}?subject=${subject}&body=${body}`; setTimeout(()=>{ window.location.href = href; }, 50); });
     localStorage.setItem('finpilot_last_weekly_mail', stamp);
   }
 
   function wireSair(){ const btn=qs('#btnSair'); if(btn){ btn.addEventListener('click', ()=>{ if(!confirm('Sair e limpar sessão local?')) return; location.href='login.html'; }); } }
 
-  function init(){
-    load();
+  // === Init assíncrono: carrega Contas do Supabase e segue ===
+  async function init(){
+    load(); // fallback local
+    if (SB) {
+      try {
+        const contas = await SB.contas.list();
+        if (Array.isArray(contas)) state.contas = contas;
+      } catch (e) {
+        console.warn('Falha ao carregar contas do Supabase, usando LocalStorage.', e.message || e);
+      }
+    }
     initNav();
     wireModalButtons();
     wireSair();
@@ -783,5 +666,5 @@
     renderDashboard();
     sendWeeklyEmailsIfMonday();
   }
-  document.addEventListener('DOMContentLoaded', init);
+  document.addEventListener('DOMContentLoaded', ()=> { init(); });
 })();
