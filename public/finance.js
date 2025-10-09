@@ -21,6 +21,8 @@
 
   const STORAGE_KEY = "finpilot_ie_v3";
   const state = { contas: [], gastos: [], salarios: [], transferencias: [], categorias: [], fixas: [], dividas: [] };
+  let CURRENT_USER = null; // { id, email }
+
   function uid(){ return Math.random().toString(36).slice(2) + Date.now().toString(36); }
   function todayISO(){ const d=new Date(); const m=String(d.getMonth()+1).padStart(2,'0'); const day=String(d.getDate()).padStart(2,'0'); return `${d.getFullYear()}-${m}-${day}`; }
   function persist(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); renderDashboard(); }
@@ -37,26 +39,22 @@
   }
   function contasOptions(){ return state.contas.map(c=>({ value:c.id, label:`${c.titular} - ${c.tipo} (${c.banco})` })); }
   function contaById(id){ return state.contas.find(c=> c.id===id); }
-  function getEmailByTitular(t){ const c = state.contas.find(x => (x.titular||'') === (t||'')); return (c && c.email) ? String(c.email).trim() : ''; }
 
-  // Guard de autenticação: valida sessão no servidor (getUser)
+  // Guard de autenticação
   (async function guardAuth(){
     try {
       const u = window.SUPABASE_URL;
       const k = window.SUPABASE_ANON_KEY;
       if (!window.supabase || !u || !k) {
         console.log('[Guard] Supabase não disponível — modo local.');
-        return; // opera em modo local
+        return;
       }
       const supa = window.supabase.createClient(u, k, {
         auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
       });
 
       const { data: { session } } = await supa.auth.getSession();
-      if (!session) {
-        console.log('[Guard] Sem sessão local — continua (modo local ou fará login).');
-        return;
-      }
+      if (!session) { console.log('[Guard] Sem sessão local — segue (modo local se necessário).'); return; }
 
       const { data: userData, error: userErr } = await supa.auth.getUser();
       if (userErr || !userData?.user) {
@@ -72,74 +70,103 @@
         location.href = 'login.html?logout=1';
         return;
       }
-
       console.log('[Guard] Sessão válida no servidor — segue no finance.');
     } catch (e) {
       console.warn('[Guard] erro:', e?.message || e);
     }
   })();
 
-  // === Supabase Adapter (com logs e exposição em window) ===
+  // Supabase Adapter com escopo por user_id
   const SB = (() => {
     try{
-      if (!window.SUPABASE_URL) { console.warn('[SB] SUPABASE_URL ausente'); return null; }
-      if (!window.SUPABASE_ANON_KEY) { console.warn('[SB] SUPABASE_ANON_KEY ausente'); return null; }
-      if (!window.supabase) { console.warn('[SB] SDK supabase ausente'); return null; }
+      if (!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase) return null;
+      const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
+        auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+      });
 
-      const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
-      console.log('[SB] Client criado');
-
-      // contas
-      async function listContas(){ const {data, error} = await client.from('contas').select('*').order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
-      async function insertConta(rec){ const {data, error} = await client.from('contas').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function updateConta(id, patch){ const {data, error} = await client.from('contas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
-      async function deleteConta(id){ const {error} = await client.from('contas').delete().eq('id', id); if(error) throw error; return true; }
-
-      // gastos
-      async function listGastos(){ const {data, error} = await client.from('gastos').select('*').order('data', {ascending:false}).order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
-      async function insertGasto(rec){ const {data, error} = await client.from('gastos').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function updateGasto(id, patch){ const {data, error} = await client.from('gastos').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
-      async function deleteGasto(id){ const {error} = await client.from('gastos').delete().eq('id', id); if(error) throw error; return true; }
-
-      // salarios
-      async function listSalarios(){ const {data, error} = await client.from('salarios').select('*').order('data', {ascending:false}).order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
-      async function insertSalario(rec){ const {data, error} = await client.from('salarios').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function updateSalario(id, patch){ const {data, error} = await client.from('salarios').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
-      async function deleteSalario(id){ const {error} = await client.from('salarios').delete().eq('id', id); if(error) throw error; return true; }
-
-      // fixas
-      async function listFixas(){ const {data, error} = await client.from('fixas').select('*').order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
-      async function insertFixa(rec){ const {data, error} = await client.from('fixas').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function updateFixa(id, patch){ const {data, error} = await client.from('fixas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
-      async function deleteFixa(id){ const {error} = await client.from('fixas').delete().eq('id', id); if(error) throw error; return true; }
-
-      // dividas
-      async function listDividas(){ const {data, error} = await client.from('dividas').select('*').order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
-      async function insertDivida(rec){ const {data, error} = await client.from('dividas').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function updateDivida(id, patch){ const {data, error} = await client.from('dividas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
-      async function deleteDivida(id){ const {error} = await client.from('dividas').delete().eq('id', id); if(error) throw error; return true; }
-
-      // categorias
-      async function listCategorias(){ const {data, error} = await client.from('categorias').select('*').order('nome',{ascending:true}); if(error) throw error; return data||[]; }
-      async function insertCategoria(rec){ const {data, error} = await client.from('categorias').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function deleteCategoria(id){ const {error} = await client.from('categorias').delete().eq('id', id); if(error) throw error; return true; }
-
-      // transferencias
-      async function listTransfers(){ const {data, error} = await client.from('transferencias').select('*').order('data',{ascending:false}).order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
-      async function insertTransfer(rec){ const {data, error} = await client.from('transferencias').insert(rec).select('*').single(); if(error) throw error; return data; }
-      async function deleteTransfer(id){ const {error} = await client.from('transferencias').delete().eq('id', id); if(error) throw error; return true; }
+      // Helper para garantir CURRENT_USER
+      async function ensureUser(){
+        if (CURRENT_USER) return CURRENT_USER;
+        const { data, error } = await client.auth.getUser();
+        if (error || !data?.user) return null;
+        CURRENT_USER = { id: data.user.id, email: data.user.email || '' };
+        return CURRENT_USER;
+      }
+      async function withUserIdSelect(table, sel='*', orderSpec=null){
+        const u = await ensureUser(); if(!u) return [];
+        let q = client.from(table).select(sel).eq('user_id', u.id);
+        if (orderSpec?.length){
+          for(const o of orderSpec){
+            q = q.order(o.column, { ascending: !!o.ascending });
+          }
+        }
+        const { data, error } = await q;
+        if (error) throw error;
+        return data || [];
+      }
+      async function withUserIdInsert(table, rec){
+        const u = await ensureUser(); if(!u) throw new Error('Sem usuário autenticado');
+        const { data, error } = await client.from(table).insert({ ...rec, user_id: u.id }).select('*').single();
+        if (error) throw error;
+        return data;
+      }
+      async function withUserIdUpdate(table, id, patch){
+        const u = await ensureUser(); if(!u) throw new Error('Sem usuário autenticado');
+        const { data, error } = await client.from(table).update(patch).eq('id', id).eq('user_id', u.id).select('*').single();
+        if (error) throw error;
+        return data;
+      }
+      async function withUserIdDelete(table, id){
+        const u = await ensureUser(); if(!u) throw new Error('Sem usuário autenticado');
+        const { error } = await client.from(table).delete().eq('id', id).eq('user_id', u.id);
+        if (error) throw error;
+        return true;
+      }
 
       const api = {
         client,
-        contas: { list:listContas, insert:insertConta, update:updateConta, remove:deleteConta },
-        gastos: { list:listGastos, insert:insertGasto, update:updateGasto, remove:deleteGasto },
-        salarios: { list:listSalarios, insert:insertSalario, update:updateSalario, remove:deleteSalario },
-        fixas: { list:listFixas, insert:insertFixa, update:updateFixa, remove:deleteFixa },
-        dividas: { list:listDividas, insert:insertDivida, update:updateDivida, remove:deleteDivida },
-        categorias: { list:listCategorias, insert:insertCategoria, remove:deleteCategoria },
-        transferencias: { list:listTransfers, insert:insertTransfer, remove:deleteTransfer }
+        ensureUser,
+        contas: {
+          list: ()=> withUserIdSelect('contas','*',[{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('contas', rec),
+          update: (id,patch)=> withUserIdUpdate('contas', id, patch),
+          remove: (id)=> withUserIdDelete('contas', id),
+        },
+        gastos: {
+          list: ()=> withUserIdSelect('gastos','*',[{column:'data',ascending:false},{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('gastos', rec),
+          update: (id,patch)=> withUserIdUpdate('gastos', id, patch),
+          remove: (id)=> withUserIdDelete('gastos', id),
+        },
+        salarios: {
+          list: ()=> withUserIdSelect('salarios','*',[{column:'data',ascending:false},{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('salarios', rec),
+          remove: (id)=> withUserIdDelete('salarios', id),
+        },
+        fixas: {
+          list: ()=> withUserIdSelect('fixas','*',[{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('fixas', rec),
+          update: (id,patch)=> withUserIdUpdate('fixas', id, patch),
+          remove: (id)=> withUserIdDelete('fixas', id),
+        },
+        dividas: {
+          list: ()=> withUserIdSelect('dividas','*',[{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('dividas', rec),
+          update: (id,patch)=> withUserIdUpdate('dividas', id, patch),
+          remove: (id)=> withUserIdDelete('dividas', id),
+        },
+        categorias: {
+          list: ()=> withUserIdSelect('categorias','*',[{column:'nome',ascending:true}]),
+          insert: (rec)=> withUserIdInsert('categorias', rec),
+          remove: (id)=> withUserIdDelete('categorias', id),
+        },
+        transferencias: {
+          list: ()=> withUserIdSelect('transferencias','*',[{column:'data',ascending:false},{column:'created_at',ascending:false}]),
+          insert: (rec)=> withUserIdInsert('transferencias', rec),
+          remove: (id)=> withUserIdDelete('transferencias', id),
+        }
       };
-      window.SB = api; // facilita debug
+      window.SB = api;
       return api;
     }catch(e){
       console.error('[SB] Falha init:', e);
@@ -147,7 +174,7 @@
     }
   })();
 
-  // === Dashboard ===
+  // Dashboard
   function computeBalances(){
     const map=new Map();
     const add=(titular,banco,delta)=>{ const key=`${titular}||${banco}`; map.set(key, (map.get(key)||0) + Number(delta||0)); };
@@ -167,7 +194,6 @@
     });
     return Array.from(map.entries()).map(([key,val])=>{ const [titular,banco]=key.split('||'); return {titular,banco,saldo:val}; }).sort((a,b)=> a.titular.localeCompare(b.titular)||a.banco.localeCompare(b.banco));
   }
-
   function renderDashboard(){
     const rows=computeBalances();
     const tbody=qs('#tblDash tbody'); if(tbody){ tbody.innerHTML=''; rows.forEach(r=>{ const tr=document.createElement('tr'); tr.innerHTML=`<td>${r.titular}</td><td>${r.banco}</td><td><strong>${fmtEUR(r.saldo)}</strong></td>`; tbody.appendChild(tr); }); }
@@ -196,7 +222,7 @@
     const hash=location.hash.replace('#',''); const allowed=['dashboard','salarios','fixas','dividas','gastos','transferencias','categorias','contas']; const initial = allowed.includes(hash)?hash:'dashboard'; activate(initial);
   }
 
-  // === Modal ===
+  // Modal
   const modal = {
     open(opts){
       this.opts = opts;
@@ -214,7 +240,6 @@
     },
     close(){ qs('#backdrop').style.display='none'; this.opts=null; }
   };
-
   function renderField(f){
     const wrap=document.createElement('div'); const id=f.id||`f_${uid()}`;
     const label=document.createElement('label'); label.htmlFor=id; label.textContent=f.label||'';
@@ -227,7 +252,7 @@
   }
   function wireModalButtons(){ qs('#modalClose').addEventListener('click', ()=> modal.close()); qs('#modalCancel').addEventListener('click', ()=> modal.close()); qs('#backdrop').addEventListener('click', (e)=>{ if(e.target.id==='backdrop') modal.close(); }); }
 
-  // === Contas ===
+  // Contas
   function renderContas(){
     const tbody=qs('#tblContas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -239,12 +264,10 @@
       tbody.appendChild(tr);
     });
   }
-
   let contasWired=false;
   function wireContas(){
     if(contasWired) return;
     const newBtn=qs('#btnNewConta'); const table=qs('#tblContas'); if(!newBtn||!table) return;
-
     newBtn.addEventListener('click', ()=>{
       modal.open({
         title:'Nova conta',
@@ -256,10 +279,9 @@
         ],
         onSubmit: async (data)=>{
           const rec = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
-          console.log('[UI] Salvando Conta', { via: SB ? 'supabase' : 'local', rec });
           if (SB) {
             try { const saved = await SB.contas.insert(rec); state.contas.unshift(saved); }
-            catch(e){ console.error('[SB] Erro insert conta', e); alert('Erro ao salvar no Supabase: ' + (e.message || e)); return; }
+            catch(e){ alert('Erro ao salvar no Supabase: ' + (e.message || e)); return; }
           } else {
             state.contas.unshift({ id:uid(), ...rec }); persist();
           }
@@ -267,13 +289,12 @@
         }
       });
     });
-
     table.addEventListener('click', async (e)=>{
       const btn=e.target.closest('button[data-act]'); if(!btn) return;
       const id=btn.dataset.id; const act=btn.dataset.act;
       if(act==='del-conta'){
         if(!confirm('Tem certeza que deseja excluir esta conta?')) return;
-        if (SB) { try { await SB.contas.remove(id); } catch(e){ console.error('[SB] Erro delete conta', e); alert('Erro ao excluir no Supabase: ' + (e.message || e)); return; } }
+        if (SB) { try { await SB.contas.remove(id); } catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message || e)); return; } }
         state.contas = state.contas.filter(c=> c.id!==id); if(!SB) persist(); renderContas(); renderDashboard();
       } else if(act==='edit-conta'){
         const c=state.contas.find(x=> x.id===id); if(!c) return;
@@ -287,10 +308,9 @@
           ],
           onSubmit: async (data)=>{
             const patch = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
-            console.log('[UI] Atualizando Conta', { via: SB ? 'supabase' : 'local', patch });
             if (SB) {
               try { const updated = await SB.contas.update(c.id, patch); Object.assign(c, updated); }
-              catch(e){ console.error('[SB] Erro update conta', e); alert('Erro ao atualizar no Supabase: ' + (e.message || e)); return; }
+              catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message || e)); return; }
             } else {
               Object.assign(c, patch); persist();
             }
@@ -302,7 +322,7 @@
     contasWired=true;
   }
 
-  // === Gastos ===
+  // Gastos
   function renderGastos(){
     const tbody=qs('#tblGastos tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -319,7 +339,6 @@
       tbody.appendChild(tr);
     });
   }
-
   let gastosWired=false;
   function wireGastos(){
     if(gastosWired) return;
@@ -345,15 +364,13 @@
               valor: Number(data.valor||0),
               status: data.status || 'aberta'
             };
-            console.log('[UI] Salvando Gasto', { via: SB ? 'supabase' : 'local', rec });
             if (SB){
               try{
                 const saved = await SB.gastos.insert(rec);
                 state.gastos.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert gasto', e); alert('Erro ao salvar gasto no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar gasto no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.gastos.unshift({ id:uid(), ...rec });
-              persist();
+              state.gastos.unshift({ id:uid(), ...rec }); persist();
             }
             renderGastos(); renderDashboard();
           }
@@ -366,7 +383,7 @@
         const id=btn.dataset.id; const act=btn.dataset.act;
         if(act==='del-gasto'){
           if(!confirm('Excluir este gasto?')) return;
-          if(SB){ try{ await SB.gastos.remove(id); }catch(e){ console.error('[SB] Erro delete gasto', e); alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
+          if(SB){ try{ await SB.gastos.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
           state.gastos = state.gastos.filter(g=> g.id!==id);
           if(!SB) persist();
           renderGastos(); renderDashboard();
@@ -392,12 +409,11 @@
                 valor: Number(data.valor||0),
                 status: data.status || 'aberta'
               };
-              console.log('[UI] Atualizando Gasto', { via: SB ? 'supabase' : 'local', patch });
               if(SB){
                 try{
                   const updated = await SB.gastos.update(g.id, patch);
                   Object.assign(g, updated);
-                }catch(e){ console.error('[SB] Erro update gasto', e); alert('Erro ao atualizar no Supabase: ' + (e.message||e)); return; }
+                }catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message||e)); return; }
               } else {
                 Object.assign(g, patch); persist();
               }
@@ -410,20 +426,17 @@
     gastosWired=true;
   }
 
-  // === Salários ===
+  // Salários
   function renderSalarios(){
     const tbody=qs('#tblSalarios tbody'); if(!tbody) return;
     tbody.innerHTML='';
     state.salarios.forEach(s=>{
       const tr=document.createElement('tr');
       tr.innerHTML=`<td>${fmtDate(s.data)}</td><td>${s.titular}</td><td>${s.banco}</td><td>${s.horas??''}</td><td>${fmtEUR(s.valor)}</td>
-        <td class="actions">
-          <button class="btn danger" data-act="del-salario" data-id="${s.id}">Excluir</button>
-        </td>`;
+        <td class="actions"><button class="btn danger" data-act="del-salario" data-id="${s.id}">Excluir</button></td>`;
       tbody.appendChild(tr);
     });
   }
-
   let salariosWired=false;
   function wireSalarios(){
     if(salariosWired) return;
@@ -447,15 +460,13 @@
               horas: data.horas ? Number(data.horas) : null,
               valor: Number(data.valor||0)
             };
-            console.log('[UI] Salvando Salário', { via: SB ? 'supabase' : 'local', rec });
             if (SB){
               try{
                 const saved = await SB.salarios.insert(rec);
                 state.salarios.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert salario', e); alert('Erro ao salvar salário no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar salário no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.salarios.unshift({ id:uid(), ...rec });
-              persist();
+              state.salarios.unshift({ id:uid(), ...rec }); persist();
             }
             renderSalarios(); renderDashboard();
           }
@@ -468,7 +479,7 @@
         if(btn.dataset.act==='del-salario'){
           if(!confirm('Tem certeza que deseja excluir este salário?')) return;
           const id=btn.dataset.id;
-          if(SB){ try{ await SB.salarios.remove(id); }catch(e){ console.error('[SB] Erro delete salario', e); alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
+          if(SB){ try{ await SB.salarios.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
           state.salarios = state.salarios.filter(s=> s.id!==id);
           if(!SB) persist();
           renderSalarios(); renderDashboard();
@@ -478,7 +489,7 @@
     salariosWired=true;
   }
 
-  // === Categorias ===
+  // Categorias
   function renderCategorias(){
     const tbody=qs('#tblCategorias tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -506,10 +517,9 @@
               try{
                 const saved = await SB.categorias.insert(rec);
                 state.categorias.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert categoria', e); alert('Erro ao salvar categoria no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar categoria no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.categorias.unshift({ id:uid(), ...rec });
-              persist();
+              state.categorias.unshift({ id:uid(), ...rec }); persist();
             }
             renderCategorias();
           }
@@ -524,7 +534,7 @@
           const id=btn.dataset.id;
           if (SB){
             try{ await SB.categorias.remove(id); }
-            catch(e){ console.error('[SB] Erro delete categoria', e); alert('Erro ao excluir categoria no Supabase: ' + (e.message||e)); return; }
+            catch(e){ alert('Erro ao excluir categoria no Supabase: ' + (e.message||e)); return; }
           }
           state.categorias = state.categorias.filter(c=> c.id!==id);
           if(!SB) persist();
@@ -535,7 +545,7 @@
     categoriasWired=true;
   }
 
-  // === Transferências ===
+  // Transferências
   function renderTransfers(){
     const tbody=qs('#tblTransfers tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -579,10 +589,9 @@
               try{
                 const saved = await SB.transferencias.insert(rec);
                 state.transferencias.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert transferência', e); alert('Erro ao salvar transferência no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar transferência no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.transferencias.unshift({ id:uid(), ...rec });
-              persist();
+              state.transferencias.unshift({ id:uid(), ...rec }); persist();
             }
             renderTransfers(); renderDashboard();
           }
@@ -597,7 +606,7 @@
           const id=btn.dataset.id;
           if (SB){
             try{ await SB.transferencias.remove(id); }
-            catch(e){ console.error('[SB] Erro delete transferência', e); alert('Erro ao excluir transferência no Supabase: ' + (e.message||e)); return; }
+            catch(e){ alert('Erro ao excluir transferência no Supabase: ' + (e.message||e)); return; }
           }
           state.transferencias = state.transferencias.filter(t=> t.id!==id);
           if(!SB) persist();
@@ -608,7 +617,7 @@
     transfersWired=true;
   }
 
-  // === Fixas ===
+  // Fixas
   const SEMANAS=['1','2','3','4','5'];
   function renderFixas(){
     const tbody=qs('#tblFixas tbody'); if(!tbody) return;
@@ -654,10 +663,9 @@
               try{
                 const saved = await SB.fixas.insert(rec);
                 state.fixas.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert fixa', e); alert('Erro ao salvar fixa no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar fixa no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.fixas.unshift({ id:uid(), ...rec });
-              persist();
+              state.fixas.unshift({ id:uid(), ...rec }); persist();
             }
             renderFixas(); renderDashboard();
           }
@@ -672,7 +680,7 @@
           if(!confirm('Tem certeza que deseja excluir esta despesa fixa?')) return;
           if (SB){
             try{ await SB.fixas.remove(id); }
-            catch(e){ console.error('[SB] Erro delete fixa', e); alert('Erro ao excluir fixa no Supabase: ' + (e.message||e)); return; }
+            catch(e){ alert('Erro ao excluir fixa no Supabase: ' + (e.message||e)); return; }
           }
           state.fixas = state.fixas.filter(f=> f.id!==id);
           if(!SB) persist();
@@ -705,7 +713,7 @@
                 try{
                   const updated = await SB.fixas.update(f.id, patch);
                   Object.assign(f, updated);
-                }catch(e){ console.error('[SB] Erro update fixa', e); alert('Erro ao atualizar fixa no Supabase: ' + (e.message||e)); return; }
+                }catch(e){ alert('Erro ao atualizar fixa no Supabase: ' + (e.message||e)); return; }
               } else {
                 Object.assign(f, patch); persist();
               }
@@ -718,7 +726,7 @@
     fixasWired=true;
   }
 
-  // === Dívidas ===
+  // Dívidas
   function renderDividas(){
     const tbody=qs('#tblDividas tbody'); if(!tbody) return;
     tbody.innerHTML='';
@@ -762,10 +770,9 @@
               try{
                 const saved = await SB.dividas.insert(rec);
                 state.dividas.unshift(saved);
-              }catch(e){ console.error('[SB] Erro insert divida', e); alert('Erro ao salvar dívida no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ alert('Erro ao salvar dívida no Supabase: ' + (e.message||e)); return; }
             } else {
-              state.dividas.unshift({ id:uid(), ...rec });
-              persist();
+              state.dividas.unshift({ id:uid(), ...rec }); persist();
             }
             renderDividas(); renderDashboard();
           }
@@ -780,7 +787,7 @@
           if(!confirm('Tem certeza que deseja excluir esta dívida?')) return;
           if (SB){
             try{ await SB.dividas.remove(id); }
-            catch(e){ console.error('[SB] Erro delete divida', e); alert('Erro ao excluir dívida no Supabase: ' + (e.message||e)); return; }
+            catch(e){ alert('Erro ao excluir dívida no Supabase: ' + (e.message||e)); return; }
           }
           state.dividas = state.dividas.filter(d=> d.id!==id);
           if(!SB) persist();
@@ -813,7 +820,7 @@
                 try{
                   const updated = await SB.dividas.update(d.id, patch);
                   Object.assign(d, updated);
-                }catch(e){ console.error('[SB] Erro update divida', e); alert('Erro ao atualizar dívida no Supabase: ' + (e.message||e)); return; }
+                }catch(e){ alert('Erro ao atualizar dívida no Supabase: ' + (e.message||e)); return; }
               } else {
                 Object.assign(d, patch); persist();
               }
@@ -826,49 +833,41 @@
     dividasWired=true;
   }
 
-  // Sair: signOut global + limpeza + redireciona com logout=1
+  // Sair
   function wireSair(){
     const btn = qs('#btnSair');
     if(!btn) return;
-
     btn.addEventListener('click', async () => {
       if (!confirm('Sair e limpar sessão?')) return;
-
       try {
         if (window.supabase && window.SUPABASE_URL && window.SUPABASE_ANON_KEY) {
           const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
             auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
           });
           await supa.auth.signOut({ scope: 'global' });
-          console.log('[Sair] signOut OK (global)');
-        } else {
-          console.warn('[Sair] Supabase client não disponível.');
         }
-      } catch (e) {
-        console.warn('[Sair] Erro no signOut:', e?.message || e);
-      } finally {
-        try {
-          Object.keys(localStorage).forEach(k => {
-            if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
-            if (k.startsWith('supabase.')) localStorage.removeItem(k);
-          });
-          sessionStorage.clear();
-          console.log('[Sair] Storage limpo.');
-        } catch {}
-        location.href = 'login.html?logout=1';
-      }
+      } catch {}
+      try {
+        Object.keys(localStorage).forEach(k => {
+          if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+          if (k.startsWith('supabase.')) localStorage.removeItem(k);
+        });
+        sessionStorage.clear();
+      } catch {}
+      location.href = 'login.html?logout=1';
     });
   }
 
-  // === Init ===
+  // Init
   async function init(){
     load();
 
+    // Se SB ativo, busca dados do próprio usuário
     if(SB){
+      try { await SB.ensureUser(); } catch {}
       try{ state.contas = await SB.contas.list(); }catch(e){ console.warn('Falha contas SB, usando local', e.message||e); }
       try{ state.gastos = await SB.gastos.list(); }catch(e){ console.warn('Falha gastos SB, usando local', e.message||e); }
       try{ state.salarios = await SB.salarios.list(); }catch(e){ console.warn('Falha salarios SB, usando local', e.message||e); }
-
       try{ state.fixas = await SB.fixas.list(); }catch(e){ console.warn('Falha fixas SB, usando local', e.message||e); }
       try{ state.dividas = await SB.dividas.list(); }catch(e){ console.warn('Falha dividas SB, usando local', e.message||e); }
       try{ state.categorias = await SB.categorias.list(); }catch(e){ console.warn('Falha categorias SB, usando local', e.message||e); }
