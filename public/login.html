@@ -63,7 +63,7 @@
       try {
         loginButton.disabled = true;
         loginButton.textContent = 'Entrando...';
-        const { data, error } = await supa.auth.signInWithPassword({ email, password });
+        const { error } = await supa.auth.signInWithPassword({ email, password });
         if (error) {
           showErr(`Erro: ${error.message}`);
         } else {
@@ -80,7 +80,20 @@
     loginButton.addEventListener('click', handleLogin);
     [emailInput, passwordInput].forEach(el => el.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); }));
 
-    // Checar sessão ao carregar — mas respeita flag logout=1 e limpa storage
+    // Utilitário para limpeza total local
+    function clearLocalAuth() {
+      try {
+        const keys = Object.keys(localStorage);
+        keys.forEach(k => {
+          if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
+          if (k.startsWith('supabase.')) localStorage.removeItem(k);
+        });
+        sessionStorage.clear();
+        console.log('[Login] Storage limpo.');
+      } catch {}
+    }
+
+    // Checagem de sessão com comportamento mais "duro"
     const params = new URLSearchParams(location.search);
     const cameFromLogout = params.get('logout') === '1';
 
@@ -88,33 +101,36 @@
       if (!supa) return;
 
       if (cameFromLogout) {
-        // Limpa qualquer token local remanescente antes de checar sessão
-        try {
-          const keys = Object.keys(localStorage);
-          keys.forEach(k => {
-            if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
-            if (k.startsWith('supabase.')) localStorage.removeItem(k);
-          });
-          sessionStorage.clear();
-          console.log('[Login] Storage limpo após logout.');
-        } catch(e) {
-          console.warn('[Login] Limpeza pós-logout falhou:', e);
-        }
-        // Não checa sessão nesta navegação de logout — fica na tela de login
+        // Garantir logout global + limpeza e permanecer na tela
+        try { await supa.auth.signOut({ scope: 'global' }); } catch {}
+        clearLocalAuth();
         console.log('[Login] Veio de logout: permanece na tela de login.');
         return;
       }
 
-      // Fluxo normal: checa sessão
-      const { data: { session }, error } = await supa.auth.getSession();
-      if (error) {
-        console.warn('[Login] Erro ao checar sessão:', error.message);
+      // 1) Verificar sessão local
+      const { data: { session }, error: sessErr } = await supa.auth.getSession();
+      if (sessErr) {
+        console.warn('[Login] Erro ao checar sessão:', sessErr.message);
         return;
       }
-      if (session) {
-        console.log('[Login] Sessão ativa, redirecionando para finance.html');
-        window.location.href = './finance.html';
+      if (!session) {
+        console.log('[Login] Sem sessão local: permanece.');
+        return;
       }
+
+      // 2) Validar sessão no servidor (ponto crítico para evitar redireciono indevido)
+      const { data: userData, error: userErr } = await supa.auth.getUser();
+      if (userErr || !userData?.user) {
+        console.log('[Login] Sessão inválida no servidor. Limpando e permanecendo.');
+        try { await supa.auth.signOut({ scope: 'global' }); } catch {}
+        clearLocalAuth();
+        return;
+      }
+
+      // 3) Sessão confirmada no servidor → redireciona
+      console.log('[Login] Sessão válida: redirecionando para finance.');
+      window.location.href = './finance.html';
     })();
   </script>
 </body>
