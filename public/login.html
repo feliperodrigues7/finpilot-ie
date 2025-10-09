@@ -1,137 +1,170 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>FinPilot IE - Login</title>
-  <link rel="icon" href="data:," />
-  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
   <style>
-    body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f2f5;margin:0}
-    .card{background:#fff;padding:2rem;border-radius:.5rem;box-shadow:0 4px 6px rgba(0,0,0,.1);width:100%;max-width:400px}
+    :root {
+      --bg: #0b1020;
+      --panel: #121832;
+      --muted: #9aa4c7;
+      --text: #e8ecff;
+      --primary: #4c7dff;
+      --danger: #ff5c5c;
+      --ok: #59d390;
+      --border: #1f2750;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+      background: linear-gradient(180deg, #0b1020, #0f1430 50%, #0b1020);
+      color: var(--text);
+      min-height: 100vh; display: grid; place-items: center;
+    }
+    .card {
+      width: 100%; max-width: 420px; background: var(--panel); border: 1px solid var(--border);
+      border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.45);
+    }
+    h1 { margin: 0 0 4px; font-size: 22px; }
+    .muted { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+    .tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; background: #0e1533; padding: 6px; border-radius: 12px; margin-bottom: 18px; }
+    .tabs button {
+      background: transparent; color: var(--muted); border: 0; padding: 10px 12px; border-radius: 10px; cursor: pointer; font-weight: 600;
+    }
+    .tabs button.active { background: var(--primary); color: white; }
+    form { display: grid; gap: 12px; }
+    label { font-size: 13px; color: var(--muted); margin-bottom: 6px; display: block; }
+    input {
+      width: 100%; background: #0b1130; color: var(--text); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px; outline: none;
+    }
+    .row { display: grid; gap: 12px; }
+    .btn { width: 100%; padding: 12px; border-radius: 10px; border: 0; cursor: pointer; font-weight: 700; }
+    .btn.primary { background: var(--primary); color: #fff; }
+    .btn.ghost { background: transparent; border: 1px solid var(--border); color: var(--text); }
+    .error { background: #2b1530; border: 1px solid #4a204f; color: #ffb1d6; padding: 10px; border-radius: 10px; display:none; }
+    .hint { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .footer { margin-top: 14px; font-size: 12px; color: var(--muted); text-align: center; }
   </style>
+  <script src="https://unpkg.com/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script>
+    // Config — preencha se necessário
+    window.SUPABASE_URL = window.SUPABASE_URL || 'COLOQUE_AQUI_SUA_URL';
+    window.SUPABASE_ANON_KEY = window.SUPABASE_ANON_KEY || 'COLOQUE_AQUI_SUA_ANON_KEY';
+  </script>
 </head>
 <body>
   <div class="card">
-    <h1 class="text-2xl font-bold mb-6 text-center">FinPilot IE - Login</h1>
-    <div id="login-form">
-      <div class="mb-4">
-        <label for="email" class="block text-gray-700 text-sm font-bold mb-2">E-mail:</label>
-        <input type="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="seu@email.com" autocomplete="username">
-      </div>
-      <div class="mb-6">
-        <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Senha:</label>
-        <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button id="login-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full">Entrar</button>
-      <p id="error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
+    <h1>FinPilot IE</h1>
+    <div class="muted">Acesse sua conta ou crie um novo cadastro</div>
+
+    <div class="tabs">
+      <button id="tabSignIn" class="active" type="button">Entrar</button>
+      <button id="tabSignUp" type="button">Cadastre-se</button>
     </div>
+
+    <div id="error" class="error"></div>
+
+    <form id="formSignIn">
+      <div>
+        <label for="inEmail">E-mail</label>
+        <input id="inEmail" type="email" autocomplete="email" required />
+      </div>
+      <div>
+        <label for="inPass">Senha</label>
+        <input id="inPass" type="password" autocomplete="current-password" required />
+      </div>
+      <button class="btn primary" type="submit">Entrar</button>
+    </form>
+
+    <form id="formSignUp" style="display:none">
+      <div>
+        <label for="upEmail">E-mail</label>
+        <input id="upEmail" type="email" autocomplete="email" required />
+      </div>
+      <div>
+        <label for="upPass">Senha</label>
+        <input id="upPass" type="password" autocomplete="new-password" minlength="6" required />
+        <div class="hint">Mínimo 6 caracteres</div>
+      </div>
+      <button class="btn primary" type="submit">Criar conta</button>
+      <div class="hint">Ao criar a conta, você verá o FinPilot IE em branco, só com seus dados.</div>
+    </form>
+
+    <div class="footer">Dica: se você chegou aqui clicando em Sair, seu navegador não será redirecionado automaticamente.</div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script type="module">
-    import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
+  <script>
+    const $ = (s, el=document)=> el.querySelector(s);
+    const showErr = (msg)=> { const e=$('#error'); e.textContent = msg || ''; e.style.display = msg? 'block':'none'; };
 
-    const showErr = (msg) => { document.getElementById('error-message').textContent = msg || ''; };
-
-    if (!window.supabase) {
-      showErr('SDK do Supabase não carregou. Verifique sua conexão.');
-    }
-
-    const supa = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON, {
+    const supa = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY, {
       auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
     });
 
-    const emailInput = document.getElementById('email');
-    const passwordInput = document.getElementById('password');
-    const loginButton = document.getElementById('login-button');
+    // Abas
+    $('#tabSignIn').addEventListener('click', ()=>{
+      $('#tabSignIn').classList.add('active'); $('#tabSignUp').classList.remove('active');
+      $('#formSignIn').style.display='grid'; $('#formSignUp').style.display='none'; showErr('');
+    });
+    $('#tabSignUp').addEventListener('click', ()=>{
+      $('#tabSignUp').classList.add('active'); $('#tabSignIn').classList.remove('active');
+      $('#formSignUp').style.display='grid'; $('#formSignIn').style.display='none'; showErr('');
+    });
 
-    async function handleLogin() {
-      showErr('');
-      const email = (emailInput.value || '').trim();
-      const password = passwordInput.value || '';
+    // Respeita logout=1: não redireciona automaticamente nesta navegação
+    const url = new URL(location.href);
+    const fromLogout = url.searchParams.get('logout') === '1';
 
-      if (!email || !password) {
-        showErr('Por favor, preencha e-mail e senha.');
-        return;
-      }
-      if (!supa) {
-        showErr('Cliente Supabase não inicializado.');
-        return;
-      }
-
+    (async function checkSession(){
       try {
-        loginButton.disabled = true;
-        loginButton.textContent = 'Entrando...';
-        const { error } = await supa.auth.signInWithPassword({ email, password });
-        if (error) {
-          showErr(`Erro: ${error.message}`);
-        } else {
-          window.location.href = './finance.html';
+        const { data: { session } } = await supa.auth.getSession();
+        if (session && !fromLogout) {
+          // Confirma usuário no servidor
+          const { data: u } = await supa.auth.getUser();
+          if (u?.user) location.href = 'finance.html';
         }
-      } catch (err) {
-        showErr(`Erro inesperado: ${err.message || err}`);
-      } finally {
-        loginButton.disabled = false;
-        loginButton.textContent = 'Entrar';
+      } catch (e) {
+        console.warn('[Login] Erro ao checar sessão:', e?.message || e);
       }
-    }
-
-    loginButton.addEventListener('click', handleLogin);
-    [emailInput, passwordInput].forEach(el => el.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); }));
-
-    // Utilitário para limpeza total local
-    function clearLocalAuth() {
-      try {
-        const keys = Object.keys(localStorage);
-        keys.forEach(k => {
-          if (k.startsWith('sb-') && k.endsWith('-auth-token')) localStorage.removeItem(k);
-          if (k.startsWith('supabase.')) localStorage.removeItem(k);
-        });
-        sessionStorage.clear();
-        console.log('[Login] Storage limpo.');
-      } catch {}
-    }
-
-    // Checagem de sessão com comportamento mais "duro"
-    const params = new URLSearchParams(location.search);
-    const cameFromLogout = params.get('logout') === '1';
-
-    (async () => {
-      if (!supa) return;
-
-      if (cameFromLogout) {
-        // Garantir logout global + limpeza e permanecer na tela
-        try { await supa.auth.signOut({ scope: 'global' }); } catch {}
-        clearLocalAuth();
-        console.log('[Login] Veio de logout: permanece na tela de login.');
-        return;
-      }
-
-      // 1) Verificar sessão local
-      const { data: { session }, error: sessErr } = await supa.auth.getSession();
-      if (sessErr) {
-        console.warn('[Login] Erro ao checar sessão:', sessErr.message);
-        return;
-      }
-      if (!session) {
-        console.log('[Login] Sem sessão local: permanece.');
-        return;
-      }
-
-      // 2) Validar sessão no servidor (ponto crítico para evitar redireciono indevido)
-      const { data: userData, error: userErr } = await supa.auth.getUser();
-      if (userErr || !userData?.user) {
-        console.log('[Login] Sessão inválida no servidor. Limpando e permanecendo.');
-        try { await supa.auth.signOut({ scope: 'global' }); } catch {}
-        clearLocalAuth();
-        return;
-      }
-
-      // 3) Sessão confirmada no servidor → redireciona
-      console.log('[Login] Sessão válida: redirecionando para finance.');
-      window.location.href = './finance.html';
     })();
+
+    // Entrar
+    $('#formSignIn').addEventListener('submit', async (ev)=>{
+      ev.preventDefault(); showErr('');
+      const email = $('#inEmail').value.trim();
+      const password = $('#inPass').value;
+      try {
+        const { error } = await supa.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        location.href = 'finance.html';
+      } catch (e) {
+        showErr(e?.message || 'Falha ao entrar');
+      }
+    });
+
+    // Cadastre-se
+    $('#formSignUp').addEventListener('submit', async (ev)=>{
+      ev.preventDefault(); showErr('');
+      const email = $('#upEmail').value.trim();
+      const password = $('#upPass').value;
+      try {
+        const { data, error } = await supa.auth.signUp({ email, password });
+        if (error) throw error;
+
+        // Algumas configurações do projeto exigem verificação de e-mail.
+        // Se a sessão já estiver criada, vamos direto. Senão, mostra aviso.
+        const { data: { session } } = await supa.auth.getSession();
+        if (session) {
+          location.href = 'finance.html';
+        } else {
+          showErr('Conta criada. Verifique seu e-mail para confirmar e depois faça login.');
+        }
+      } catch (e) {
+        showErr(e?.message || 'Falha ao criar conta');
+      }
+    });
   </script>
 </body>
 </html>
