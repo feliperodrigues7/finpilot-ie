@@ -39,11 +39,15 @@
   function contaById(id){ return state.contas.find(c=> c.id===id); }
   function getEmailByTitular(t){ const c = state.contas.find(x => (x.titular||'') === (t||'')); return (c && c.email) ? String(c.email).trim() : ''; }
 
-  // === Supabase Adapter ===
+  // === Supabase Adapter (com logs e exposição em window) ===
   const SB = (() => {
     try{
-      if(!window.SUPABASE_URL || !window.SUPABASE_ANON_KEY || !window.supabase) return null;
+      if (!window.SUPABASE_URL) { console.warn('[SB] SUPABASE_URL ausente'); return null; }
+      if (!window.SUPABASE_ANON_KEY) { console.warn('[SB] SUPABASE_ANON_KEY ausente'); return null; }
+      if (!window.supabase) { console.warn('[SB] SDK supabase ausente'); return null; }
+
       const client = window.supabase.createClient(window.SUPABASE_URL, window.SUPABASE_ANON_KEY);
+      console.log('[SB] Client criado');
 
       // contas
       async function listContas(){ const {data, error} = await client.from('contas').select('*').order('created_at', {ascending:false}); if(error) throw error; return data||[]; }
@@ -63,13 +67,18 @@
       async function updateSalario(id, patch){ const {data, error} = await client.from('salarios').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
       async function deleteSalario(id){ const {error} = await client.from('salarios').delete().eq('id', id); if(error) throw error; return true; }
 
-      return {
+      const api = {
         client,
         contas: { list:listContas, insert:insertConta, update:updateConta, remove:deleteConta },
         gastos: { list:listGastos, insert:insertGasto, update:updateGasto, remove:deleteGasto },
         salarios: { list:listSalarios, insert:insertSalario, update:updateSalario, remove:deleteSalario }
       };
-    }catch(e){ console.warn('Supabase init falhou:', e); return null; }
+      window.SB = api; // facilita debug no console
+      return api;
+    }catch(e){
+      console.error('[SB] Falha init:', e);
+      return null;
+    }
   })();
 
   // === Dashboard ===
@@ -181,9 +190,10 @@
         ],
         onSubmit: async (data)=>{
           const rec = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
+          console.log('[UI] Salvando Conta', { via: SB ? 'supabase' : 'local', rec });
           if (SB) {
             try { const saved = await SB.contas.insert(rec); state.contas.unshift(saved); }
-            catch(e){ alert('Erro ao salvar no Supabase: ' + (e.message || e)); return; }
+            catch(e){ console.error('[SB] Erro insert conta', e); alert('Erro ao salvar no Supabase: ' + (e.message || e)); return; }
           } else {
             state.contas.unshift({ id:uid(), ...rec }); persist();
           }
@@ -197,7 +207,7 @@
       const id=btn.dataset.id; const act=btn.dataset.act;
       if(act==='del-conta'){
         if(!confirm('Tem certeza que deseja excluir esta conta?')) return;
-        if (SB) { try { await SB.contas.remove(id); } catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message || e)); return; } }
+        if (SB) { try { await SB.contas.remove(id); } catch(e){ console.error('[SB] Erro delete conta', e); alert('Erro ao excluir no Supabase: ' + (e.message || e)); return; } }
         state.contas = state.contas.filter(c=> c.id!==id); if(!SB) persist(); renderContas(); renderDashboard();
       } else if(act==='edit-conta'){
         const c=state.contas.find(x=> x.id===id); if(!c) return;
@@ -211,9 +221,10 @@
           ],
           onSubmit: async (data)=>{
             const patch = { titular:data.titular, email:(data.email||'').trim(), banco:data.banco, tipo:data.tipo };
+            console.log('[UI] Atualizando Conta', { via: SB ? 'supabase' : 'local', patch });
             if (SB) {
               try { const updated = await SB.contas.update(c.id, patch); Object.assign(c, updated); }
-              catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message || e)); return; }
+              catch(e){ console.error('[SB] Erro update conta', e); alert('Erro ao atualizar no Supabase: ' + (e.message || e)); return; }
             } else {
               Object.assign(c, patch); persist();
             }
@@ -268,11 +279,12 @@
               valor: Number(data.valor||0),
               status: data.status || 'aberta'
             };
+            console.log('[UI] Salvando Gasto', { via: SB ? 'supabase' : 'local', rec });
             if (SB){
               try{
                 const saved = await SB.gastos.insert(rec);
                 state.gastos.unshift(saved);
-              }catch(e){ alert('Erro ao salvar gasto no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ console.error('[SB] Erro insert gasto', e); alert('Erro ao salvar gasto no Supabase: ' + (e.message||e)); return; }
             } else {
               state.gastos.unshift({ id:uid(), ...rec });
               persist();
@@ -288,7 +300,7 @@
         const id=btn.dataset.id; const act=btn.dataset.act;
         if(act==='del-gasto'){
           if(!confirm('Excluir este gasto?')) return;
-          if(SB){ try{ await SB.gastos.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
+          if(SB){ try{ await SB.gastos.remove(id); }catch(e){ console.error('[SB] Erro delete gasto', e); alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
           state.gastos = state.gastos.filter(g=> g.id!==id);
           if(!SB) persist();
           renderGastos(); renderDashboard();
@@ -314,11 +326,12 @@
                 valor: Number(data.valor||0),
                 status: data.status || 'aberta'
               };
+              console.log('[UI] Atualizando Gasto', { via: SB ? 'supabase' : 'local', patch });
               if(SB){
                 try{
                   const updated = await SB.gastos.update(g.id, patch);
                   Object.assign(g, updated);
-                }catch(e){ alert('Erro ao atualizar no Supabase: ' + (e.message||e)); return; }
+                }catch(e){ console.error('[SB] Erro update gasto', e); alert('Erro ao atualizar no Supabase: ' + (e.message||e)); return; }
               } else {
                 Object.assign(g, patch); persist();
               }
@@ -368,11 +381,12 @@
               horas: data.horas ? Number(data.horas) : null,
               valor: Number(data.valor||0)
             };
+            console.log('[UI] Salvando Salário', { via: SB ? 'supabase' : 'local', rec });
             if (SB){
               try{
                 const saved = await SB.salarios.insert(rec);
                 state.salarios.unshift(saved);
-              }catch(e){ alert('Erro ao salvar salário no Supabase: ' + (e.message||e)); return; }
+              }catch(e){ console.error('[SB] Erro insert salario', e); alert('Erro ao salvar salário no Supabase: ' + (e.message||e)); return; }
             } else {
               state.salarios.unshift({ id:uid(), ...rec });
               persist();
@@ -388,7 +402,7 @@
         if(btn.dataset.act==='del-salario'){
           if(!confirm('Tem certeza que deseja excluir este salário?')) return;
           const id=btn.dataset.id;
-          if(SB){ try{ await SB.salarios.remove(id); }catch(e){ alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
+          if(SB){ try{ await SB.salarios.remove(id); }catch(e){ console.error('[SB] Erro delete salario', e); alert('Erro ao excluir no Supabase: ' + (e.message||e)); return; } }
           state.salarios = state.salarios.filter(s=> s.id!==id);
           if(!SB) persist();
           renderSalarios(); renderDashboard();
@@ -647,6 +661,8 @@
       try{ state.contas = await SB.contas.list(); }catch(e){ console.warn('Falha contas SB, usando local', e.message||e); }
       try{ state.gastos = await SB.gastos.list(); }catch(e){ console.warn('Falha gastos SB, usando local', e.message||e); }
       try{ state.salarios = await SB.salarios.list(); }catch(e){ console.warn('Falha salarios SB, usando local', e.message||e); }
+    } else {
+      console.warn('[SB] Inativo — operando em LocalStorage');
     }
 
     initNav();
