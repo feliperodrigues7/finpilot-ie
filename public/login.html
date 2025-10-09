@@ -1,105 +1,105 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FinPilot IE - Login</title>
-    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
-    <style>
-        body {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background-color: #f0f2f5;
-        }
-        .card {
-            background-color: #fff;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            width: 100%;
-            max-width: 400px;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>FinPilot IE - Login</title>
+  <link rel="icon" href="data:," />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet"/>
+  <style>
+    body{display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f0f2f5;margin:0}
+    .card{background:#fff;padding:2rem;border-radius:.5rem;box-shadow:0 4px 6px rgba(0,0,0,.1);width:100%;max-width:400px}
+  </style>
 </head>
 <body>
-    <div class="card">
-        <h1 class="text-2xl font-bold mb-6 text-center">FinPilot IE - Login</h1>
-        <div id="login-form">
-            <div class="mb-4">
-                <label for="email" class="block text-gray-700 text-sm font-bold mb-2">E-mail:</label>
-                <input type="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline" placeholder="seu@email.com" autocomplete="username">
-            </div>
-            <div class="mb-6">
-                <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Senha:</label>
-                <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 mb-3 leading-tight focus:outline-none focus:shadow-outline" placeholder="••••••••" autocomplete="current-password">
-            </div>
-            <div class="flex items-center justify-between">
-                <button id="login-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline w-full">Entrar</button>
-            </div>
-            <p id="error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
-        </div>
+  <div class="card">
+    <h1 class="text-2xl font-bold mb-6 text-center">FinPilot IE - Login</h1>
+    <div id="login-form">
+      <div class="mb-4">
+        <label for="email" class="block text-gray-700 text-sm font-bold mb-2">E-mail:</label>
+        <input type="email" id="email" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="seu@email.com" autocomplete="username">
+      </div>
+      <div class="mb-6">
+        <label for="password" class="block text-gray-700 text-sm font-bold mb-2">Senha:</label>
+        <input type="password" id="password" class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button id="login-button" class="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded w-full">Entrar</button>
+      <p id="error-message" class="text-red-500 text-xs italic mt-4 text-center"></p>
     </div>
+  </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script type="module">
-        import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script type="module">
+    import { SUPABASE_URL, SUPABASE_ANON } from './config.js';
 
-        const supa = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON, {
-            auth: {
-                persistSession: true,
-                autoRefreshToken: true,
-                detectSessionInUrl: true
-            }
-        });
+    const showErr = (msg) => { document.getElementById('error-message').textContent = msg || ''; };
 
-        const emailInput = document.getElementById('email');
-        const passwordInput = document.getElementById('password');
-        const loginButton = document.getElementById('login-button');
-        const errorMessage = document.getElementById('error-message');
+    if (!window.supabase) {
+      showErr('SDK do Supabase não carregou. Verifique sua conexão.');
+    }
 
-        async function handleLogin() {
-            errorMessage.textContent = '';
-            const email = emailInput.value.trim();
-            const password = passwordInput.value;
+    const supa = window.supabase?.createClient(SUPABASE_URL, SUPABASE_ANON, {
+      auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+    });
 
-            if (!email || !password) {
-                errorMessage.textContent = 'Por favor, preencha e-mail e senha.';
-                return;
-            }
+    const emailInput = document.getElementById('email');
+    const passwordInput = document.getElementById('password');
+    const loginButton = document.getElementById('login-button');
 
-            try {
-                const { data, error } = await supa.auth.signInWithPassword({ email, password });
-                if (error) {
-                    errorMessage.textContent = `Erro ao fazer login: ${error.message}`;
-                } else {
-                    window.location.href = './finance.html';
-                }
-            } catch (err) {
-                errorMessage.textContent = `Erro inesperado: ${err.message}`;
-            }
+    async function handleLogin() {
+      showErr('');
+      const email = (emailInput.value || '').trim();
+      const password = passwordInput.value || '';
+
+      if (!email || !password) {
+        showErr('Por favor, preencha e-mail e senha.');
+        return;
+      }
+      if (!supa) {
+        showErr('Cliente Supabase não inicializado.');
+        return;
+      }
+
+      try {
+        loginButton.disabled = true;
+        loginButton.textContent = 'Entrando...';
+        const { data, error } = await supa.auth.signInWithPassword({ email, password });
+        if (error) {
+          showErr(`Erro: ${error.message}`);
+        } else {
+          window.location.href = './finance.html';
         }
+      } catch (err) {
+        showErr(`Erro inesperado: ${err.message || err}`);
+      } finally {
+        loginButton.disabled = false;
+        loginButton.textContent = 'Entrar';
+      }
+    }
 
-        loginButton.addEventListener('click', handleLogin);
-        passwordInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleLogin();
-            }
-        });
-        emailInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                handleLogin();
-            }
-        });
+    loginButton.addEventListener('click', handleLogin);
+    [emailInput, passwordInput].forEach(el => el.addEventListener('keypress', e => { if (e.key === 'Enter') handleLogin(); }));
 
-        async function checkSession() {
-            const { data: { session } } = await supa.auth.getSession();
-            if (session) {
-                window.location.href = './finance.html';
-            }
-        }
-        checkSession();
-    </script>
+    // Checar sessão ao carregar — mas respeita flag logout=1
+    const params = new URLSearchParams(location.search);
+    const cameFromLogout = params.get('logout') === '1';
+
+    (async () => {
+      if (!supa) return;
+      if (cameFromLogout) {
+        console.log('[Login] Veio de logout, não redireciona automaticamente.');
+        return;
+      }
+      const { data: { session }, error } = await supa.auth.getSession();
+      if (error) {
+        console.warn('[Login] Erro ao checar sessão:', error.message);
+        return;
+      }
+      if (session) {
+        console.log('[Login] Sessão ativa, redirecionando para finance.html');
+        window.location.href = './finance.html';
+      }
+    })();
+  </script>
 </body>
 </html>
