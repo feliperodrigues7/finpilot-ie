@@ -67,13 +67,39 @@
       async function updateSalario(id, patch){ const {data, error} = await client.from('salarios').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
       async function deleteSalario(id){ const {error} = await client.from('salarios').delete().eq('id', id); if(error) throw error; return true; }
 
+      // fixas
+      async function listFixas(){ const {data, error} = await client.from('fixas').select('*').order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
+      async function insertFixa(rec){ const {data, error} = await client.from('fixas').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function updateFixa(id, patch){ const {data, error} = await client.from('fixas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
+      async function deleteFixa(id){ const {error} = await client.from('fixas').delete().eq('id', id); if(error) throw error; return true; }
+
+      // dividas
+      async function listDividas(){ const {data, error} = await client.from('dividas').select('*').order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
+      async function insertDivida(rec){ const {data, error} = await client.from('dividas').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function updateDivida(id, patch){ const {data, error} = await client.from('dividas').update(patch).eq('id', id).select('*').single(); if(error) throw error; return data; }
+      async function deleteDivida(id){ const {error} = await client.from('dividas').delete().eq('id', id); if(error) throw error; return true; }
+
+      // categorias
+      async function listCategorias(){ const {data, error} = await client.from('categorias').select('*').order('nome',{ascending:true}); if(error) throw error; return data||[]; }
+      async function insertCategoria(rec){ const {data, error} = await client.from('categorias').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function deleteCategoria(id){ const {error} = await client.from('categorias').delete().eq('id', id); if(error) throw error; return true; }
+
+      // transferencias
+      async function listTransfers(){ const {data, error} = await client.from('transferencias').select('*').order('data',{ascending:false}).order('created_at',{ascending:false}); if(error) throw error; return data||[]; }
+      async function insertTransfer(rec){ const {data, error} = await client.from('transferencias').insert(rec).select('*').single(); if(error) throw error; return data; }
+      async function deleteTransfer(id){ const {error} = await client.from('transferencias').delete().eq('id', id); if(error) throw error; return true; }
+
       const api = {
         client,
         contas: { list:listContas, insert:insertConta, update:updateConta, remove:deleteConta },
         gastos: { list:listGastos, insert:insertGasto, update:updateGasto, remove:deleteGasto },
-        salarios: { list:listSalarios, insert:insertSalario, update:updateSalario, remove:deleteSalario }
+        salarios: { list:listSalarios, insert:insertSalario, update:updateSalario, remove:deleteSalario },
+        fixas: { list:listFixas, insert:insertFixa, update:updateFixa, remove:deleteFixa },
+        dividas: { list:listDividas, insert:insertDivida, update:updateDivida, remove:deleteDivida },
+        categorias: { list:listCategorias, insert:insertCategoria, remove:deleteCategoria },
+        transferencias: { list:listTransfers, insert:insertTransfer, remove:deleteTransfer }
       };
-      window.SB = api; // facilita debug no console
+      window.SB = api; // facilita debug
       return api;
     }catch(e){
       console.error('[SB] Falha init:', e);
@@ -427,28 +453,42 @@
   function wireCategorias(){
     if(categoriasWired) return;
     const btn=qs('#btnNewCategoria'); if(btn){
-      btn.addEventListener('click', ()=>{
+      btn.addEventListener('click', async ()=>{
         modal.open({
           title:'Nova categoria',
           fields:[
             { label:'Nome', name:'nome', type:'text', required:true },
             { label:'Tipo', name:'tipo', type:'select', options:['entrada','saida'], value:'saida' }
           ],
-          onSubmit:(data)=>{
-            state.categorias.unshift({ id:uid(), nome:data.nome, tipo:data.tipo });
-            persist(); renderCategorias();
+          onSubmit: async (data)=>{
+            const rec = { nome:data.nome, tipo:data.tipo };
+            if (SB){
+              try{
+                const saved = await SB.categorias.insert(rec);
+                state.categorias.unshift(saved);
+              }catch(e){ console.error('[SB] Erro insert categoria', e); alert('Erro ao salvar categoria no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.categorias.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderCategorias();
           }
         });
       });
     }
     const table=qs('#tblCategorias'); if(table){
-      table.addEventListener('click',(e)=>{
+      table.addEventListener('click', async (e)=>{
         const btn=e.target.closest('button[data-act]'); if(!btn) return;
         if(btn.dataset.act==='del-categoria'){
           if(!confirm('Excluir esta categoria?')) return;
           const id=btn.dataset.id;
+          if (SB){
+            try{ await SB.categorias.remove(id); }
+            catch(e){ console.error('[SB] Erro delete categoria', e); alert('Erro ao excluir categoria no Supabase: ' + (e.message||e)); return; }
+          }
           state.categorias = state.categorias.filter(c=> c.id!==id);
-          persist(); renderCategorias();
+          if(!SB) persist();
+          renderCategorias();
         }
       });
     }
@@ -460,8 +500,12 @@
     const tbody=qs('#tblTransfers tbody'); if(!tbody) return;
     tbody.innerHTML='';
     state.transferencias.forEach(t=>{
+      const cDe = contaById(t.de_id);
+      const cPara = contaById(t.para_id);
+      const deLabel = cDe ? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})` : '-';
+      const paraLabel = cPara ? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})` : '-';
       const tr=document.createElement('tr');
-      tr.innerHTML=`<td>${fmtDate(t.data)}</td><td><span class="pill">${t.tipo}</span></td><td>${t.de_label||''}</td><td>${t.para_label||''}</td><td>${fmtEUR(t.valor)}</td><td>${t.descricao||''}</td>
+      tr.innerHTML=`<td>${fmtDate(t.data)}</td><td><span class="pill">${t.tipo}</span></td><td>${deLabel}</td><td>${paraLabel}</td><td>${fmtEUR(t.valor)}</td><td>${t.descricao||''}</td>
         <td class="actions"><button class="btn danger" data-act="del-transfer" data-id="${t.id}">Excluir</button></td>`;
       tbody.appendChild(tr);
     });
@@ -482,23 +526,42 @@
             { label:'Valor (EUR)', name:'valor', type:'number', step:'0.01', required:true },
             { label:'Descrição', name:'descricao', type:'textarea', rows:3 }
           ],
-          onSubmit:(data)=>{
-            const cDe=contaById(data.de_id);
-            const cPara=contaById(data.para_id);
-            state.transferencias.unshift({ id:uid(), data:toISO(data.data), tipo:data.tipo, de_id:data.de_id||null, para_id:data.para_id||null, de_label: cDe? `${cDe.titular} - ${cDe.tipo} (${cDe.banco})`:'-', para_label: cPara? `${cPara.titular} - ${cPara.tipo} (${cPara.banco})`:'-', valor:Number(data.valor||0), descricao:data.descricao||'' });
-            persist(); renderTransfers();
+          onSubmit: async (data)=>{
+            const rec = {
+              data: toISO(data.data),
+              tipo: data.tipo,
+              de_id: data.de_id || null,
+              para_id: data.para_id || null,
+              valor: Number(data.valor || 0),
+              descricao: data.descricao || ''
+            };
+            if (SB){
+              try{
+                const saved = await SB.transferencias.insert(rec);
+                state.transferencias.unshift(saved);
+              }catch(e){ console.error('[SB] Erro insert transferência', e); alert('Erro ao salvar transferência no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.transferencias.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderTransfers(); renderDashboard();
           }
         });
       });
     }
     const table=qs('#tblTransfers'); if(table){
-      table.addEventListener('click',(e)=>{
+      table.addEventListener('click', async (e)=>{
         const btn=e.target.closest('button[data-act]'); if(!btn) return;
         if(btn.dataset.act==='del-transfer'){
           if(!confirm('Tem certeza que deseja excluir esta transferência?')) return;
           const id=btn.dataset.id;
+          if (SB){
+            try{ await SB.transferencias.remove(id); }
+            catch(e){ console.error('[SB] Erro delete transferência', e); alert('Erro ao excluir transferência no Supabase: ' + (e.message||e)); return; }
+          }
           state.transferencias = state.transferencias.filter(t=> t.id!==id);
-          persist(); renderTransfers();
+          if(!SB) persist();
+          renderTransfers(); renderDashboard();
         }
       });
     }
@@ -537,25 +600,43 @@
             { label:'Observações', name:'obs', type:'textarea', rows:3 },
             { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:'aberta' }
           ],
-          onSubmit:(data)=>{
-            state.fixas.unshift({
-              id:uid(), nome:data.nome, titular:data.titular,
-              valor:Number(data.valor||0), data: data.data? toISO(data.data):'',
-              semana:data.semana||'', status:data.status||'aberta', obs:data.obs||''
-            });
-            persist(); renderFixas();
+          onSubmit: async (data)=>{
+            const rec = {
+              nome:data.nome,
+              titular:data.titular,
+              valor:Number(data.valor||0),
+              data: data.data? toISO(data.data):'',
+              semana:data.semana||'',
+              status:data.status||'aberta',
+              obs:data.obs||''
+            };
+            if (SB){
+              try{
+                const saved = await SB.fixas.insert(rec);
+                state.fixas.unshift(saved);
+              }catch(e){ console.error('[SB] Erro insert fixa', e); alert('Erro ao salvar fixa no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.fixas.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderFixas(); renderDashboard();
           }
         });
       });
     }
     const table=qs('#tblFixas'); if(table){
-      table.addEventListener('click',(e)=>{
+      table.addEventListener('click', async (e)=>{
         const btn=e.target.closest('button[data-act]'); if(!btn) return;
         const id=btn.dataset.id; const act=btn.dataset.act;
         if(act==='del-fixa'){
           if(!confirm('Tem certeza que deseja excluir esta despesa fixa?')) return;
+          if (SB){
+            try{ await SB.fixas.remove(id); }
+            catch(e){ console.error('[SB] Erro delete fixa', e); alert('Erro ao excluir fixa no Supabase: ' + (e.message||e)); return; }
+          }
           state.fixas = state.fixas.filter(f=> f.id!==id);
-          persist(); renderFixas();
+          if(!SB) persist();
+          renderFixas(); renderDashboard();
         } else if(act==='edit-fixa'){
           const f=state.fixas.find(x=> x.id===id); if(!f) return;
           const people=pessoasFromContas();
@@ -570,9 +651,25 @@
               { label:'Observações', name:'obs', type:'textarea', rows:3, value:f.obs||'' },
               { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:f.status||'aberta' }
             ],
-            onSubmit:(data)=>{
-              Object.assign(f,{ nome:data.nome, titular:data.titular, valor:Number(data.valor||0), data:data.data? toISO(data.data):'', semana:data.semana||'', status:data.status||'aberta', obs:data.obs||'' });
-              persist(); renderFixas();
+            onSubmit: async (data)=>{
+              const patch = {
+                nome:data.nome,
+                titular:data.titular,
+                valor:Number(data.valor||0),
+                data:data.data? toISO(data.data):'',
+                semana:data.semana||'',
+                status:data.status||'aberta',
+                obs:data.obs||''
+              };
+              if (SB){
+                try{
+                  const updated = await SB.fixas.update(f.id, patch);
+                  Object.assign(f, updated);
+                }catch(e){ console.error('[SB] Erro update fixa', e); alert('Erro ao atualizar fixa no Supabase: ' + (e.message||e)); return; }
+              } else {
+                Object.assign(f, patch); persist();
+              }
+              renderFixas(); renderDashboard();
             }
           });
         }
@@ -611,21 +708,43 @@
             { label:'Observações', name:'obs', type:'textarea', rows:3 },
             { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:'aberta' }
           ],
-          onSubmit:(data)=>{
-            state.dividas.unshift({ id:uid(), nome:data.nome, titular:data.titular||'', valor:Number(data.valor||0), semana:data.semana||'', vencimento:data.vencimento? toISO(data.vencimento):'', status:data.status||'aberta', obs:data.obs||'' });
-            persist(); renderDividas();
+          onSubmit: async (data)=>{
+            const rec = {
+              nome:data.nome,
+              titular:data.titular||'',
+              valor:Number(data.valor||0),
+              semana:data.semana||'',
+              vencimento:data.vencimento? toISO(data.vencimento):'',
+              status:data.status||'aberta',
+              obs:data.obs||''
+            };
+            if (SB){
+              try{
+                const saved = await SB.dividas.insert(rec);
+                state.dividas.unshift(saved);
+              }catch(e){ console.error('[SB] Erro insert divida', e); alert('Erro ao salvar dívida no Supabase: ' + (e.message||e)); return; }
+            } else {
+              state.dividas.unshift({ id:uid(), ...rec });
+              persist();
+            }
+            renderDividas(); renderDashboard();
           }
         });
       });
     }
     const table=qs('#tblDividas'); if(table){
-      table.addEventListener('click',(e)=>{
+      table.addEventListener('click', async (e)=>{
         const btn=e.target.closest('button[data-act]'); if(!btn) return;
         const id=btn.dataset.id; const act=btn.dataset.act;
         if(act==='del-divida'){
           if(!confirm('Tem certeza que deseja excluir esta dívida?')) return;
+          if (SB){
+            try{ await SB.dividas.remove(id); }
+            catch(e){ console.error('[SB] Erro delete divida', e); alert('Erro ao excluir dívida no Supabase: ' + (e.message||e)); return; }
+          }
           state.dividas = state.dividas.filter(d=> d.id!==id);
-          persist(); renderDividas();
+          if(!SB) persist();
+          renderDividas(); renderDashboard();
         } else if(act==='edit-divida'){
           const d=state.dividas.find(x=> x.id===id); if(!d) return;
           const people=pessoasFromContas();
@@ -640,9 +759,25 @@
               { label:'Observações', name:'obs', type:'textarea', rows:3, value:d.obs||'' },
               { label:'Status', name:'status', type:'select', options:['aberta','paga','negociada'], value:d.status||'aberta' }
             ],
-            onSubmit:(data)=>{
-              Object.assign(d,{ nome:data.nome, titular:data.titular||'', valor:Number(data.valor||0), semana:data.semana||'', vencimento:data.vencimento? toISO(data.vencimento):'', status:data.status||'aberta', obs:data.obs||'' });
-              persist(); renderDividas();
+            onSubmit: async (data)=>{
+              const patch = {
+                nome:data.nome,
+                titular:data.titular||'',
+                valor:Number(data.valor||0),
+                semana:data.semana||'',
+                vencimento:data.vencimento? toISO(data.vencimento):'',
+                status:data.status||'aberta',
+                obs:data.obs||''
+              };
+              if (SB){
+                try{
+                  const updated = await SB.dividas.update(d.id, patch);
+                  Object.assign(d, updated);
+                }catch(e){ console.error('[SB] Erro update divida', e); alert('Erro ao atualizar dívida no Supabase: ' + (e.message||e)); return; }
+              } else {
+                Object.assign(d, patch); persist();
+              }
+              renderDividas(); renderDashboard();
             }
           });
         }
@@ -661,6 +796,11 @@
       try{ state.contas = await SB.contas.list(); }catch(e){ console.warn('Falha contas SB, usando local', e.message||e); }
       try{ state.gastos = await SB.gastos.list(); }catch(e){ console.warn('Falha gastos SB, usando local', e.message||e); }
       try{ state.salarios = await SB.salarios.list(); }catch(e){ console.warn('Falha salarios SB, usando local', e.message||e); }
+
+      try{ state.fixas = await SB.fixas.list(); }catch(e){ console.warn('Falha fixas SB, usando local', e.message||e); }
+      try{ state.dividas = await SB.dividas.list(); }catch(e){ console.warn('Falha dividas SB, usando local', e.message||e); }
+      try{ state.categorias = await SB.categorias.list(); }catch(e){ console.warn('Falha categorias SB, usando local', e.message||e); }
+      try{ state.transferencias = await SB.transferencias.list(); }catch(e){ console.warn('Falha transferencias SB, usando local', e.message||e); }
     } else {
       console.warn('[SB] Inativo — operando em LocalStorage');
     }
